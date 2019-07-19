@@ -118,7 +118,17 @@ world"))
     (assert-equalp nil
         (with-open-stream (*standard-output* (make-broadcast-stream))
           (py4cl2:raw-pyeval "print(\"hello\")"))
-      "This fails with python 2")))
+				"This fails with python 2")))
+
+(deftest unicode-string-type (callpython-raw)
+  ;; Python 2 and python 3 handle unicode differently
+  ;; This just catches the use of unicode type strings in python2
+  ;; not the use of unicode characters
+  (assert-equal "test unicode"
+                (py4cl2:pyeval "u'test unicode'"))
+  (assert-equal 3
+                (gethash "pizza"
+                         (py4cl2:pyeval "{u'pizza': 3}"))))
 
 ;; ======================== CALLPYTHON-UTILITY =====================================
 
@@ -453,6 +463,12 @@ class testclass:
                  (py4cl2:with-remote-objects 
                    (py4cl2:pyeval "1+2"))
                  (py4cl2:pyeval "1+2")))))
+
+(deftest callback-in-remote-objects (callpython-remote)
+  ;; Callbacks send values to lisp in remote-objects environments
+  (assert-equalp 6
+      (py4cl2:with-remote-objects*
+        (py4cl2:pycall (lambda (x y) (* x y)) 2 3))))
 
 
 ;; ========================== IMPORT-EXPORT ====================================
