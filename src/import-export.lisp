@@ -60,8 +60,12 @@
                      symbol-name "/1")
         symbol-name)))
 
+(defun pythonize-kwargs (arg-plist)
+  (iter (generate elt in arg-plist)
+        (collect (pythonize (next elt)))
+        (collect (pythonize (next elt)))
+        (collect ",")))
 
-;; possible due to python!
 ;; https://stackoverflow.com/questions/2677185/how-can-i-read-a-functions-signature-including-default-argument-values
 (defun get-arg-list (fullname lisp-package)
   "Returns a list of two lists: PARAMETER-LIST and PASS_LIST"
@@ -70,54 +74,66 @@
              (arg-list-without-keys
               (iter (for ch in-string "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
                     (for i below n)
-                    (collect (intern (format nil "~A" ch) lisp-package)))))
+                    (collect (intern (string ch) lisp-package)))))
         `(,(append arg-list-without-keys
                    '(&rest keys &key out (where t) &allow-other-keys))
            ((declare (ignore out where))
             (apply #'pycall ,fullname ,@arg-list-without-keys keys))))
       (let* ((signature (ignore-errors (pyeval "inspect.signature(" fullname ")")))
              ;; errors could be value error or type error
-             (pos-only (find #\/ (pycall 'str signature)))
+             (pos-only (find #\/ (pyeval "str(" signature ")")))
              ;; we are ignoring futther keyword args
              (sig-dict (if signature
                            (pyeval "dict(" signature ".parameters)")
                            (make-hash-table)))
              (default-return (list '(&rest args) ; see the case for allow-other-keys
                                    `(() (apply #'pycall ,fullname args))))
-             (allow-other-keys nil))
+             (allow-other-keys nil)
+             arg-symbol)
+        ;; below, pass-list is the argument list passed to the raw-pyexec,
+        ;; or underlying function
+        ;; parameter-list is the argument list corresponding to defun-visible-to-the-user
         (iter (for (key val) in-hashtable sig-dict)
               (for name = (pyeval val ".name"))
               (for default = (pyeval val ".default"))
-              (when (or (some #'upper-case-p name)
-                        (typep default 'python-object))
+              
+              (when (or ;(some #'upper-case-p name)
+                     (typep default 'python-object))
                 (return-from get-arg-list default-return))
               (if (search "**" (pyeval "str(" val ")"))
                   (progn
                     (setq allow-other-keys t)
                     (collect 'cl:&allow-other-keys into parameter-list))
                   (progn
-                    (collect (list (intern (lispify-name name) lisp-package)
+                    (setq arg-symbol (intern (lispify-name name) lisp-package))
+                    (collect (list arg-symbol
                                    (if (or (symbolp default) (listp default))
                                        `',default
                                        default))
                       into parameter-list)
-                    (collect (if pos-only
-                                 (intern (lispify-name name) lisp-package)
-                                 (list (intern (lispify-name name) :keyword)
-                                       (intern (lispify-name name) lisp-package)))
-                      into pass-list)))
-              
+                    (collect arg-symbol into parameter-list-without-defaults)
+                    (appending (if pos-only
+                                   `((pythonize ,arg-symbol) ",")
+                                   `(,name "=" (pythonize ,arg-symbol) ","))
+                               into pass-list)))
               (finally 
                (return-from get-arg-list
-                 (cond ((null pass-list)  default-return)
-                       (pos-only (list `(&optional ,@parameter-list)
-                                       `(() (pycall ,fullname ,@pass-list))))
+                 (cond ((null pass-list) default-return)
+                       (pos-only `((&optional ,@parameter-list)
+                                   (() (raw-pyeval ,fullname "(" ,@pass-list ")"))))
                        (allow-other-keys
-                        (list `(&rest args &key ,@parameter-list)
-                              `((declare (ignore ,@(mapcar #'second pass-list)))
-                                (apply #'pycall ,fullname args))))
-                       (t (list `(&key ,@parameter-list)
-                                `(() (pycall ,fullname ,@(apply #'append pass-list))))))))))))
+                        `((&rest args &key ,@parameter-list &allow-other-keys)
+                          (raw-pyeval ,fullname "(" ,@pass-list
+                                      (pythonize-kwargs
+                                       (mapc (lambda (symbol)
+                                               (remf args
+                                                     (find-symbol (symbol-name symbol))))
+                                             parameter-list-without-defaults))
+                                      ")")))
+                       (t `((&key ,@parameter-list)
+                            (() (raw-pyeval ,fullname "(" ,@pass-list ")")))))))))))
+
+
 
 (defun pymethod-list (python-object &key (as-vector nil))
   (pyexec "import inspect")
@@ -206,17 +222,18 @@ Arguments:
                        (or as fun-name)))
          (fun-doc (pyeval fullname ".__doc__"))
          (fun-symbol (intern lisp-fun-name lisp-package)))
-    (destructuring-bind (parameter-list pass-list) (get-arg-list fullname (find-package lisp-package))
+    (destructuring-bind (parameter-list pass-list)
+        (get-arg-list fullname (find-package lisp-package))
       `(defun ,fun-symbol (,@parameter-list)
-           ,(or fun-doc "Python function")
-           ,(first pass-list)
-           ,(when safety
-              (if (builtin-p pymodule-name)
-                  `(python-start-if-not-alive)
-                  (if called-from-defpymodule
-                      `(pyexec "import " ,pymodule-name)
-                      `(pyexec "from " ,pymodule-name " import " ,fun-name " as " ,as))))
-           ,(second pass-list)))))
+         ,(or fun-doc "Python function")
+         ,(first pass-list)
+         ,(when safety
+            (if (builtin-p pymodule-name)
+                `(python-start-if-not-alive)
+                (if called-from-defpymodule
+                    `(pyexec "import " ,pymodule-name)
+                    `(pyexec "from " ,pymodule-name " import " ,fun-name " as " ,as))))
+         ,(second pass-list)))))
 
 
 (defmacro defpysubmodules (pymodule-name lisp-package)

@@ -141,36 +141,28 @@ Can be useful for modifying a value directly in python.
   (apply #'pyexec (append args (list "=" value))) ; would nconc be better?
   value)
 
-(defun pythonize-name (name)
-  "Returns downcased SYMBOL-NAME of SYMBOL, and hyphens replaced with underscores.
-  Eg. (pythonize-name 'some-example) -> \"some_example\".
-Returns the string as it is."
-  (etypecase name
-    (string name)
-    (symbol (iter (for char in-string (format nil "~(~a~)" name))
-                  (collect (if (char= char #\-)
-                               #\_
-                               char)
-                    result-type string)))
-    (t (pythonize name))))
-
-;; Note: PYCALL does not use PYEVAL/RAW-PYEVAL
 (defun pycall (fun-name &rest args)
-  "Calls FUN-NAME with ARGS as arguments. Arguments can be keyword based, or 
-otherwise. 
-FUN-NAME can be a string, symbol or python-object.
-  eval is used if FUN-NAME is not a PYTHON-OBJECT.
-  If FUN-NAME is a symbol, the name of the symbol is used after calling
-    PYTHONIZE-NAME on it. 
-  FUN-NAME is NOT PYTHONIZEd if it is a string."
+    "Calls FUN-NAME with ARGS as arguments. Arguments can be keyword based, or 
+ otherwise."
   (python-start-if-not-alive) ; should delete here? what about async?
   (delete-freed-python-objects) ; delete before pythonizing
   (delete-numpy-pickle-arrays)
-  (let ((stream (uiop:process-info-input *python*)))
-    (write-char #\f stream) ; function call
-    (stream-write-value `(,(pythonize-name fun-name) ,args) stream)
-    (force-output stream))
-  (dispatch-messages *python*))
+  (apply #'raw-pyeval
+         "("
+         (typecase fun-name
+           (string fun-name)
+           (t (pythonize fun-name)))
+         ")"
+         "("
+         `(,@(iter (for arg in args)
+                   (for pythonized-arg = (pythonize arg))
+                   (if (and (symbolp arg)
+                            (eq (find-package :keyword)
+                                (symbol-package arg)))
+                       (collect pythonized-arg)
+                       (progn (collect pythonized-arg)
+                              (collect ","))))
+             ")")))
 
 (defun pycall-async (fun-name &rest args)
   "Call a python function asynchronously. 
@@ -334,6 +326,28 @@ Examples:
 "
   (apply #'python-eval* #\x (append args (list "=" (py4cl::pythonize value))))
   value)
+
+;; (defun %chain (method-call)
+;;   (if method-call 
+;;       (with-output-to-string (*standard-output*)
+;;         (typecase method-call
+;;           (symbol (format t "~(~A~)" method-call))
+;;           (string (write-string method-call))
+;;           (list (write-string (%chain (car method-call)))
+;;                 (format t "(~{~A~^,~})"
+;;                         (mapcar (lambda (method)
+;;                                   (cond ((and (listp method) (eq 'quote (car method)))
+;;                                          (pythonize (cdr method)))
+;;                                         (t (%chain method))))
+;;                                 (cdr method-call))))
+;;           (otherwise (write-string (pythonize method-call)))))
+;;       ""))
+
+;; (defmacro chain (&rest method-calls)
+;;   `(pyeval ,(format nil "~{~A~^.~}"
+;;                   (mapcar #'%chain method-calls))))
+;;
+;; (chain 'str 'len) -> "str.len"
 
 (defmacro chain (target &rest chain)
   "Chain method calls, member access, and indexing operations
