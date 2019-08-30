@@ -22,18 +22,9 @@ def load_config():
         config = json.load(conf)
 load_config()
         
-try:
-    from io import StringIO # Python 3
-except:
-    from io import BytesIO as StringIO
-
-# Direct stdout to a StringIO buffer,
-# to prevent commands from printing to the output stream
-
-write_stream = sys.stdout
-redirect_stream = StringIO()
-
-sys.stdout = redirect_stream
+return_stream = sys.stdout
+output_stream = sys.stderr
+sys.stdout = sys.stderr
 
 class Symbol(object):
     """
@@ -63,12 +54,8 @@ class LispCallbackObject (object):
         """
         Delete this object, sending a message to Lisp
         """
-        try:
-            sys.stdout = write_stream
-            write_stream.write("d")
-            send_value(self.handle)
-        finally:
-            sys.stdout = redirect_stream
+        return_stream.write('d')
+        send_value(self.handle)
 
     def __call__(self, *args, **kwargs):
         """
@@ -85,14 +72,14 @@ class LispCallbackObject (object):
             allargs += (Symbol(":"+str(key)), value)
 
         old_return_values = return_values # Save to restore after
-        try:
-            return_values = 0 # Need to send the values
-            sys.stdout = write_stream
-            write_stream.write("c")
-            send_value((self.handle, allargs))
-        finally:
-            return_values = old_return_values
-            sys.stdout = redirect_stream
+        return_stream.write('c')
+        send_value((self.handle, allargs))
+        return_value = old_return_values
+        
+        # try:
+            # return_values = 0 # Need to send the values
+        # finally:
+            # pass
 
         # Wait for a value to be returned.
         # Note that the lisp function may call python before returning
@@ -115,36 +102,22 @@ class UnknownLispObject (object):
         """
         Delete this object, sending a message to Lisp
         """
-        try:
-            sys.stdout = write_stream
-            write_stream.write("d")
-            send_value(self.handle)
-        finally:
-            sys.stdout = redirect_stream
-
+        return_stream.write('d')
+        send_value(self.handle)
+        
     def __str__(self):
         return "UnknownLispObject(\""+self.lisptype+"\", "+str(self.handle)+")"
 
     def __getattr__(self, attr):
         # Check if there is a slot with this name
-        try:
-            sys.stdout = write_stream
-            write_stream.write("s") # Slot access
-            send_value((self.handle, attr))
-        finally:
-            sys.stdout = redirect_stream
-
+        return_stream.write('s')
+        send_value((self.handle, attr))
+        
         # Wait for the result
         return message_dispatch_loop()
         
-# These store the environment used when eval'ing strings from Lisp
-eval_globals = {"_py4cl_load_config": load_config}
-eval_locals = {}
 
 # Settings
-
-return_values = 0 # Try to return values to lisp. If > 0, always return a handle
-                  # A counter is used, rather than Boolean, to allow nested environments.
 
 python_to_lisp_type = {
     bool: "BOOLEAN",
@@ -161,6 +134,8 @@ try:
     python_to_lisp_type[inspect._empty] = "NIL"
 except:
     pass
+
+return_values = 0
     
 ##################################################################
 # This code adapted from cl4py
@@ -227,11 +202,6 @@ try:
     # Register the handler to convert Python -> Lisp strings
     lispifiers[numpy.ndarray] = lispify_ndarray
 
-    # NumPy is used for Lisp -> Python conversion of multidimensional arrays
-    eval_globals["_py4cl_numpy"] = numpy
-    eval_globals["_py4cl_load_pickled_ndarray_and_delete"] \
-      = load_pickled_ndarray_and_delete
-
     # Register numeric base class
     numeric_base_classes += (numpy.number,)
 except:
@@ -272,17 +242,13 @@ def generator(function, stop_value):
         if temp == stop_value: break
         yield temp
 
-eval_globals["_py4cl_generator"] = generator
-
 ##################################################################
 
 def recv_string():
     """
     Get a string from the input stream
     """
-    # First a line containing the length as a string
     length = int(sys.stdin.readline())
-    # Then the specified number of bytes
     return sys.stdin.read(length)
 
 def recv_value():
@@ -302,67 +268,22 @@ def send_value(value):
         # At this point the message type has been sent,
         # so we can't change to throw an exception/signal condition
         value_str = "Lispify error: " + str(e)
-    print(len(value_str))
-    write_stream.write(value_str)
-    write_stream.flush()
-
-def return_stdout():
-    """
-    Return the contents of redirect_stream, to be printed to stdout
-    """
-    global redirect_stream
-    global return_values
-    
-    contents = redirect_stream.getvalue()
-    if not contents:
-        return  # Nothing to send
-
-    redirect_stream = StringIO() # New stream, delete old one
-
-    old_return_values = return_values # Save to restore after
-    try:
-        return_values = 0 # Need to return the string, not a handle
-        sys.stdout = write_stream
-        write_stream.write("p")
-        send_value(contents)
-    finally:
-        return_values = old_return_values
-        sys.stdout = redirect_stream
-    
-def return_error(err):
-    """
-    Send an error message
-    """
-    global return_values
-
-    return_stdout() # Send stdout if any
-    
-    old_return_values = return_values # Save to restore after
-    try:
-        return_values = 0 # Need to return the error, not a handle
-        sys.stdout = write_stream
-        write_stream.write("e")
-        send_value(str(err))
-    finally:
-        return_values = old_return_values
-        sys.stdout = redirect_stream
+    print(len(value_str), file = return_stream)
+    return_stream.write(value_str)
+    return_stream.flush()
 
 def return_value(value):
     """
-    Send a value to stdout
+    Return value to lisp process, by writing to return_stream
     """
     if isinstance(value, Exception):
         return return_error(value)
-
-    return_stdout() # Send stdout if any
+    return_stream.write('r')    
+    send_value(value)
     
-    # Mark response as a returned value
-    try:
-        sys.stdout = write_stream
-        write_stream.write("r")
-        send_value(value)
-    finally:
-        sys.stdout = redirect_stream
+def return_error(error):
+    return_stream.write('e')
+    send_value(str(error))
 
 def pythonize(value): # assumes the symbol name is downcased by the lisp process
     """
@@ -379,13 +300,8 @@ def message_dispatch_loop():
     e  Evaluate an expression (expects string)
     x  Execute a statement (expects string)
     q  Quit
-    r  Return value from lisp (expects value)
-    f  Function call
-    a  Asynchronous function call
-    R  Retrieve value from asynchronous call
-    s  Set variable(s) 
     """
-    global return_values  # Controls whether values or handles are returned
+    # global return_values  # Controls whether values or handles are returned
     
     while True:
         try:
@@ -393,109 +309,20 @@ def message_dispatch_loop():
             cmd_type = sys.stdin.read(1)
             
             if cmd_type == "e":  # Evaluate an expression
-                result = eval(recv_string(), eval_globals, eval_locals)
+                expr = recv_string()
+                # if expr not in cache:
+                  # print("Adding " + expr + " to cache")
+                  # cache[expr] = eval("lambda : " + expr, eval_globals, eval_locals)
+                # result = cache[expr]()
+                result = eval(expr, eval_globals, eval_locals)
                 return_value(result)
-            
-            elif cmd_type == "f" or cmd_type == "a" or cmd_type == "m": # Function call
-                try:
-                    # Get a tuple (function, allargs)
-                    fn_name, allargs = recv_value()
-
-                    # Split positional arguments and keywords
-                    args = []
-                    kwargs = {}
-                    if allargs:
-                        it = iter(allargs) # Use iterator so we can skip values
-                        for arg in it:
-                            if isinstance(arg, Symbol):
-                                # A keyword. Take the next value
-                                kwargs[ pythonize(arg) ] = next(it)
-                                continue
-                            args.append(arg)
-
-                    # Get the function object. Using eval to handle cases like "math.sqrt" or lambda functions
-                    if callable(fn_name):
-                        function = fn_name # Already callable
-                    else:
-                        function = eval(fn_name, eval_globals, eval_locals)
-
-                    if cmd_type == "m":
-                        old_stdout = sys.stdout
-                        try:
-                            sys.stdout = write_stream # the original outgoing stdout
-                            rv = function(*args, **kwargs)
-                            sys.stdout.write("\n_py4cl_monitor_end\n")
-                            sys.stdout.flush()
-                            sys.stdout = old_stdout
-                            return_value(rv)
-                        except Exception as e:
-                            sys.stdout = old_stdout
-                            raise e
-                    elif cmd_type == "f":
-                        # Run function then return value
-                        return_value( function(*args, **kwargs) )
-                    else:
-                        # Asynchronous
-
-                        # Get a handle, and send back to caller.
-                        # The handle can be used to fetch
-                        # the result using an "R" message.
-
-                        handle = next(async_handle)
-                        return_value(handle)
-
-                        try:
-                            # Run function, store result
-                            async_results[handle] = function(*args, **kwargs)
-                        except Exception as e:
-                            # Catching error here so it can
-                            # be stored as the return value
-                            async_results[handle] = e
-                except Exception as e:
-                    if cmd_type == "m":
-                        # Do we need to replicate the return_error as is?
-                        # The handles in particular?
-                        sys.stdout = write_stream
-                        sys.stdout.write("\n_py4cl_monitor_error\n")
-                        sys.stdout.flush()
-                        send_value(str(e))
-                        sys.stdout = redirect_stream
-                    else:
-                        raise e
-            elif cmd_type == "O":  # Return only handles
-                return_values += 1
-
-            elif cmd_type == "o":  # Return values when possible (default)
-                return_values -= 1
-                
-            elif cmd_type == "q": # Quit
-                sys.exit(0)
-                
-            elif cmd_type == "R":
-                # Request value using handle
-                handle = recv_value()
-                return_value( async_results.pop(handle) )
-                
-            elif cmd_type == "r": # Return value from Lisp function
-                return recv_value()
-            
-            elif cmd_type == "s":
-                # Set variables. Should have the form
-                # ( ("var1" value1) ("var2" value2) ...)
-                setlist = recv_value()
-                for name, value in setlist:
-                    eval_locals[name] = value
-                # Need to send something back to acknowlege
-                return_value(True)
-
-            elif cmd_type == "v":
-                # Version info
-                return_value(tuple(sys.version_info))
-                
-            elif cmd_type == "x": # Execute a statement
+            elif cmd_type == 'x': # Execute a statement
                 exec(recv_string(), eval_globals, eval_locals)
                 return_value(None)
-
+            elif cmd_type == 'q':
+                exit(0)
+            elif cmd_type == 'r': # return value from lisp function
+                return recv_value()
             else:
                 return_error("Unknown message type '{0}'".format(cmd_type))
 
@@ -505,16 +332,27 @@ def message_dispatch_loop():
 
 # Store for python objects which can't be translated to Lisp objects
 python_objects = {}
-python_handle = itertools.count(0) # Running counter
-
+python_handle = itertools.count(0)
+ 
 # Make callback function accessible to evaluation
+eval_globals = {}
 eval_globals["_py4cl_LispCallbackObject"] = LispCallbackObject
 eval_globals["_py4cl_Symbol"] = Symbol
 eval_globals["_py4cl_UnknownLispObject"] = UnknownLispObject
 eval_globals["_py4cl_objects"] = python_objects
+eval_globals["_py4cl_generator"] = generator
+# These store the environment used when eval'ing strings from Lisp
+eval_globals["_py4cl_load_config"] = load_config
+try:
+    # NumPy is used for Lisp -> Python conversion of multidimensional arrays
+    eval_globals["_py4cl_numpy"] = numpy
+    eval_globals["_py4cl_load_pickled_ndarray_and_delete"] \
+      = load_pickled_ndarray_and_delete
+except:
+    pass
 
-async_results = {}  # Store for function results. Might be Exception
-async_handle = itertools.count(0) # Running counter
+eval_locals = {}
+
 
 def signal_handler(sig, frame):
     message_dispatch_loop()

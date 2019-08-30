@@ -1,6 +1,6 @@
 
 (defpackage :py4cl-tests
-  (:use :cl :clunit)
+  (:use :cl :clunit :py4cl :iterate)
   (:export :run))
 (in-package :py4cl-tests)
 
@@ -35,6 +35,13 @@
   "Run all the tests for py4cl."
   (run-suite 'py4cl :use-debugger interactive?))
 
+(defun read-py4cl-output ()
+  (let ((py-out (uiop:process-info-error-output py4cl::*python*)))
+    (with-output-to-string (str)
+      (iter (while (listen py-out))
+            (for char = (read-char py-out nil))
+            (write-char char str)))))
+
 ;; ======================== PROCESS-BASIC =====================================
 
 (deftest start-and-alive-p (process-basic)
@@ -59,15 +66,17 @@
   (py4cl:pystop))
 
 (deftest raw-io-flush (callpython-raw)
-  (assert-equalp "hello" (py4cl:raw-pyeval "'hello'"))
-  (assert-equalp "world" (py4cl:raw-pyeval "'world'"))
-  (py4cl:pyexec "import sys")
-  (assert-equalp "hello world"
-      (with-output-to-string (*standard-output*)
-        (py4cl:raw-pyexec "sys.stdout.write(\"hello world\")")))
-  (assert-equalp "testing"
-      (with-output-to-string (*standard-output*)
-        (py4cl:raw-pyexec "sys.stdout.write(\"testing\")"))))
+  (let ((py4cl::*py4cl-tests* t))
+    (py4cl:pystop)
+    (assert-equalp "hello" (py4cl:raw-pyeval "'hello'"))
+    (assert-equalp "world" (py4cl:raw-pyeval "'world'"))
+    (py4cl:pyexec "import sys")
+    (assert-equalp "hello world"
+        (progn (py4cl:raw-pyexec "sys.stdout.write(\"hello world\")")
+               (read-py4cl-output)))
+    (assert-equalp "testing"
+        (progn (py4cl:raw-pyexec "sys.stdout.write(\"testing\")")
+               (read-py4cl-output)))))
 
 (deftest eval-integer (callpython-raw)
   (let ((result (py4cl:raw-pyeval "1 + 2 * 3")))
@@ -226,13 +235,15 @@ world"))
 (deftest pycall-io-flush (callpython-utility)
   (assert-equalp 5 (py4cl:pycall "int" "5"))
   (assert-equalp "world" (py4cl:pycall "str" "world"))
-  (py4cl:pyexec "import sys")
-  (assert-equalp "hello world"
-      (with-output-to-string (*standard-output*)
-        (py4cl:pycall "sys.stdout.write" "hello world")))
-  (assert-equalp "testing"
-      (with-output-to-string (*standard-output*)
-        (py4cl:pycall "sys.stdout.write" "testing"))))
+  (let ((py4cl::*py4cl-tests* t))
+    (py4cl:pystop)
+    (py4cl:pyexec "import sys")
+    (assert-equalp "hello world"
+        (progn (py4cl:pycall "sys.stdout.write" "hello world")
+               (read-py4cl-output)))
+    (assert-equalp "testing"
+        (progn (py4cl:pycall "sys.stdout.write" "testing")
+               (read-py4cl-output)))))
 
 (deftest pycall-one-arg-int (callpython-utility)
   (assert-equalp 42
@@ -276,11 +287,13 @@ world"))
   (assert-equalp "hello" (py4cl:pycall "str" "hello")))
 
 (deftest pycall-symbol-as-fun-name (callpython-utility)
-  (assert-equalp "5" (py4cl:pycall 'str 5))
-  (py4cl:pyexec "import sys")
-  (assert-equalp "hello world"
-      (with-output-to-string (*standard-output*)
-        (py4cl:pycall 'sys.stdout.write "hello world"))))
+  (let ((py4cl::*py4cl-tests* t))
+    (py4cl:pystop)
+    (assert-equalp "5" (py4cl:pycall 'str 5))
+    (py4cl:pyexec "import sys")
+    (assert-equalp "hello world"
+        (progn (py4cl:pycall 'sys.stdout.write "hello world")
+               (read-py4cl-output)))))
 
 
 (deftest pycall-hash-table-empty (callpython-utility)
@@ -303,32 +316,6 @@ world"))
       (py4cl:pymethod '(1 2 3) '__len__))
   (assert-equalp "hello world"
       (py4cl:pymethod "hello {0}" 'format "world")))
-
-;; Asyncronous functions
-(deftest call-function-async (callpython-utility)
-  (let ((thunk (py4cl:pycall-async "str" 42)))
-    ;; returns a function which when called returns the result
-    (assert-equalp "42"
-        (funcall thunk))
-    ;; And returns the same when called again
-    (assert-equalp "42"
-        (funcall thunk)))
-
-  ;; Check if it handles errors
-  (let ((thunk (py4cl:pycall-async "len"))) ; TypeError
-    (assert-condition py4cl:pyerror
-        (funcall thunk)))
-
-  ;; Check that values can be requested out of order
-  (let ((thunk1 (py4cl:pycall-async "str" 23))
-        (thunk2 (py4cl:pycall-async "str" 12))
-        (thunk3 (py4cl:pycall-async "str" 7)))
-    (assert-equalp "12"
-        (funcall thunk2))
-    (assert-equalp "7"
-        (funcall thunk3))
-    (assert-equalp "23"
-        (funcall thunk1))))
 
 (deftest pygenerator (callpython-utility)
   (assert-equalp "<class 'generator'>"
@@ -434,19 +421,6 @@ temp = Foo()")
       (py4cl:chain ("TestClass") ("doThing" :value 31))))
 
 (deftest setf-chain (callpython-chain)
-  (assert-equalp #(0 5 2 -1)
-                 (py4cl:remote-objects*
-                   (let ((list (py4cl:pyeval "[0, 1, 2, 3]")))
-                     (setf (py4cl:chain list ([] 1)) 5
-                           (py4cl:chain list ([] -1)) -1)
-                     list)))
-
-  (assert-equalp "world"
-      (py4cl:remote-objects*
-        (let ((dict (py4cl:pyeval "{}")))
-          (setf (py4cl:chain dict ([] "hello")) "world")
-          (py4cl:chain dict ([] "hello")))))
-  
   ;; Define an empty class which can be modified
   (py4cl:pyexec "
 class testclass:
@@ -456,37 +430,6 @@ class testclass:
     (setf (py4cl:chain obj data_attrib) 21)
     (assert-equalp 21
         (py4cl:chain obj data_attrib))))
-
-;; ========================= CALLPYTHON-REMOTE =================================
-
-
-(deftest remote-objects (callpython-remote)
-  ;; REMOTE-OBJECTS returns a handle
-  (assert-equalp 'py4cl::python-object
-                 (type-of (py4cl:remote-objects (py4cl:pyeval "1+2"))))
-
-  ;; REMOTE-OBJECTS* returns a value
-  (assert-equalp 3
-                 (py4cl:remote-objects* (py4cl:pyeval "1+2")))
-    
-  (assert-equalp 3
-                 (py4cl:pyeval 
-                  (py4cl:remote-objects (py4cl:pyeval "1+2"))))
-
-  ;; Nested remote-object environments
-
-  (assert-equalp 'py4cl::python-object
-                 (type-of (py4cl:remote-objects
-                           (py4cl:remote-objects (py4cl:pyeval "1+2"))
-                           (py4cl:pyeval "1+2")))))
-
-
-(deftest callback-in-remote-objects (callpython-remote)
-  ;; Callbacks send values to lisp in remote-objects environments
-  (assert-equalp 6
-      (py4cl:remote-objects*
-        (py4cl:pycall (lambda (x y) (* x y)) 2 3))))
-
 
 ;; ========================== IMPORT-EXPORT ====================================
 
@@ -766,3 +709,27 @@ except ImportError:
   (py4cl:defpyfun "add" "numpy" :lisp-fun-name "NUMADD")
   (deftest numpy-ufunc-abs (numpy-ufunc)
     (assert-equalp #(4 5 6) (numadd #(1 2 3) 3))))
+
+;; ==================== PROCESS-INTERRUPT ======================================
+
+;; (deftest pymonitor (process-interrupt)
+;;   (py4cl:pystop)
+;;   (py4cl:pyexec "
+;; def foo():
+;;   import time
+;;   import sys
+;;   sys.stdout.write('hello\\n')
+;;   sys.stdout.flush()
+;;   time.sleep(5)
+;;   return")
+;;   (assert-equalp "hello
+;; "
+;;       (let* ((rv nil)
+;;              (mon-thread (bt:make-thread
+;;                           (lambda ()
+;;                             (setq rv (with-output-to-string (*standard-output*) 
+;;                                        (py4cl:pycall-monitor 'foo ())))))))
+;;         (sleep 1)
+;;         (py4cl:pyinterrupt)
+;;         (bt:join-thread mon-thread)
+;;         rv)))

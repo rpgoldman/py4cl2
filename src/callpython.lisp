@@ -1,5 +1,9 @@
 ;; This file is divided into:
 ;; - Preparations for calling
+;;   - dispatch-reply: Used for calling and passing lisp functions to python
+;;     Note that this calling can be nested: probably, "return_values"
+;;     py4cl.py file keeps track of this nesting (see LispCallbackObject class
+;;     in python
 ;; - Raw Functions
 ;; - Utility Functions
 ;;   - eval, exec, call, method, async, monitor
@@ -144,9 +148,6 @@ Can be useful for modifying a value directly in python.
 (defun pycall (fun-name &rest args)
     "Calls FUN-NAME with ARGS as arguments. Arguments can be keyword based, or 
  otherwise."
-  (python-start-if-not-alive) ; should delete here? what about async?
-  (delete-freed-python-objects) ; delete before pythonizing
-  (delete-numpy-pickle-arrays)
   (apply #'raw-pyeval
          "("
          (typecase fun-name
@@ -164,29 +165,6 @@ Can be useful for modifying a value directly in python.
                               (collect ","))))
              ")")))
 
-(defun pycall-async (fun-name &rest args)
-  "Call a python function asynchronously. 
-Returns a lambda which when called returns the result."
-  (python-start-if-not-alive) ; why not delete here? - see pycall may be
-  (let* ((process *python*)
-         (stream (uiop:process-info-input process)))
-    (write-char #\a stream) ; asynchronous function call
-    (stream-write-value `(,(pythonize-name fun-name) ,args) stream)
-    (force-output stream)
-    (let ((handle (dispatch-messages process))
-          value)
-      (lambda ()
-        (if handle
-            ;; Retrieve the value from python
-            (progn
-              (write-char #\R stream)
-              (stream-write-value handle stream)
-              (force-output stream)
-              (setf handle nil
-                    value (dispatch-messages process)))
-            ;; If no handle then already have the value
-            value)))))
-
 (defun pymethod (object method &rest args)
   "PYCALLs METHOD of OBJECT with ARGS
 Examples:
@@ -202,46 +180,16 @@ Note: FUN-NAME is NOT PYTHONIZEd if it is a string.
                       (pythonize object) "." (pythonize-name method))
          args))
 
-(defun pycall-monitor (fun-name arg-list &key (interval 1) (output *standard-output*))
-  "Same as PYCALL, but \"monitors\" the output of the function. Useful for
-functions like keras.Model.fit."
-  (python-start-if-not-alive)
-  (let ((call (bt:make-thread
-               (lambda ()
-                 (let ((to-py (uiop:process-info-input *python*)))
-                   (write-char #\m to-py)
-                   (stream-write-value (list fun-name arg-list) to-py)
-                   (force-output to-py)))))
-        (from-py (uiop:process-info-output py4cl::*python*)))
-    (iter (while (bt:thread-alive-p call))
-          (write-string (read-line from-py) output)
-          (terpri output)
-          (force-output output)
-          (sleep interval)
-          (finally
-           (iter (for line = (read-line from-py))
-                 (when (string= line "_py4cl_monitor_error")
-                   (error 'pyerror
-                          :text (stream-read-value from-py)))
-                 (while (not (ignore-errors ; if the string is not 18 char long
-                               (string= (subseq line 0 18) "_py4cl_monitor_end"))))
-                 (write-string line output)
-                 (terpri output))))
-    (dispatch-messages *python*)))
-
-(defun pymethod-monitor (obj method-name arg-list &key (interval 1) (output *standard-output*))
-  "Same as PYCALL-MONITOR, but handy for calling methods."
-  (apply #'pycall-monitor
-	 (concatenate 'string (pythonize obj)
-                      "." (pythonize-name method-name))
-         (cons arg-list
-               `(:interval ,interval :output ,output))))
-
 (defun pygenerator (function stop-value)
   (pycall "_py4cl_generator" function stop-value))
 
 (defun pyslot-value (object slot-name)
   (pyeval object "." (pythonize-name slot-name)))
+
+(defun pyversion-info ()
+  "Return a list, using the result of python's sys.version_info."
+  (pyexec "import sys")
+  (pyeval "tuple(sys.version_info)"))
 
 (defun pyhelp (object)
   (pyeval "help(" object ")"))

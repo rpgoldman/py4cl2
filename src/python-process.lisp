@@ -17,6 +17,8 @@ is busy processing.
 A possible workaround is to use strace.
 See https://askubuntu.com/questions/1118109/how-do-i-tell-if-a-command-is-running-or-waiting-for-user-input")
 
+(defvar *py4cl-tests* nil)
+
 (defun pystart (&optional (command (config-var 'pycmd)))
   "Start a new python subprocess
 This sets the global variable *python* to the process phandle,
@@ -24,15 +26,25 @@ in addition to returning it.
 COMMAND is a string with the python executable to launch e.g. \"python\"
 By default this is is set to *PYTHON-COMMAND*
 "
-  (setf *python*
+  ;; (setq *python-output-stream* (uiop:make-two-way-stream)
+        ;; *python-input-stream* (uiop:make-two-way-stream))
+  (setq *python*
         (uiop:launch-program
-         (concatenate 'string
-                      command  ; Run python executable
-                      " "
-                      ;; Path *base-pathname* is defined in py4cl.asd
-                      ;; Calculate full path to python script
-                      (namestring (merge-pathnames #p"py4cl.py" py4cl/config:*base-directory*)))
-         :input :stream :output :stream))
+            (concatenate 'string
+                         command        ; Run python executable
+                         " -u "
+                         ;; Path *base-pathname* is defined in py4cl.asd
+                         ;; Calculate full path to python script
+                         (namestring (merge-pathnames #p"py4cl.py" py4cl/config:*base-directory*)))
+            :input :stream
+            :output :stream
+            :error-output :stream))
+  (unless *py4cl-tests*
+    (bt:make-thread (lambda ()
+                      (let ((py-out (uiop:process-info-error-output *python*)))
+                        (iter (while (uiop:process-alive-p *python*))
+                              (for char = (read-char py-out nil))
+                              (when char (write-char char)))))))
   (incf *current-python-process-id*))
 
 (defun python-alive-p (&optional (process-info *python*))
@@ -60,20 +72,22 @@ If still not alive, raises a condition."
   (let ((stream (uiop:process-info-input process-info)))
     ;; ask the python process to quit; might require a few sec?
     (write-char #\q stream))
-  (uiop:close-streams process-info)
   (uiop:terminate-process process-info)
+  ;; (uiop:close-streams process-info)
   (setf *python* nil) ;; what about multiple processes?
   (clear-lisp-objects))
 
 (defun pyinterrupt (&optional (process-info *python*))
   (when (and (python-alive-p process-info)
              *python-process-busy-p*)
+    (format t "Interrupting...~%")
     (uiop:run-program
      (concatenate 'string "/bin/kill -SIGINT -"
 		  (write-to-string (uiop:process-info-pid process-info)))
      :force-shell t)
     (setq *python-process-busy-p* nil)
-    (pyexec))) ; a hack, because listen or read-char or read-line didn't return
+    (pyexec)
+    (format t "returning~%"))) ; a hack, because listen or read-char or read-line didn't return
 
 (defun pyversion-info ()
   "Return a list, using the result of python's sys.version_info."
