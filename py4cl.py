@@ -355,6 +355,7 @@ eval_locals = {}
 
 
 def signal_handler(sig, frame):
+    return_value(None)
     message_dispatch_loop()
 signal.signal(signal.SIGINT, signal_handler)
 

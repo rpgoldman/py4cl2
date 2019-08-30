@@ -32,9 +32,8 @@
          (return-value
           (loop
              (case (read-char read-stream) ; First character is type of message
-               ;; Returned value
-               (#\r (return (stream-read-value read-stream)))
-               ;; Error
+               (#\r (return (stream-read-value read-stream)))  ; Returned value
+
                (#\e (error 'pyerror  
                            :text (stream-read-string read-stream)))
 
@@ -45,28 +44,26 @@
                (#\s (destructuring-bind (handle slot-name) (stream-read-value read-stream)
                       (let ((object (lisp-object handle)))
                         ;; User must register a function to handle slot access
-                        (dispatch-reply write-stream
-                                        (restart-case
-                                            (python-getattr object slot-name)
-                                          ;; Provide some restarts for missing handler or missing slot
-                                          (return-nil () nil)
-                                          (return-zero () 0)
-                                          (enter-value (return-value)
-                                            :report "Provide a value to return"
-                                            :interactive (lambda ()
-                                                           (format t "Enter a value to return: ")
-                                                           (list (read)))
-                                            return-value))))))
+                        (dispatch-reply
+                         write-stream
+                         (restart-case
+                             (python-getattr object slot-name)
+                           ;; Provide some restarts for missing handler or missing slot
+                           (return-nil () nil)
+                           (return-zero () 0)
+                           (enter-value (return-value)
+                             :report "Provide a value to return"
+                             :interactive (lambda ()
+                                            (format t "Enter a value to return: ")
+                                            (list (read)))
+                             return-value))))))
                
-               ;; Callback. Value returned is a list, containing the function ID then the args
-               (#\c
+               (#\c ;; Callback. Return a list, containing function ID, then the args
                 (let ((call-value (stream-read-value read-stream)))
-                  (let ((return-value (apply (lisp-object (first call-value)) (second call-value))))
-                    ;; Send a reply
+                  (let ((return-value (apply (lisp-object (first call-value))
+                                             (second call-value))))
                     (dispatch-reply write-stream return-value))))
-
-               ;; Print stdout
-               (#\p
+               (#\p ; Print stdout
                 (let ((print-string (stream-read-value read-stream)))
                   (princ print-string)))
                
@@ -107,6 +104,11 @@ For instance,
 will result in 'sys' name not defined PYERROR."
   (apply #'raw-py #\x strings))
 
+(defun (setf raw-pyeval) (value &rest args)
+  (apply #'raw-pyexec (append args
+                              (list "=" (pythonize value))))
+  value)
+
 ;; =========================== UTILITY FUNCTIONS ===============================
 
 (defun pythonizep (value)
@@ -145,15 +147,9 @@ Can be useful for modifying a value directly in python.
   (apply #'pyexec (append args (list "=" value))) ; would nconc be better?
   value)
 
-(defun pycall (fun-name &rest args)
-    "Calls FUN-NAME with ARGS as arguments. Arguments can be keyword based, or 
- otherwise."
-  (apply #'raw-pyeval
-         "("
-         (typecase fun-name
-           (string fun-name)
-           (t (pythonize fun-name)))
-         ")"
+(defun %pycall-args (&rest args)
+  (apply #'concatenate
+         'string
          "("
          `(,@(iter (for arg in args)
                    (for pythonized-arg = (pythonize arg))
@@ -164,6 +160,16 @@ Can be useful for modifying a value directly in python.
                        (progn (collect pythonized-arg)
                               (collect ","))))
              ")")))
+
+(defun pycall (fun-name &rest args)
+  "Calls FUN-NAME with ARGS as arguments. Arguments can be keyword based, or 
+ otherwise."
+  (raw-pyeval "("
+              (typecase fun-name
+                (string fun-name)
+                (t (pythonize fun-name)))
+              ")"
+              (apply #'%pycall-args args)))
 
 (defun pymethod (object method &rest args)
   "PYCALLs METHOD of OBJECT with ARGS
@@ -196,121 +202,30 @@ Note: FUN-NAME is NOT PYTHONIZEd if it is a string.
 
 ;; Chain -----------------------------------------------------------------------
 
-(defun function-args (args)
-  "Internal function, intended to be called by the CHAIN macro.
-Converts function arguments to a list of strings and (pythonize )
-function calls. Handles keywords and insertion of commas. 
-Returns a list which can be passed to PYTHON-EVAL.
+;;; If someone wants to handle multidimensional array slicing and stuff, they should take
+;;; a look at: https://github.com/hylang/hy/issues/541
+(defun %chain (&rest body)
+  (format nil "~{~A~^.~}"
+          (mapcar (lambda (elt)
+                    (typecase elt
+                      (null "")
+                      (cons (apply #'concatenate 'string
+                                   (case (car elt)
+                                     (aref
+                                      `(,(%chain (cadr elt))
+                                         ,@(mapcar (lambda (idx)
+                                                     (format nil "[~A]" idx))
+                                                   (mapcar #'%chain (cddr elt)))))
+                                     (t `(,(typecase (car elt)
+                                             (string (car elt))
+                                             (t (pythonize (car elt))))
+                                           ,(apply #'%pycall-args (cdr elt)))))))
+                      (t (pythonize elt))))
+                  body)))
 
-Examples:
-
-  (py4cl::function-args '(1 :test 2))
-  => ((PY4CL::PYTHONIZE 1) \",\" \"test\" \"=\" (PY4CL::PYTHONIZE 2))
-"
-  (if (not args)
-      '("")
-      (if (keywordp (first args))
-          (append
-           (list (string-downcase (first args))
-                 "="
-                 `(pythonize ,(second args)))
-           (if (cddr args)
-               (append '(",") (function-args (cddr args)))))
-          
-          (append
-           (list `(pythonize ,(first args)))
-           (if (rest args)
-               (append '(",") (function-args (rest args))))))))
-
-(defun python-eval* (cmd-char &rest args)
-  "Internal function, which converts ARGS into a string to be evaluated
-This handles both EVAL and EXEC calls with CMD-CHAR being different
-in the two cases. 
-Anything in ARGS which is not a string is passed through PYTHONIZE
-"
-  (python-start-if-not-alive)
-  (let ((stream (uiop:process-info-input *python*))
-        (str (apply #'concatenate 'string (loop for val in args
-                                             collecting (if (typep val 'string)
-                                                            val
-                                                            (pythonize val))))))
-    ;; Write "x" if exec, otherwise "e"
-    (write-char cmd-char stream)
-    (stream-write-string str stream)
-    (force-output stream)
-    ;; Wait for response from Python
-    (dispatch-messages *python*)))
-
-(defun python-eval (&rest args)
-  "Evaluate an expression in python, returning the result
-Arguments ARGS can be strings, or other objects. Anything which 
-is not a string is converted to a python value
-Examples:
- (python-eval \"[i**2 for i in range(\" 4 \")]\") => #(0 1 4 9)
- (let ((a 10) (b 2))
-   (py4cl:python-eval a "*" b)) => 20
-"
-   (delete-freed-python-objects)
-   (apply #'python-eval* #\e args))
-
-(defun (setf python-eval) (value &rest args)
-  "Set an expression to a value. Just adds \"=\" and the value
-to the end of the expression. Note that the result is evaluated
-with exec rather than eval.
-Examples:
-    (setf (python-eval \"a\") 2)  ; python \"a=2\"
-"
-  (apply #'python-eval* #\x (append args (list "=" (py4cl::pythonize value))))
-  value)
-
-(defun (setf chain) (value &rest args)
-  "Set an expression to a value. Just adds \"=\" and the value
-to the end of the expression. Note that the result is evaluated
-with exec rather than eval.
-
-Examples:
-
-    (setf (pyeval \"a\") 2)  ; python \"a=2\"
-"
-  (apply #'python-eval* #\x (append args (list "=" (py4cl::pythonize value))))
-  value)
-
-;; (defun %chain (method-call)
-;;   (if method-call 
-;;       (with-output-to-string (*standard-output*)
-;;         (typecase method-call
-;;           (symbol (format t "~(~A~)" method-call))
-;;           (string (write-string method-call))
-;;           (list (write-string (%chain (car method-call)))
-;;                 (format t "(~{~A~^,~})"
-;;                         (mapcar (lambda (method)
-;;                                   (cond ((and (listp method) (eq 'quote (car method)))
-;;                                          (pythonize (cdr method)))
-;;                                         (t (%chain method))))
-;;                                 (cdr method-call))))
-;;           (otherwise (write-string (pythonize method-call)))))
-;;       ""))
-
-;; (defmacro chain (&rest method-calls)
-;;   `(pyeval ,(format nil "~{~A~^.~}"
-;;                   (mapcar #'%chain method-calls))))
-;;
-;; (chain 'str 'len) -> "str.len"
-
-(defmacro chain (target &rest chain)
-  "Chain method calls, member access, and indexing operations
-on objects. The operations in CHAIN are applied in order from
-first to last to the TARGET object.
-
-TARGET can be
-  cons -- a python function to call, returning an object to operate on
-  otherwise -- a value, to be converted to a python value
-
-CHAIN can consist of
-   cons   -- a method to call
-   symbol -- a member data variable
-   otherwise -- a value put between [] brackets to access an index
-
+(defmacro chain (&body body)
+    "Chain method calls, member access, and indexing operations
+on objects.
 Keywords inside python function calls are converted to python keywords.
 
 Functions can be specified using a symbol or a string. If a symbol is used
@@ -330,71 +245,11 @@ Examples:
      => python: \"hello\"[4]
      => \"o\"
 "
-  (python-start-if-not-alive)
-  (delete-numpy-pickle-arrays)
-  `(py4cl::python-eval
-    ;; TARGET 
-    ,@(if (consp target)
-          ;; A list -> python function call
-          `(,(let ((func (first target))) ; The function name
-               (if (stringp func)
-                   func  ; Leave string unmodified
-                   (string-downcase func))) ; Otherwise convert to lower-case string
-             "("
-             ,@(function-args (rest target))
-             ")")
-          ;; A value
-          (list (list 'py4cl::pythonize target)))
-    ;; CHAIN
-    ,@(loop for link in chain
-         appending
-           (cond
-             ((consp link)
-              ;; A list. Usually a method to call, but [] indicates __getitem__
-              (if (string= (first link) "[]")
-                  ;; Calling the __getitem__ method
-                  (list "[" (list 'py4cl::pythonize  ; So that strings are escaped
-                                  (if (cddr link)
-                                      (append '(list) (rest link)) ; More than one -> wrap in list/tuple
-                                      (cadr link))) ; Only one -> no tuple
-                        "]")
-                  ;; Calling a method
-                  `("."
-                    ,(let ((func (first link)))
-                       (if (stringp func)
-                           func  ; Leave string unmodified
-                           (string-downcase func))) ; Otherwise convert to lower-case string
-                    "("
-                    ,@(function-args (rest link))
-                    ")")))
-             ((symbolp link) (list (format nil ".~(~a~)" link)))
-             (t (list "[" (list 'py4cl::pythonize link) "]"))))))
+    `(raw-pyeval ,(apply #'%chain body)))
 
-
-;; Remote Objects --------------------------------------------------------------
-
-(defmacro remote-objects (&body body)
-  "Ensures that all values returned by python functions
-and methods are kept in python, and only handles returned to lisp.
-This is useful if performing operations on large datasets."
-  `(progn
-     (python-start-if-not-alive)
-     (let ((stream (uiop:process-info-input *python*)))
-       ;; Turn on remote objects
-       (write-char #\O stream)
-       (force-output stream)
-       (unwind-protect
-            (progn ,@body)
-         ;; Turn off remote objects
-         (write-char #\o stream)
-         (force-output stream)))))
-
-(defmacro remote-objects* (&body body)
-  "Ensures that all values returned by python functions
-and methods are kept in python, and only handles returned to lisp.
-This is useful if performing operations on large datasets.
-
-This version evaluates the result, returning it as a lisp value if possible.
-"
-  `(pyeval (remote-objects ,@body)))
-
+(defun chain* (&rest body) (raw-pyeval (apply #'%chain body)))
+(defun (setf chain*) (value &rest args)
+  (apply #'raw-pyexec (list (apply #'%chain args)
+                            "="
+                            (pythonize value)))
+  value)

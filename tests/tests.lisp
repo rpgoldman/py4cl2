@@ -1,4 +1,4 @@
-
+(py4cl:defpymodule "math" nil :reload t)
 (defpackage :py4cl-tests
   (:use :cl :clunit :py4cl :iterate)
   (:export :run))
@@ -361,30 +361,32 @@ temp = Foo()")
   (assert-equalp "hello world"
       (let ((format-str "hello {0}")
             (argument "world"))
-        (py4cl:chain format-str (format argument))))
+        (py4cl:chain* format-str `(format ,argument))))
   (assert-equalp "result: 3"
-      (py4cl:chain "result: {0}" (format (+ 1 2))))
+      (py4cl:chain* "result: {0}" `(format ,(+ 1 2))))
   (assert-equalp 3
       (py4cl:chain (slice 3) stop))
 
   ;; Anything not a list or a symbol is put between [] brackets (__getitem__)
   (assert-equalp "o"
-      (py4cl:chain "hello" 4))
+      (py4cl:chain (aref "hello" 4)))
 
   ;; [] operator for indexing and slicing (alias for __getitem__)
   
   (assert-equalp "l"
-      (py4cl:chain "hello" ([] 3)))
+      (py4cl:chain (aref "hello" 3)))
   (assert-equalp 3
-      (py4cl:chain #2A((1 2) (3 4))  ([] 1 0)))
+      (py4cl:chain (aref #2A((1 2) (3 4))
+                         1 0)))
   (assert-equalp #(4 5)
-      (py4cl:chain #2A((1 2 3) (4 5 6))  ([] 1 (slice 0 2))))
+      (py4cl:chain (aref #2A((1 2 3) (4 5 6))
+                         1 (slice 0 2))))
 
   (let ((dict (py4cl:pyeval "{\"hello\":\"world\", \"ping\":\"pong\"}")))
     (assert-equalp "world"
-        (py4cl:chain dict "hello"))
+        (py4cl:chain* `(aref ,dict "hello")))
     (assert-equalp "pong"
-        (py4cl:chain dict ([] "ping")))))
+        (py4cl:chain* `(aref ,dict "ping")))))
   
 (deftest chain-keywords (callpython-chain)
   (py4cl:pyexec
@@ -392,9 +394,9 @@ temp = Foo()")
        return arg * key")
 
   (assert-equalp 3
-      (py4cl:chain (test_fn 3)))
+      (py4cl:chain (test-fn 3)))
   (assert-equalp 6
-      (py4cl:chain (test_fn 3 :key 2)))
+      (py4cl:chain (test-fn 3 :key 2)))
 
   (py4cl:pyexec
    "class testclass:
@@ -427,9 +429,9 @@ class testclass:
   pass")
   
   (let ((obj (py4cl:chain (testclass))))
-    (setf (py4cl:chain obj data_attrib) 21)
+    (setf (py4cl:chain* obj 'data-attrib) 21)
     (assert-equalp 21
-        (py4cl:chain obj data_attrib))))
+        (py4cl:chain* obj 'data-attrib))))
 
 ;; ========================== IMPORT-EXPORT ====================================
 
@@ -640,16 +642,16 @@ a = Test()")
     (assert-equalp 23
         (py4cl:pycall "lambda x : x.thing" object))
     (assert-equalp 42
-        (py4cl:chain object value))
+        (py4cl:chain* object 'value))
 
     ;; Function (method) call
     (assert-equalp 42
-        (py4cl:chain object (func 21))))
+        (py4cl:chain* object `(func 21))))
     
   ;; The handler should work for other objects of the same class (class-of)
   (let ((object2 (make-instance 'test-class :thing "hello" :value 314)))
     (assert-equalp "hello"
-                   (py4cl:chain object2 thing))))
+                   (py4cl:chain* object2 'thing))))
 
 
 ;; Class inheriting from test-class
@@ -668,9 +670,9 @@ a = Test()")
     (assert-equalp 23
         (py4cl:pycall "lambda x : x.thing" object))
     (assert-equalp 42
-        (py4cl:chain object value))
+        (py4cl:chain* object 'value))
     (assert-equalp 3
-        (py4cl:chain object other))))
+        (py4cl:chain* object 'other))))
 
 ;; ============================== PICKLE =======================================
 
@@ -712,24 +714,35 @@ except ImportError:
 
 ;; ==================== PROCESS-INTERRUPT ======================================
 
-;; (deftest pymonitor (process-interrupt)
-;;   (py4cl:pystop)
-;;   (py4cl:pyexec "
-;; def foo():
-;;   import time
-;;   import sys
-;;   sys.stdout.write('hello\\n')
-;;   sys.stdout.flush()
-;;   time.sleep(5)
-;;   return")
-;;   (assert-equalp "hello
-;; "
-;;       (let* ((rv nil)
-;;              (mon-thread (bt:make-thread
-;;                           (lambda ()
-;;                             (setq rv (with-output-to-string (*standard-output*) 
-;;                                        (py4cl:pycall-monitor 'foo ())))))))
-;;         (sleep 1)
-;;         (py4cl:pyinterrupt)
-;;         (bt:join-thread mon-thread)
-;;         rv)))
+(deftest interrupt (process-interrupt)
+  (let ((py4cl::*py4cl-tests* t))
+    (py4cl:pystop)
+    (py4cl:pyexec "
+class Foo():
+  def foo(self):
+    import time
+    import sys
+    sys.stdout.write('hello')
+    sys.stdout.flush()
+    time.sleep(5)
+    return")
+    (assert-equalp "hello"
+        (let* ((rv nil)
+               (mon-thread (bt:make-thread
+                            (lambda ()
+                              (py4cl:pycall "Foo().foo")
+                              (setq rv (read-py4cl-output))))))
+          (sleep 1)
+          (py4cl:pyinterrupt)
+          (bt:join-thread mon-thread)
+          rv))
+    (assert-equalp "hello"
+        (let* ((rv nil)
+               (mon-thread (bt:make-thread
+                            (lambda ()
+                              (py4cl:pymethod (py4cl:pycall "Foo") 'foo)
+                              (setq rv (read-py4cl-output))))))
+          (sleep 1)
+          (py4cl:pyinterrupt)
+          (bt:join-thread mon-thread)
+          rv))))

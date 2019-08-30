@@ -1,14 +1,14 @@
 * For Release: automate the following?
-- pyinterrupt, pycall-monitor, pymethod-monitor: check whether interrupting
+V pyinterrupt, pycall-monitor, pymethod-monitor: check whether interrupting
   works "as expected", and future commands continue to work; check if 
   monitor works "as expected"
 - save-config, load-config, (setf config-var): check if changing the value
   in lisp changes the value in python
-- discuss the following: issues-for-chain.lisp tests/does-not-work.lisp, src/chain.lisp
+V discuss the following: issues-for-chain.lisp tests/does-not-work.lisp, src/chain.lisp
 - more testing may be
 
 * Future Work
-- importing arguments for more callable objects - like ufunc of numpy
+~ importing arguments for more callable objects - like ufunc of numpy
   Further, note that some (only some builtin ones) python functions like "sum"
   do not take keyword args!
 - finding equivalent of inspect._empty in python2 (unable to google)
@@ -18,9 +18,9 @@
   as standard-object
 - should return value of defpyfun matter - so as to indicate success or failure?
   failure is anyways indicated by errors
-- should pycall-monitor and pymethod-monitor completely replace pycall
+V should pycall-monitor and pymethod-monitor completely replace pycall
   and pymethod? if so, what other changes are needed?
-- ability to define customized arg-lists, documentation, and calling methods
+X ability to define customized arg-lists, documentation, and calling methods
   for functions: this can serve as a community project to cover up some 
   naming and arg-list idiosyncrasies
 - cleaning up documentation while defining functions - many python functions 

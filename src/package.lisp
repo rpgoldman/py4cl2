@@ -9,7 +9,6 @@
    #:pystop
    #:python-alive-p
    #:python-start-if-not-alive
-   #:pyversion-info
    #:pyinterrupt)
   (:export ; callpython
    #:pyerror
@@ -18,17 +17,14 @@
    #:pyeval
    #:pyexec
    #:pycall
-   #:pycall-async
    #:pymethod 
-   #:pycall-monitor 
-   #:pymethod-monitor 
    #:pygenerator 
    #:pyslot-value 
    #:pyhelp 
-   #:chain 
-   #:pysetf
-   #:remote-objects
-   #:remote-objects*)
+   #:pyversion-info
+   #:chain
+   #:chain*
+   #:pysetf)
   (:export ; import-export
    #:pymethod-list 
    #:pyslot-list 
