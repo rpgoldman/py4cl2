@@ -20,11 +20,10 @@
    #:pymethod 
    #:pygenerator 
    #:pyslot-value 
-   #:pyhelp 
    #:pyversion-info
+   #:pyhelp 
    #:chain
-   #:chain*
-   #:pysetf)
+   #:chain*)
   (:export ; import-export
    #:pymethod-list 
    #:pyslot-list 

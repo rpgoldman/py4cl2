@@ -122,14 +122,14 @@
                        (pos-only `((&optional ,@parameter-list)
                                    (() (raw-pyeval ,fullname "(" ,@pass-list ")"))))
                        (allow-other-keys
-                        `((&rest args &key ,@parameter-list &allow-other-keys)
-                          (raw-pyeval ,fullname "(" ,@pass-list
-                                      (pythonize-kwargs
-                                       (mapc (lambda (symbol)
-                                               (remf args
-                                                     (find-symbol (symbol-name symbol))))
-                                             parameter-list-without-defaults))
-                                      ")")))
+                        `((&rest args &key ,@parameter-list)
+                          (() (raw-pyeval ,fullname "(" ,@pass-list
+                                          (pythonize-kwargs
+                                           (mapc (lambda (symbol)
+                                                   (remf args
+                                                         (find-symbol (symbol-name symbol))))
+                                                 ',parameter-list-without-defaults))
+                                          ")"))))
                        (t `((&key ,@parameter-list)
                             (() (raw-pyeval ,fullname "(" ,@pass-list ")")))))))))))
 
@@ -250,17 +250,12 @@ Arguments:
                                                   (lispify-name submodule))
                       :is-submodule t)))))
 
-(defun mapcar-> (list &rest functions)
-  "Applies FUNCTIONS successively to LIST."
-  (if (null (car functions))
-      list
-      (apply #'mapcar-> (mapcar (car functions) list) (cdr functions))))
+(defmacro defpymodule (pymodule-name &optional (import-submodules nil)
 
-(defmacro defpymodule (pymodule-name &optional import-submodules
                        &key
                          (is-submodule nil) ;; used by defpysubmodules
                          (lisp-package (lispify-name pymodule-name))
-                         (reload nil) (safety t))
+                         (reload t) (safety t))
   "Import a python module (and its submodules) lisp-package Lisp package(s). 
 Example:
   (py4cl:defpymodule \"math\" :lisp-package \"M\")

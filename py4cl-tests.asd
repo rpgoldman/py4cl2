@@ -7,6 +7,5 @@
                "clunit"
                "trivial-garbage")
   :pathname #P"tests/"
-  :components (;;(:file "load-before-test")
-               (:file "tests"))
+  :components ((:file "tests"))
   :perform (test-op (o c) (symbol-call :py4cl-tests :run))) 
