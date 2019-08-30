@@ -183,14 +183,14 @@ Note: FUN-NAME is NOT PYTHONIZEd if it is a string.
   (python-start-if-not-alive)
   (apply #'pycall
          (concatenate 'string
-                      (pythonize object) "." (pythonize-name method))
+                      (pythonize object) "." (pythonize method))
          args))
 
 (defun pygenerator (function stop-value)
   (pycall "_py4cl_generator" function stop-value))
 
 (defun pyslot-value (object slot-name)
-  (pyeval object "." (pythonize-name slot-name)))
+  (pyeval object "." (pythonize slot-name)))
 
 (defun pyversion-info ()
   "Return a list, using the result of python's sys.version_info."
