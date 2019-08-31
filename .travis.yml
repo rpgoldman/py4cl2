@@ -10,7 +10,7 @@ env:
     #- LISP=abcl
     #- LISP=allegro
     - LISP=sbcl
-    - LISP=ccl
+    #- LISP=ccl
     #- LISP=clisp
     #- LISP=ecl
     #- LISP=cmucl
