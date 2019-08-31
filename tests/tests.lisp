@@ -18,13 +18,7 @@
 (defsuite process-basic (py4cl))
 (defsuite objects (py4cl))
 (defsuite numpy-ufunc (py4cl))
-
-;; (defsuite process-basic (process-interrupt
-;;                          callpython-raw
-;;                          callpython-utility
-;;                          callpython-chain
-;;                          callpython-remote
-;;                          import-export))
+(defsuite py4cl-config (py4cl))
 
 (py4cl:pystart)
 (defvar *pyversion* (py4cl:pyversion-info))
@@ -746,3 +740,15 @@ class Foo():
           (py4cl:pyinterrupt)
           (bt:join-thread mon-thread)
           rv))))
+
+(deftest config-change (py4cl-config)
+  (let ((original-config (copy-tree *config*)))
+    (with-output-to-string (*standard-output*)
+      (setf (py4cl:config-var 'py4cl:numpy-pickle-location) "tmp")
+      (setf (py4cl:config-var 'py4cl:numpy-pickle-lower-bound) 10000)
+      (assert-equal "tmp"
+          (py4cl:pyeval "_py4cl_config['numpyPickleLocation']"))
+      (assert-equal 10000
+          (py4cl:pyeval "_py4cl_config['numpyPickleLowerBound']"))
+      (setq py4cl:*config* original-config)
+      (py4cl:save-config))))

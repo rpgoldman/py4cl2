@@ -15,17 +15,21 @@ import json
 import os
 import signal
 
+return_stream = sys.stdout
+output_stream = sys.stderr
+sys.stdout = sys.stderr
+
 config = {}
 def load_config():
     with open(os.path.dirname(__file__) + "/.config") as conf:
         global config
         config = json.load(conf)
+        try:
+            eval_globals['_py4cl_config'] = config
+        except:
+            pass
 load_config()
         
-return_stream = sys.stdout
-output_stream = sys.stderr
-sys.stdout = sys.stderr
-
 class Symbol(object):
     """
     A wrapper around a string, representing a Lisp symbol. 
@@ -342,6 +346,7 @@ eval_globals["_py4cl_UnknownLispObject"] = UnknownLispObject
 eval_globals["_py4cl_objects"] = python_objects
 eval_globals["_py4cl_generator"] = generator
 # These store the environment used when eval'ing strings from Lisp
+eval_globals["_py4cl_config"] = config
 eval_globals["_py4cl_load_config"] = load_config
 try:
     # NumPy is used for Lisp -> Python conversion of multidimensional arrays

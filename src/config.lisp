@@ -54,6 +54,7 @@ Enter full file path for storage (default /tmp/_numpy_pickle.npy): "
 (defun config-var (var) (cdr (assoc var *config*)))
 (defun (setf config-var) (new-value var)
   (setf (cdr (assoc var *config*)) new-value)
+  ;; say, the user wants the python process to be project local
   (unless (eq var 'pycmd) (save-config))
   (when (python-alive-p) (pycall "_py4cl_load_config")))
 
