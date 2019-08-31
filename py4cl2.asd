@@ -1,6 +1,6 @@
 ;;;; Py4cl.asd
 
-(asdf:defsystem "py4cl"
+(asdf:defsystem "py4cl2"
   :serial t
   :description "Call Python libraries from Common Lisp"
   :author "Ben Dudson <benjamin.dudson@york.ac.uk>"
@@ -23,11 +23,11 @@
                (:file "callpython")
                (:file "import-export")
 	       (:file "do-after-load"))
-  :in-order-to ((test-op (test-op "py4cl-tests"))))
+  :in-order-to ((test-op (test-op "py4cl2-tests"))))
 
 ;; This is to store the path to the source code
 ;; suggested here https://xach.livejournal.com/294639.html
-(defpackage #:py4cl/config (:export #:*base-directory*))
+(defpackage #:py4cl2/config (:export #:*base-directory*))
 (defparameter py4cl/config:*base-directory* 
   (make-pathname :name nil :type nil :defaults *load-truename*))
 

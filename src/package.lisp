@@ -1,7 +1,7 @@
 
 ;;;; package.lisp
 
-(defpackage #:py4cl
+(defpackage #:py4cl2
   (:use #:cl #:iterate)
   (:shadowing-import-from #:iterate #:as #:for)
   (:export ; python-process

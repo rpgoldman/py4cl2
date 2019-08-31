@@ -2,7 +2,7 @@
 V pyinterrupt, pycall-monitor, pymethod-monitor: check whether interrupting
   works "as expected", and future commands continue to work; check if 
   monitor works "as expected"
-- save-config, load-config, (setf config-var): check if changing the value
+V save-config, load-config, (setf config-var): check if changing the value
   in lisp changes the value in python
 V discuss the following: issues-for-chain.lisp tests/does-not-work.lisp, src/chain.lisp
 - more testing may be

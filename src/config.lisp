@@ -1,4 +1,4 @@
-(in-package :py4cl)
+(in-package :py4cl2)
 
 (defvar *config* () "Used for storing configuration at a centralized location.")
 ;; Refer initialize function to note which variables are included under *config*

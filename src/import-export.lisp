@@ -9,7 +9,7 @@
 ;;;   This latter hasn't been attempted yet.
 
 
-(in-package :py4cl)
+(in-package :py4cl2)
 
 (defun numeric-char-p (ch) (find ch "0123456789"))
 
@@ -238,7 +238,7 @@ Arguments:
 
 (defmacro defpysubmodules (pymodule-name lisp-package)
   (let ((submodules
-         (py4cl:pyeval "[(modname, ispkg) for importer, modname, ispkg in "
+         (pyeval "[(modname, ispkg) for importer, modname, ispkg in "
                        "pkgutil.iter_modules("
                        pymodule-name
                        ".__path__)]")))

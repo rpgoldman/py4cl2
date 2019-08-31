@@ -10,7 +10,7 @@
 ;;   - chain
 ;;   - remote objects
 
-(in-package :py4cl)
+(in-package :py4cl2)
 
 ;; ============================ PREPARATIONS FOR CALLING ======================
 

@@ -1,6 +1,6 @@
 ;;; Functions to start and stop python process
 
-(in-package :py4cl)
+(in-package :py4cl2)
 
 (defvar *python* nil
   "Most recently started python subprocess")
@@ -73,7 +73,7 @@ If still not alive, raises a condition."
     ;; ask the python process to quit; might require a few sec?
     (write-char #\q stream))
   ;; (pyinterrupt process-info)
-  (uiop:close-streams process-info)
+  #-ccl (uiop:close-streams process-info)
   (uiop:terminate-process process-info)
   (setf *python* nil) ;; what about multiple processes?
   (clear-lisp-objects))

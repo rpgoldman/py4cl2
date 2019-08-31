@@ -1,6 +1,6 @@
 ;;; Write data to python over a stream
 
-(in-package :py4cl)
+(in-package :py4cl2)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;

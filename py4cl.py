@@ -162,7 +162,7 @@ lispifiers = {
     str        : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\"",
     type       : lambda x: python_to_lisp_type[x],
     Symbol     : str,
-    UnknownLispObject : lambda x: "#.(py4cl::lisp-object {})".format(x.handle),
+    UnknownLispObject : lambda x: "#.(py4cl2::lisp-object {})".format(x.handle),
     # there's another lispifier just below
 }
 
@@ -217,7 +217,7 @@ def lispify_handle(obj):
     """
     handle = next(python_handle)
     python_objects[handle] = obj
-    return "#.(py4cl::make-python-object-finalize :type \""+str(type(obj))+"\" :handle "+str(handle)+")"
+    return "#.(py4cl2::make-python-object-finalize :type \""+str(type(obj))+"\" :handle "+str(handle)+")"
 
 def lispify(obj):
     """
