@@ -8,4 +8,4 @@
                "trivial-garbage")
   :pathname #P"tests/"
   :components ((:file "tests"))
-  :perform (test-op (o c) (symbol-call :py4cl-tests :run))) 
+  :perform (test-op (o c) (symbol-call :py4cl2-tests :run))) 

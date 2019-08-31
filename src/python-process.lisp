@@ -35,7 +35,7 @@ By default this is is set to *PYTHON-COMMAND*
                          " -u "
                          ;; Path *base-pathname* is defined in py4cl.asd
                          ;; Calculate full path to python script
-                         (namestring (merge-pathnames #p"py4cl.py" py4cl/config:*base-directory*)))
+                         (namestring (merge-pathnames #p"py4cl.py" py4cl2/config:*base-directory*)))
             :input :stream
             :output :stream
             :error-output :stream))

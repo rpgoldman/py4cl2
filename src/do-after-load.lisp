@@ -3,7 +3,7 @@
 
 (in-package :py4cl2)
 (let ((config-path (concatenate 'string
-                                (directory-namestring py4cl/config:*base-directory*)
+                                (directory-namestring py4cl2/config:*base-directory*)
                                 ".config"))
       (cl-json:*json-symbols-package* *package*))
   (when (uiop:file-exists-p config-path)
