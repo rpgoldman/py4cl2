@@ -23,7 +23,9 @@
    #:pyversion-info
    #:pyhelp 
    #:chain
-   #:chain*)
+   #:chain*
+   #:remote-objects
+   #:remote-objects*)
   (:export ; import-export
    #:pymethod-list 
    #:pyslot-list 

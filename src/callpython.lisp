@@ -227,20 +227,15 @@ Note: FUN-NAME is NOT PYTHONIZEd if it is a string.
     "Chain method calls, member access, and indexing operations
 on objects.
 Keywords inside python function calls are converted to python keywords.
-
 Functions can be specified using a symbol or a string. If a symbol is used
 then it is converted to python using STRING-DOWNCASE. 
-
 Examples:
-
   (chain \"hello {0}\" (format \"world\") (capitalize)) 
      => python: \"hello {0}\".format(\"world\").capitalize()
      => \"Hello world\"
-
   (chain (range 3) stop) 
      => python: range(3).stop
      => 3
-
   (chain \"hello\" 4)
      => python: \"hello\"[4]
      => \"o\"
@@ -253,3 +248,28 @@ Examples:
                             "="
                             (pythonize value)))
   value)
+
+(defmacro remote-objects (&body body)
+  "Ensures that all values returned by python functions
+and methods are kept in python, and only handles returned to lisp.
+This is useful if performing operations on large datasets."
+  `(progn
+     (python-start-if-not-alive)
+     (let ((stream (uiop:process-info-input *python*)))
+       ;; Turn on remote objects
+       (write-char #\O stream)
+       (force-output stream)
+       (unwind-protect
+            (progn ,@body)
+         ;; Turn off remote objects
+         (write-char #\o stream)
+         (force-output stream)))))
+
+(defmacro remote-objects* (&body body)
+  "Ensures that all values returned by python functions
+and methods are kept in python, and only handles returned to lisp.
+This is useful if performing operations on large datasets.
+This version evaluates the result, returning it as a lisp value if possible.
+"
+  `(pyeval (remote-objects ,@body)))
+

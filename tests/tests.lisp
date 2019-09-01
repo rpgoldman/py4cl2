@@ -428,6 +428,29 @@ class testclass:
     (assert-equalp 21
         (py4cl2:chain* obj 'data-attrib))))
 
+;; ========================= CALLPYTHON-REMOTE =================================
+
+(deftest remote-objects (callpython-remote)
+  ;; REMOTE-OBJECTS returns a handle
+  (assert-equalp 'py4cl2::python-object
+                 (type-of (py4cl2:remote-objects (py4cl2:pyeval "1+2"))))
+
+  ;; REMOTE-OBJECTS* returns a value
+  (assert-equalp 3
+                 (py4cl2:remote-objects* (py4cl2:pyeval "1+2")))
+    
+  (assert-equalp 3
+                 (py4cl2:pyeval 
+                  (py4cl2:remote-objects (py4cl2:pyeval "1+2"))))
+
+  ;; Nested remote-object environments
+
+  (assert-equalp 'py4cl2::python-object
+                 (type-of (py4cl2:remote-objects
+                           (py4cl2:remote-objects (py4cl2:pyeval "1+2"))
+                           (py4cl2:pyeval "1+2")))))
+
+
 ;; ========================== IMPORT-EXPORT ====================================
 
 
