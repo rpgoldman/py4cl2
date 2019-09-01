@@ -26,8 +26,6 @@ in addition to returning it.
 COMMAND is a string with the python executable to launch e.g. \"python\"
 By default this is is set to *PYTHON-COMMAND*
 "
-  ;; (setq *python-output-stream* (uiop:make-two-way-stream)
-        ;; *python-input-stream* (uiop:make-two-way-stream))
   (setq *python*
         (uiop:launch-program
             (concatenate 'string
@@ -35,16 +33,18 @@ By default this is is set to *PYTHON-COMMAND*
                          " -u "
                          ;; Path *base-pathname* is defined in py4cl.asd
                          ;; Calculate full path to python script
-                         (namestring (merge-pathnames #p"py4cl.py" py4cl2/config:*base-directory*)))
+                         (namestring (merge-pathnames #p"py4cl.py"
+                                                      py4cl2/config:*base-directory*)))
             :input :stream
             :output :stream
             :error-output :stream))
   (unless *py4cl-tests*
     (bt:make-thread (lambda ()
-                      (let ((py-out (uiop:process-info-error-output *python*)))
-                        (iter (while (uiop:process-alive-p *python*))
-                              (for char = (read-char py-out nil))
-                              (when char (write-char char)))))))
+                      (when *python*
+                        (let ((py-out (uiop:process-info-error-output *python*)))
+                          (iter (while (and *python* (python-alive-p *python*)))
+                                (for char = (read-char py-out nil))
+                                (when char (write-char char))))))))
   (incf *current-python-process-id*))
 
 (defun python-alive-p (&optional (process-info *python*))
@@ -86,7 +86,8 @@ If still not alive, raises a condition."
 		  (write-to-string (uiop:process-info-pid process-info)))
      :force-shell t)
     (setq *python-process-busy-p* nil)
-    (pyexec))) ; a hack, because listen or read-char or read-line didn't return
+    ;; something to do with running in separate threads! "deftest interrupt"
+    (unless *py4cl-tests* (dispatch-messages process-info))))
 
 (defun pyversion-info ()
   "Return a list, using the result of python's sys.version_info."

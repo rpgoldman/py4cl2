@@ -1,4 +1,4 @@
-(py4cl2:defpymodule "math" nil :reload t)
+(py4cl2:defpymodule "math")
 (defpackage :py4cl2-tests
   (:use :cl :clunit :py4cl2 :iterate)
   (:export :run))
@@ -8,7 +8,8 @@
     `(,(find-symbol "IN-READTABLE" :named-readtables) :common-lisp))
 
 (defsuite py4cl ())
-(defsuite process-interrupt (py4cl))
+;; Unable to test interrupt on CCL: see (deftest interrupt
+#-ccl (defsuite process-interrupt (py4cl))
 (defsuite callpython-raw (py4cl))
 (defsuite callpython-utility (py4cl))
 (defsuite callpython-chain (py4cl))
@@ -708,7 +709,10 @@ except ImportError:
 
 ;; ==================== PROCESS-INTERRUPT ======================================
 
-(deftest interrupt (process-interrupt)
+;; Unable to test on CCL:
+;; Stream #<BASIC-CHARACTER-OUTPUT-STREAM UTF-8 (PIPE/36) #x3020019EE9AD> is private to #<PROCESS repl-thread(12) [Sleep] #x302000AC72FD>
+
+#-ccl (deftest interrupt (process-interrupt)
   (let ((py4cl2::*py4cl-tests* t))
     (py4cl2:pystop)
     (py4cl2:pyexec "
@@ -739,7 +743,10 @@ class Foo():
           (sleep 1)
           (py4cl2:pyinterrupt)
           (bt:join-thread mon-thread)
-          rv))))
+          rv))
+
+    ;; Check if no "residue" left
+    (assert-equalp 5 (py4cl2:pyeval 5))))
 
 (deftest config-change (py4cl-config)
   (let ((original-config (copy-tree *config*)))

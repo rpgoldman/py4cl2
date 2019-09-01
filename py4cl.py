@@ -272,7 +272,7 @@ def send_value(value):
         # At this point the message type has been sent,
         # so we can't change to throw an exception/signal condition
         value_str = "Lispify error: " + str(e)
-    print(len(value_str), file = return_stream)
+    print(len(value_str), file = return_stream, flush=True)
     return_stream.write(value_str)
     return_stream.flush()
 
@@ -282,7 +282,8 @@ def return_value(value):
     """
     if isinstance(value, Exception):
         return return_error(value)
-    return_stream.write('r')    
+    return_stream.write('r')
+    return_stream.flush()
     send_value(value)
     
 def return_error(error):
@@ -305,7 +306,7 @@ def message_dispatch_loop():
     x  Execute a statement (expects string)
     q  Quit
     """
-    # global return_values  # Controls whether values or handles are returned
+    global return_values  # Controls whether values or handles are returned
     
     while True:
         try:
@@ -327,9 +328,15 @@ def message_dispatch_loop():
                 exit(0)
             elif cmd_type == 'r': # return value from lisp function
                 return recv_value()
+            elif cmd_type == "O":  # Return only handles
+                return_values += 1
+            elif cmd_type == "o":  # Return values when possible (default)
+                return_values -= 1
             else:
                 return_error("Unknown message type '{0}'".format(cmd_type))
-
+        except KeyboardInterrupt as e: # to catch SIGINT
+            # output_stream.write("Python interrupted!\n")
+            return_value(None)
         except Exception as e:
             return_error(e)
 
@@ -357,12 +364,6 @@ except:
     pass
 
 eval_locals = {}
-
-
-def signal_handler(sig, frame):
-    return_value(None)
-    message_dispatch_loop()
-signal.signal(signal.SIGINT, signal_handler)
 
 # Main loop
 message_dispatch_loop()
