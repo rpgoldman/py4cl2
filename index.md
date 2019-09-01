@@ -11,12 +11,12 @@ using streams to communicate with a separate python process - the approach taken
 different to the CFFI approach used by [burgled-batteries](https://github.com/pinterface/burgled-batteries),
 but has the same goal. 
 
-[py4cl2](https://github.com/digikar99/py4cl2) is an improvement over the original py4cl. (See [Highlights and Limitations](#highlights-and-limitations-of-py4cl2).)
+[py4cl2](https://github.com/digikar99/py4cl2) is an improvement over the original py4cl. (See [Highlights and Limitations](#highlights-and-limitations-of-py4cl).)
 
 Please report the issues on github: [py4cl2](https://github.com/digikar99/py4cl2/issues) or [py4cl](https://github.com/bendudson/py4cl)).
 
 
-# Highlights and Limitations of `py4cl2`
+# Highlights and Limitations of `py4cl`
 
 - Speed: About 6500 `(pycall "int" "5")` instructions per second @ 1GHz intel 8750H. 
 This shouldn't be a bottleneck if you're planning to run "long" processes in python. (For example, deep learning :). )

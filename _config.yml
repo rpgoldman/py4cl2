@@ -1,6 +1,6 @@
 title: digikar-utilities
 description: A library for providing a uniform interface to Common Lisp's built-in types.
-baseurl: "/py4cl"
+baseurl: "/py4cl2"
 exclude: ["*.lisp", "*.asd", "README.md", "docs", "src", "tests"]
 markdown: kramdown
 sass:
