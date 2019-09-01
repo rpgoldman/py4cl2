@@ -96,10 +96,10 @@
         (iter (for (key val) in-hashtable sig-dict)
               (for name = (pyeval val ".name"))
               (for default = (pyeval val ".default"))
-              
               (when (or ;(some #'upper-case-p name)
                      (typep default 'python-object))
                 (return-from get-arg-list default-return))
+              (if (search "*" (pyeval "str(" val ")")) (next-iteration))
               (if (search "**" (pyeval "str(" val ")"))
                   (progn
                     (setq allow-other-keys t)
@@ -123,13 +123,16 @@
                                    (() (raw-pyeval ,fullname "(" ,@pass-list ")"))))
                        (allow-other-keys
                         `((&rest args &key ,@parameter-list)
-                          (() (raw-pyeval ,fullname "(" ,@pass-list
-                                          (pythonize-kwargs
-                                           (mapc (lambda (symbol)
-                                                   (remf args
-                                                         (find-symbol (symbol-name symbol))))
-                                                 ',parameter-list-without-defaults))
-                                          ")"))))
+                          (() (apply #'raw-pyeval
+                                     ,fullname "(" ,@pass-list
+                                     (append (pythonize-kwargs
+                                              (progn
+                                                (mapc (lambda (symbol)
+                                                        (remf args
+                                                              (find-symbol (symbol-name symbol) :keyword)))
+                                                      ',parameter-list-without-defaults)
+                                                args))
+                                             '(")"))))))
                        (t `((&key ,@parameter-list)
                             (() (raw-pyeval ,fullname "(" ,@pass-list ")")))))))))))
 
