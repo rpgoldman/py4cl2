@@ -24,8 +24,8 @@
    #:pyhelp 
    #:chain
    #:chain*
-   #:remote-objects
-   #:remote-objects*)
+   #:with-remote-object
+   #:with-remote-objects)
   (:export ; import-export
    #:pymethod-list 
    #:pyslot-list 

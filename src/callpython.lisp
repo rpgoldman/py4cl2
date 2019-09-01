@@ -204,7 +204,7 @@ Note: FUN-NAME is NOT PYTHONIZEd if it is a string.
 
 ;;; If someone wants to handle multidimensional array slicing and stuff, they should take
 ;;; a look at: https://github.com/hylang/hy/issues/541
-(defun %chain (&rest body)
+(defun %chain (&rest chain)
   (format nil "~{~A~^.~}"
           (mapcar (lambda (elt)
                     (typecase elt
@@ -221,9 +221,9 @@ Note: FUN-NAME is NOT PYTHONIZEd if it is a string.
                                              (t (pythonize (car elt))))
                                            ,(apply #'%pycall-args (cdr elt)))))))
                       (t (pythonize elt))))
-                  body)))
+                  chain)))
 
-(defmacro chain (&body body)
+(defmacro chain (&body chain)
     "Chain method calls, member access, and indexing operations
 on objects.
 Keywords inside python function calls are converted to python keywords.
@@ -240,36 +240,43 @@ Examples:
      => python: \"hello\"[4]
      => \"o\"
 "
-    `(raw-pyeval ,(apply #'%chain body)))
+    `(raw-pyeval ,(apply #'%chain chain)))
 
-(defun chain* (&rest body) (raw-pyeval (apply #'%chain body)))
+(defun chain* (&rest chain) (raw-pyeval (apply #'%chain chain)))
 (defun (setf chain*) (value &rest args)
   (apply #'raw-pyexec (list (apply #'%chain args)
                             "="
                             (pythonize value)))
   value)
 
-(defmacro remote-objects (&body body)
+(defmacro with-remote-object ((var value) &body body)
   "Ensures that all values returned by python functions
 and methods are kept in python, and only handles returned to lisp.
 This is useful if performing operations on large datasets."
-  `(progn
+  `(let ()
      (python-start-if-not-alive)
      (let ((stream (uiop:process-info-input *python*)))
-       ;; Turn on remote objects
-       (write-char #\O stream)
+       (write-char #\O stream)        ;; Turn on remote objects
        (force-output stream)
        (unwind-protect
-            (progn ,@body)
-         ;; Turn off remote objects
-         (write-char #\o stream)
+            (let ((,var (pyeval ,value)))
+              ,@body)
+         (write-char #\o stream)          ;; Turn off remote objects
          (force-output stream)))))
 
-(defmacro remote-objects* (&body body)
+(defmacro with-remote-objects (bindings &body body)
   "Ensures that all values returned by python functions
 and methods are kept in python, and only handles returned to lisp.
-This is useful if performing operations on large datasets.
-This version evaluates the result, returning it as a lisp value if possible.
-"
-  `(pyeval (remote-objects ,@body)))
+This is useful if performing operations on large datasets."
+  `(let ()
+     (python-start-if-not-alive)
+     (let ((stream (uiop:process-info-input *python*)))
+       (write-char #\O stream)        ;; Turn on remote objects
+       (force-output stream)
+       (unwind-protect
+            (let ,(loop for (var binding) in bindings
+                     collect `(,var (pyeval ,binding)))
+              ,@body)
+         (write-char #\o stream)          ;; Turn off remote objects
+         (force-output stream)))))
 
