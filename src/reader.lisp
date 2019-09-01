@@ -1,6 +1,6 @@
 ;;; Code to read from python process over a stream
 
-(in-package :py4cl)
+(in-package :py4cl2)
 
 (defstruct python-object
   "A handle for a python object

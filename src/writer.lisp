@@ -1,6 +1,6 @@
 ;;; Write data to python over a stream
 
-(in-package :py4cl)
+(in-package :py4cl2)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -107,12 +107,14 @@ which is interpreted correctly by python (3.7.2)."
   "Convert a list. This leaves a trailing comma so that python
 evals a list with a single element as a tuple
 "
-  (with-output-to-string (stream)
-    (write-char #\( stream)
-    (dolist (val obj)
-      (write-string (pythonize val) stream)
-      (write-char #\, stream))
-    (write-char #\) stream)))
+  (if obj
+      (with-output-to-string (stream)
+        (write-char #\( stream)
+        (dolist (val obj)
+          (write-string (pythonize val) stream)
+          (write-char #\, stream))
+        (write-char #\) stream))
+      "None"))
 
 (defmethod pythonize ((obj string))
   (if (find-if (lambda (ch) (char= #\newline ch)) obj)
@@ -142,12 +144,49 @@ evals a list with a single element as a tuple
 ;; leaves out inspect._empty    
 
 (defmethod pythonize ((obj symbol))
-  "Handle symbols. Need to handle NIL,
-converting it to Python None, and convert T to True."
-  (if (assoc obj *lisp-to-python-types-alist*)
-      (second (assoc obj *lisp-to-python-types-alist*))
-       (concatenate 'string
-		    "_py4cl_Symbol(':" (string-downcase (string obj)) "')")))
+  "One-to-one mapping between python name and lisp symbol names:
+     symbol  :  symbol-name  : python-name
+  'foo-bar   :  \"FOO-BAR\"  : foo_bar
+  '|Foo-Bar| :  \"Foo-Bar\"  : Foo_Bar
+  '*foo-bar* : \"*FOO-BAR*\" : FOO_BAR
+      t      :     \"T\"     :  True
+     nil     :    \"NIL\"    :  None"
+  (let* ((symbol-name (symbol-name obj))
+         (name (cond ((and (char= (char symbol-name 0) #\*) ; *global-variable* == PYTHON_CONSTANT
+                           (char= (char symbol-name (1- (length symbol-name)))))
+                      (subseq symbol-name 1 (1- (length symbol-name))))
+                     ((string= "NIL" symbol-name) "None")
+                     ((string= "T" symbol-name) "True")
+                     ((every #'(lambda (char) ; = every character is either upper-case 
+                                 (not (lower-case-p char))) ; or is not an alphabet
+                             symbol-name)
+                      (format nil "~(~a~)" symbol-name))
+                     (t symbol-name))))
+    
+    (iter (for char in-string name)
+          (collect (if (char= char #\-)
+                       #\_
+                       char)
+            into python-name
+            result-type string)
+          (finally (return
+                     (if (equalp (symbol-package obj) (find-package :keyword))
+                         (format nil "~A = " python-name)
+                         python-name))))))
+
+(defun depythonize (string &optional (can-be-global nil))
+  (let ((hyphenated (iter (for c in-string string)
+                          (collect (if (char= c #\_) #\- c)
+                            result-type 'string))))
+    (cond ((string= hyphenated "None") "NIL")
+          ((string= hyphenated "True") "T")
+          ((and can-be-global
+                (every #'(lambda (char) ; = every character is either upper-case 
+                           (not (lower-case-p char))) ; or is not an alphabet
+                       hyphenated))
+           (format nil "*~A*" hyphenated))
+          ((some #'upper-case-p hyphenated) hyphenated)
+          (t (string-upcase hyphenated)))))
 
 (defmethod pythonize ((obj hash-table))
   "Convert hash-table to python map.

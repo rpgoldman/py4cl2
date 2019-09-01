@@ -1,35 +1,43 @@
 ---
-title: py4cl
+title: py4cl2
 ---
 
 ---
 
 # Introduction
 
-Py4CL is a bridge between Common Lisp and Python, which enables Common
-Lisp to interact with Python code. It uses streams to communicate with
-a separate python process, the approach taken by [cl4py](https://github.com/marcoheisig/cl4py). This is
+[py4cl](https://github.com/bendudson/py4cl) is a package by Ben Dudson, aimed at making python libraries availble in Common Lisp,
+using streams to communicate with a separate python process - the approach taken by [cl4py](https://github.com/marcoheisig/cl4py). This is
 different to the CFFI approach used by [burgled-batteries](https://github.com/pinterface/burgled-batteries),
 but has the same goal. 
 
-This fork is available on github at [digikar99/py4cl](https://github.com/digikar99/py4cl) - much of the credits go to [bendudson/py4cl](https://github.com/bendudson/py4cl), who started this project and made it useable.
+[py4cl2](https://github.com/digikar99/py4cl2) is an improvement over the original py4cl. (See [Highlights and Limitations](#highlights-and-limitations-of-py4cl2).)
 
-Please report the issues on github: [this fork](https://github.com/digikar99/py4cl/issues) or [the original](https://github.com/bendudson/py4cl/issues).
+Please report the issues on github: [py4cl2](https://github.com/digikar99/py4cl2/issues) or [py4cl](https://github.com/bendudson/py4cl)).
 
-Documentation for almost all of these functions is available as docstrings as well.
 
-# Highlights and Limitations of `py4cl`
+# Highlights and Limitations of `py4cl2`
 
-- Use python functions and modules from lisp. See [Defining python functions and modules](#defining-python-functions-and-modules). An effort is made to obtain the signatures of the python functions using `inspect.signature`.
-- [`pycmd`](#pycmd): Choose which python binary to use. Works with miniconda.
-- About 6000 `(pycall "int" "5")` instructions per second @ 1GHz intel 8750H. 
-this shouldn't be a bottleneck if you're planning to run "long" processes in python. (For example, deep learning :). )
-- Large arrays (100M in 2 sec!) can be transferred using numpy-file-format (see [initialize](#initialize); large strings cannot be; though, there is the [remote-objects(*)](#remote-objects).
-- See [TODO].
+- Speed: About 6500 `(pycall "int" "5")` instructions per second @ 1GHz intel 8750H. 
+This shouldn't be a bottleneck if you're planning to run "long" processes in python. (For example, deep learning :). )
+- Virtual environments: [`pycmd`](#pycmd) (`*python-command*` in `py4cl`): Choose which python binary to use. Works with miniconda.
 - Multiple python processes (not documented here) - parallel execution?
-- Stderr is not returned; though errors are returned
-- Tested on SBCL and CCL. 
 
+<div><img src="readme_slime.png" width="80%" style="margin:auto; display:block;"/></div>
+<!-- ![slime-demo-image](readme_slime.png) -->
+
+## Improvements over py4cl
+- Changes: several (but not all) names have been shorted from `python-` to `py`; `remote-objects` have been changed to `with-remote-object(s)`. Personal preference for these names stems from:
+  - `defpyfun/module` reminds of the equivalent in `burgled-batteries` and `cffi`
+  - `py`names are shorter
+  - `with-remote` seems more appropriate
+  - `chain` and `chain*` with more "uniformity"
+- Arguments are imported; submodules can be imported with an option to [defpymodule]. However, this is only possible for python3.
+- Improvements in large array transfer speed, using numpy-file-format (see [initialize](#initialize); though this does not beat `remote-objects`, in existence since `py4cl`, 
+- Interrupt the python process using [(pyinterrupt)](#pyinterrupt)
+- `defpymodule` (previously `import-module`) is works "as-expected" with asdf / `defpackage`.
+
+- See [TODO].
 
 # Installation
 
@@ -41,11 +49,14 @@ On the CL side:
 
 - trivial garbage
 - iterate
-- cl-json
 - bordeaux-threads
+- cl-json
+- parse-number
+- uiop (some implementations have an older version of uiop; support for `launch-program` is needed for asynchronous processes)
 - [numpy-file-format](https://github.com/marcoheisig/numpy-file-format) *
 
-\* not available on quicklisp
+\* possibly not available on quicklisp (may be see [How to install new packages for common lisp without asdf-install
+](https://stackoverflow.com/questions/8441224/how-to-install-new-packages-for-common-lisp-without-asdf-install); in essence, download the github-repo to somewhere asdf can find.)
 
 On python side:
 
@@ -56,9 +67,9 @@ On python side:
 ## Installation
 
 Clone this repository into `~/quicklisp/local-projects/` or other
-location where it can be found by ASDF:
+location where it can be discovered by ASDF:
 ```sh
-git clone https://github.com/digikar99/py4cl.git
+git clone https://github.com/digikar99/py4cl2.git
 ```
 
 Original version by [bendudson](https://github.com/bendudson/py4cl) can be found at: 
@@ -70,7 +81,7 @@ However, since then, several changes have been made.
 
 Load into Lisp with
 ```lisp
-(ql:quickload :py4cl)
+(ql:quickload :py4cl2)
 ```
 
 
@@ -80,7 +91,7 @@ Load into Lisp with
 
 On loading this library for the first time, run `initialize` and provide the necessary details.
 ```lisp
-(py4cl:initialize)
+(py4cl2:initialize)
 ```
 
 (You may want to note the printed information, about the location of config-file. Of course, you can call this function again, but be sure to refill the values.)
@@ -93,23 +104,23 @@ Using a ram-disk is recommended for this purpose. ([How to create a ram disk on 
 These values can also be accessed using `*config*` and `config-var`:
 
 ```lisp
-CL-USER> py4cl:*config*
-((PY4CL:PYCMD . "/home/user/miniconda3/bin/python")
- (PY4CL:NUMPY-PICKLE-LOCATION . "/home/user/ram-disk/_numpy_pickle.npy")
- (PY4CL:NUMPY-PICKLE-LOWER-BOUND . 100000))
-CL-USER> (py4cl:config-var 'py4cl:numpy-pickle-location)
+CL-USER> py4cl2:*config*
+((PY4CL2:PYCMD . "/home/user/miniconda3/bin/python")
+ (PY4CL2:NUMPY-PICKLE-LOCATION . "/home/user/ram-disk/_numpy_pickle.npy")
+ (PY4CL2:NUMPY-PICKLE-LOWER-BOUND . 100000))
+CL-USER> (py4cl2:config-var 'py4cl2:numpy-pickle-location)
 "/home/user/ram-disk/_numpy_pickle.npy"
-CL-USER> (setf (config-var 'py4cl:pycmd) "python")
+CL-USER> (setf (config-var 'py4cl2:pycmd) "python")
 "python"
 ```
 
-Complementary to `config-var` are `save-config` and `load-config`. The latter is called on startup, the config-file exists. `(setf config-var)` calls the former unless it is `pycmd`, as well as asks the python process to load the config, from the config file.
+Complementary to `config-var` are `save-config` and `load-config`. The latter is called on startup, the config-file exists. `(setf config-var)` calls the former unless it is `pycmd`, as well as asks the python process to load the config, from the config file. (The exception for `pycmd` exists so as to let the users set up project-local environments.)
 
 
 # Examples and Documentation
 
 ```lisp
-CL-USER> (use-package :py4cl)
+CL-USER> (use-package :py4cl2)
 ```
 
 ## Python Processes
@@ -136,7 +147,9 @@ CL-USER> (pyversion-info)
 
 A simple `C-c C-c` only interrupts the lisp process from slime - the python process keeps running. `(pyinterrupt)` can be used in these cases to send a SIGINT (2) to the python process.
 
-It is possible to have `(pyinterrupt)` called on the reception of SIGINT in SLIME:
+Also note that if `pyinterrupt` is not called before sending the next form to `eval` or `exec`, the input-output would go out of sync. A known way to get out is to `(pystop)` the python-process.
+
+Therefore, you may want to have `(pyinterrupt)` called on the reception of SIGINT in SLIME:
 
 ```lisp
 (when (find-package :swank)
@@ -145,11 +158,9 @@ It is possible to have `(pyinterrupt)` called on the reception of SIGINT in SLIM
         (fdefinition (find-symbol "SIMPLE-BREAK" :swank)))
   (defun swank:simple-break
       (&optional (datum "Interrupt from Emacs") &rest args) 
-    (py4cl:pyinterrupt)
+    (py4cl2:pyinterrupt)
     (apply (fdefinition 'swank-simple-break) datum args)))
 ```
-
-Also note that if `pyinterrupt` is not called before sending the next form to `eval` or `exec`, the input-output would go out of sync. A known way to get out is to `(pystop)` the python-process.
 
 However, I have been unable to get the code to work (by adding to `do-after-load` with as well as without SLIME. Further, people may not like a library to fiddle with their environments - so it might be better to leave it up to the user to set it.
 
@@ -210,8 +221,8 @@ Often times, the two commands above would be tedious - since you'd need to conve
 
 For python expressions 
 ```lisp
-CL-USER> (pyeval "'abc'+'def'")
-"abcdef"
+CL-USER> (pyeval 4 "+" 3)
+7
 ```
 
 There's also `(setf pyeval)`, which unlike `(pyexec)`, can return non-`nil` values.
@@ -223,6 +234,16 @@ CL-USER> (pyeval "a")
 "5"
 ```
 
+`pyeval` (and `pyexec`) treats the string as a python string, if it can be parsed into a number.
+In fact, in accordance with an internal function `pythonizep`.
+
+```lisp
+CL-USER> (pyeval "1.0")
+"1.0"
+CL-USER> (pyeval "hello")
+; Evaluation aborted on #<PYERROR {1003AC0183}>.
+```
+
 See also [Doing arbitrary things in python](#doing-arbitrary-things-in-python).
 
 ### `pyexec`
@@ -230,17 +251,18 @@ See also [Doing arbitrary things in python](#doing-arbitrary-things-in-python).
 
 For python statements
 ```lisp
-CL-USER> (pyexec (join-strings-using "~%" 
-                                     "if True:" 
-                                     "  print(5)"
-                                     "else:"
-                                     "  print(10)"))
+CL-USER> (pyexec "
+if True:
+  print(5)
+else:
+  print(10)")
 ; 5
 NIL
 ```
-The `join-strings-using` is doable using `(format nil...`.
+`pyexec` (and `pyeval`) treats the string as a python string, if it can be parsed into a number).
+In fact, in accordance with an internal function `pythonizep`. (See [pyeval](#pyeval).)
 
-See [Doing arbitrary things in python](#doing-arbitrary-things-in-python) to learn about `pyeval` and `pyexec`.
+See also [Doing arbitrary things in python](#doing-arbitrary-things-in-python) to learn about `pyeval` and `pyexec`.
 
 ## Defining python functions and modules
 
@@ -253,17 +275,17 @@ Names are lispified by converting underscores hyphens, and converting CamelCase 
 (defpyfun fun-name &optional pymodule-name &key 
   (as fun-name) (lisp-fun-name (lispify-name as))
   (lisp-package *package*) (called-from-defpymodule nil)
-  rename-lisp-fun-name (safety t)
+  (safety t)
 ```
 `lisp-fun-name` is the name of the symbol that would be `fboundp`ed to the function [that calls the python function].
 
 Example Usage:
 ```lisp
 CL-USER> (defpyfun "Input" "keras.layers" :lisp-fun-name "INP")
-T ;; return value does not matter
+INP
 
 CL-USER> (inp :shape '(1 2))
-#S(PY4CL::PYTHON-OBJECT
+#S(PY4CL2::PYTHON-OBJECT
    :TYPE "<class 'tensorflow.python.framework.ops.Tensor'>"
    :HANDLE 1849)
 ```
@@ -276,24 +298,24 @@ Refer `(describe 'defpyfun)`.
 ```lisp
 (defpymodule pymodule-name &optional import-submodules &key 
   (lisp-package (lispify-name (or as pymodule-name)))
-  (reload nil) (safety t) (is-submodule nil)
+  (reload t) (safety t) (is-submodule nil)
 ```
 
 `lisp-package` is the name of the symbol that the package would be bound to.
 
 Example Usage:
 ```lisp
-CL-USER> (defpymodule "keras.layers" t :reload t :lisp-package "KL")
+CL-USER> (defpymodule "keras.layers" t :lisp-package "KL")
 T
 
 CL-USER> (kl:input :shape '(1 2))
-#S(PY4CL::PYTHON-OBJECT
+#S(PY4CL2::PYTHON-OBJECT
    :TYPE "<class 'tensorflow.python.framework.ops.Tensor'>"
    :HANDLE 816)
    
-CL-USER> (pycall (kl.advanced-activations:softmax :input-shape '(1 2))
+CL-USER> (pycall (kl.advanced-activations:softmax/class :input-shape '(1 2))
                  (kl:input :shape '(1 2)))
-#S(PY4CL::PYTHON-OBJECT
+#S(PY4CL2::PYTHON-OBJECT
    :TYPE "<class 'tensorflow.python.framework.ops.Tensor'>"
    :HANDLE 144)
 ```
@@ -318,16 +340,14 @@ you'd need to use something like [pycall].
 Equivalent to the lisp `(funcall function &rest arguments)`. Call a python (or lisp! See [generators and lambdas](#generators-and-lambdas)) function.
 
 ```lisp
-CL-USER> (py4cl:pycall "print" "hello")
+CL-USER> (py4cl2:pycall "print" "hello")
 ;; hello
 NIL
-CL-USER> (py4cl:pycall #'+ 2 3 1)
+CL-USER> (py4cl2:pycall #'+ 2 3 1)
 6
 ```
 
 Note that `fun-name` can be a name (see [Name Mapping]), a function, or a [callable] python-object. See the example in [defpymodule](#defpymodule).
-
-Another two variants of `pycall` are [pycall-async](#pycall-async) and [pycall-monitor](#pycall-monitor--pymethod-monitor).
 
 ### `pymethod`
 `(pymethod obj method-name &rest args)`
@@ -360,31 +380,6 @@ NIL
 
 See [pymethod-list](#pymethod-list).
 
-### `pycall-monitor` / `pymethod-monitor`
-
-One issue with barebones `pycall` is that it prints out the information printed by python, after the function returns. This can pose trouble with methods like keras.Model.predict which keep printing to stdout, without returning, for a long time.
-
-```lisp
-CL-USER> (pyexec "
-def foo():
-  print('hello')
-  import sys
-  sys.stdout.flush()
-  import time
-  time.sleep(5)
-  return 5")
-NIL
-
-CL-USER> (pycall "foo")
-;; hello ; prints after 5 seconds, after foo has returned
-5
-
-CL-USER> (pycall-monitor "foo" ()) ; note the empty argument list
-;; hello ; prints immediately
-
-5 ; returns after 5 sec
-```
-
 ### `pyslot-value`
 `(pyslot-value object slot-name)`
 
@@ -394,27 +389,6 @@ CL-USER> (pyslot-value model 'input-shape)
 ```
 
 See [pyslot-list](#pyslot-list)
-
-### `pycall-async`
-`(pycall-async fun-name &rest args)`
-
-One of the advantages of using streams to communicate with a separate
-python process, is that the python and lisp processes can run at the
-same time. pycall-async calls python but returns a closure
-immediately. The python process continues running, and the result can
-be retrieved by calling the returned closure. 
-
-```lisp
-(defparameter thunk (py4cl:python-call-async "lambda x: 2*x" 21))
-
-(funcall thunk)  ; => 42
-```
-
-If the function call requires callbacks to lisp, then these will only
-be serviced when a `py4cl` function is called. In that case the python
-function may not be able to finish until the thunk is called. This
-should not result in deadlocks, because all `py4cl` functions can
-service callbacks while waiting for a result.
 
 Also see [Name Mapping].
 
@@ -518,15 +492,10 @@ CL-USER> (pymethod-list (model))
 ```
 Optionally, see [pymethod](#pymethod).
 
-## `chain`
-`(chain target &rest chain)`
+## `chain(*)`
+`(chain &rest chain)`
 
-The interface to python objects is nicer using `chain` (see below):
-```lisp
-(destructuring-bind (fig ax) (plt:subplots)
-  (py4cl:chain ax (plot #(0 1 0 1)))
-  (plt:show)) 
-```
+This is inspired by the `chain` in parenscript, discussed in [this issue].
 
 In python it is quite common to apply a chain of method calls, data
 member access, and indexing operations to an object. To make this work
@@ -534,24 +503,18 @@ smoothly in Lisp, there is the `chain` macro (Thanks to @kat-co and
 [[https://common-lisp.net/project/parenscript/reference.html][parenscript]] for the inspiration). This consists of a target object,
 followed by a chain of operations to apply.  For example
 ```lisp
-(py4cl:chain "hello {0}" (format "world") (capitalize)) ; => "Hello world"
+(chain "hello {0}" (format "world") (capitalize)) ; => "Hello world"
 ```
 which is converted to python `return "hello {0}".format("world").capitalize()`.
 
-The only things which are treated specially by this macro are lists
-and symbols at the top level. The first element of lists are treated as
-python method names, top-level symbols are treated as data
-members. Everything else is evaluated as lisp before being converted
-to a python value.
+`chain` has two variants: `chain` is a macro, and `chain*` is a function.
 
-If the first argument is a list, then it is assumed to be a python
-function to be called; otherwise it is evaluated before converting to
-a python value. For example
+A few examples are as follows:
+
 ```lisp
-(py4cl:chain (slice 3) stop) ; => 3
+(chain (slice 3) stop) ; => 3
 ```
 
-is converted to the python `return slice(3).stop`.
 
 Symbols as first argument, or arguments to python methods, are
 evaluated, so the following works:
@@ -563,123 +526,105 @@ evaluated, so the following works:
 
 Arguments to methods are lisp, since only the top level forms in `chain` are treated specially:
 ```lisp
-(py4cl:chain "result: {0}" (format (+ 1 2))) ; => "result: 3"
-```
-
-Indexing with `[]` brackets is commonly used in python, which calls the `__getitem__` method.
-This method can be called like any other method
-
-```lisp
-(py4cl:chain "hello" (__getitem__ 4)) ; => "o"
-```
-
-but since this is a common method an alias `[]` is supported:
-```lisp
-(py4cl:chain "hello" ([] 4)) ; => "o"
-```
-
-which is converted to the python `return "hello"[4]`.
-
-For simple cases where the index is a value like a number or string
-(not a symbol or a list), the brackets can be omitted:
-```lisp
-(py4cl:chain "hello" 4) ; => "o"
-```
-
-Slicing can be done by calling the python `slice` function:
-```lisp
-(py4cl:chain "hello" ([] (py4cl:python-call "slice" 2 4)))  ; => "ll"
-```
-
-which could be imported as a lisp function (see below):
-```lisp
-(py4cl:import-function "slice")
-(py4cl:chain "hello" ([] (slice 2 4))) ; => "ll"
-```
-
-This of course also works with multidimensional arrays:
-```lisp
-(py4cl:chain #2A((1 2 3) (4 5 6))  ([] 1 (slice 0 2)))  ;=> #(4 5)
-```
-
-Sometimes the python functions or methods may contain upper case
-characters; class names often start with a capital letter. All symbols
-are converted to lower case, but the case can be controlled by passing
-a string rather than a symbol as the first element:
-```lisp
-;; Define a class
-(py4cl:python-exec
-   "class TestClass:
+CL-USER> (chain (slice 3) stop)
+3
+CL-USER> (let ((format-str "hello {0}")
+               (argument "world"))
+           (chain* format-str `(format ,argument)))
+"hello world"
+CL-USER> (chain* "result: {0}" `(format ,(+ 1 2)))
+"result: 3"
+CL-USER> (chain (aref "hello" 4))
+"o"
+CL-USER> (chain (aref "hello" (slice 2 4)))
+"ll"
+CL-USER> (chain (aref #2A((1 2 3) (4 5 6)) (slice 0 2)))
+#2A((1 2 3) (4 5 6))
+CL-USER> (chain (aref #2A((1 2 3) (4 5 6))  1 (slice 0 2)))
+#(4 5)
+CL-USER> (pyexec "class TestClass:
       def doThing(self, value = 42):
         return value")
-
-;; Create an object and call the method
-(py4cl:chain ("TestClass") ("doThing" :value 31))  ; => 31
+NIL
+CL-USER> (chain ("TestClass") ("doThing" :value 31))
+31
 ```
-Note that the keyword is converted, converting to lower case.
 
-Further, there is also `(setf chain)`:
+There is also `(setf chain)`:
 
 ```lisp
-(py4cl:remote-objects*
-  (let ((array (np:zeros '(2 2))))
-    (setf (py4cl:chain array ([] 0 1)) 1.0
-          (py4cl:chain array ([] 1 0)) -1.0)
-    array)) 
-; => #2A((0.0 1.0)
-;        (-1.0 0.0))
+CL-USER> (pyeval 
+          (with-remote-object (array (np:zeros '(2 2)))
+            (setf (chain* `(aref ,array 0 1)) 1.0
+                  (chain* `(aref ,array 1 0)) -1.0)
+            array))
+#2A((0.0 1.0) (-1.0 0.0))
 ```
 
 Note that this modifies the value in python, so the above example only
 works because =array= is a handle to a python object, rather than an
 array which is stored in lisp. The following therefore does not work:
+
 ```lisp
-(let ((array (np:zeros '(2 2))))
-  (setf (py4cl:chain array ([] 0 1)) 1.0
-        (py4cl:chain array ([] 1 0)) -1.0)
-  array)
-; => #2A((0.0 0.0)
-;        (0.0 0.0))
+CL-USER> (let ((array (np:zeros '(2 2))))
+           (setf (chain* `(aref ,array 0 1)) 1.0
+                 (chain* `(aref ,array 1 0)) -1.0)
+           array)
+#2A((0.0 0.0) (0.0 0.0))
 ```
 
-## `remote-objects(*)`
-`(remote-objects &body body)
+## `with-remote-object(s)`
+`(with-remote-objects (var value) &body body)
 
 If a sequence of python functions and methods are being used to manipulate data,
 then data may be passed between python and lisp. This is fine for small amounts
 of data, but inefficient for large datasets.
 
-The `remote-objects` and `remote-objects*` macros provide `unwind-protect` environments
+The `with-remote-object` and `with-remote-objects` macros provide `unwind-protect` environments
 in which all python functions return handles rather than values to lisp. This enables
 python functions to be combined without transferring much data.
 
-The difference between these macros is `remote-objects` returns a handle, but
-`remote-objects*` evaluates the result, and so will return a value if possible.
-
 ```lisp
-(py4cl:remote-objects (py4cl:python-eval "1+2")) ; => #S(PY4CL::PYTHON-OBJECT :TYPE "<class 'int'>" :HANDLE 0)
+(with-remote-objects () (py4cl:python-eval "1+2")) 
+; => #S(PY4CL::PYTHON-OBJECT :TYPE "<class 'int'>" :HANDLE 0)
 ```
 
 ```lisp
-(py4cl:remote-objects* (py4cl:python-eval "1+2")) ; => 3
+(pyeval (with-remote-objects () (py4cl:python-eval "1+2"))) ; => 3
 ```
 
 The advantage comes when dealing with large arrays or other datasets:
 ```lisp
-(time (np:sum (np:arange 1000000)))
-; => 3.672 seconds of real time
-;    390,958,896 bytes consed
+CL-USER> (time (let ((arr (make-array 1000000 
+                                      :element-type 'single-float
+                                      :initial-element 2.0))) 
+                 (np:sum (np:add arr arr))))
+;  0.289 seconds of real time
+;  8,032,544 bytes consed
+  
+4000000.0
+CL-USER> (time (pyeval ; arr is transferred to python only once, during the binding
+                (with-remote-objects ((arr (make-array 1000000 
+                                                       :element-type 'single-float
+                                                       :initial-element 2.0))) 
+                  (np:sum (np:add arr arr))))) 
+;  0.061 seconds of real time
+;  4,032,704 bytes consed
+  
+4000000.0
 ```
+Note that this requires you to solely use python functions and methods. So, do not expect something like this to work:
 
 ```lisp
-(time (py4cl:remote-objects* (np:sum (np:arange 1000000))))
-; => 0.025 seconds of real time
-;    32,544 bytes consed
+(with-remote-objects () (print (aref (numpy:ones :shape '(10000000)) 0)))
+; Error
 ```
 
-`remote-objects*` returns the result.
+to work.
 
-Besides this, (see [Setting up](#setting-up).
+Besides this, see [Setting up](#setting-up) for using ram-disk and `numpy-file-format` to
+combine lisp and python functions.
+.
 
 ## `python-getattr`
 `(python-getattr object slot-name)`
@@ -688,7 +633,7 @@ Lisp structs and class objects can be passed to python, put into data structures
 returned:
 
 ```lisp
-(py4cl:import-function "dict") ; Makes python dictionaries
+(defpyfun "dict") ; Makes python dictionaries
 
 (defstruct test-struct 
     x y)
@@ -696,7 +641,7 @@ returned:
 (let ((map (dict :key (make-test-struct :x 1 :y 2))))  ; Make a dictionary, return as hash-map
   ;; Get the struct from the hash-map, and get the Y slot
   (test-struct-y
-    (py4cl:chain map "key")))  ; => 2
+    (chain* `(aref ,map "key"))))  ; => 2
 ```
 
 
@@ -717,7 +662,7 @@ method).
   ((value :initarg :value)))
 
 ;; Define a method to handle calls from python
-(defmethod py4cl:python-getattr ((object test-class) slot-name)
+(defmethod python-getattr ((object test-class) slot-name)
   (cond
     ((string= slot-name "value") ; data member
       (slot-value object 'value))
@@ -728,7 +673,7 @@ method).
 (let ((instance (make-instance 'test-class :value 21))) 
   ;; Get the value from the slot, call the method
   ;; python: instance.func(instance.value)
-  (py4cl:chain instance (func (py4cl:chain instance value))))  ; => 42
+  (chain* `((@ ,instance func) (@ ,instance value))))  ; => 42
 ```
 Inheritance then works as usual with CLOS methods:
 ```lisp
@@ -745,8 +690,8 @@ Inheritance then works as usual with CLOS methods:
 
 (let ((object (make-instance 'child-class :value 42 :other 3)))
   (list 
-    (py4cl:chain object value) ; Call TEST-CLASS getattr method via CALL-NEXT-METHOD
-    (py4cl:chain object other))) ;=> (42 3)
+    (chain* object 'value) ; Call TEST-CLASS getattr method via CALL-NEXT-METHOD
+    (chain* object 'other))) ;=> (42 3)
 ```
 
 # Testing 
@@ -761,7 +706,7 @@ or
 
 ```lisp
 (ql:quickload :py4cl-tests)
-(py4cl-tests:run)
+(py4cl1-tests:run)
 ```
 
 
@@ -818,16 +763,14 @@ package).
 
 # Name Mapping
 
-`defpyfun` takes care to lispify argument names unless some argument has a capital letter, or there exists a keyword argument; in these cases, `(&rest args)`  is used as a parameter list. Now, `defpyfun` relies on `pycall`.
-
-The arguments passed by `pycall` are parsed by the python process: the lisp keywords are converted to their python equivalents. This only entails downcasing the symbol-name of the keywords and replacing hyphens with underscores. Thus, if the function had arguments with capital letters, (currently) it is not possible to pass arguments to such a function as keyword arguments.
+The arguments passed to `pycall` are parsed as follows: the lisp keywords are converted to their python equivalents. This only entails downcasing the symbol-name of the keywords and replacing hyphens with underscores. If the symbol-name contained capital letters, then, if all the letters are capitals, the symbol-name is downcased; else it stays as it is
 
 ```lisp
-CL-USER> (py4cl:pyexec "
+CL-USER> (pyexec "
 def foo(A, b):
   return True")
 NIL
-CL-USER> (defpyfun "foo")
+CL-USER> (pycall 'foo :*A* 4 :b 3)
 NIL
 CL-USER> (foo :a 4 :b 3)
 ; Evaluation aborted on #<PYERROR {100E2AF473}>.
@@ -835,21 +778,26 @@ CL-USER> (foo :a 4 :b 3)
 CL-USER> (foo 4 3)
 T
 ```
+Lispfication of python names is done by `defpyfun`, in import-export.lisp. Both `CamelCase` and `joint_words` are converted to `camel-case` and `joint-words`; the actual names of the arguments are substituted:
 
-In essence, pythonization of names means: downcasing the symbol names, and replacing the hyphens with underscores. For `fun-names` this is handled in callpython.lisp. For argument names, downcasing is done by `pythonize` on symbols, and hyphen to underscore replacement in done in python process.
+```lisp
+CL-USER> (macroexpand-1 '(defpyfun "foo"))
+(DEFUN FOO (&KEY (A 'NIL) (B 'NIL))
+  "Python function"
+  NIL
+  (PYTHON-START-IF-NOT-ALIVE)
+  (RAW-PYEVAL "foo" "(" "A" "=" (PY4CL2::PYTHONIZE A) "," "b" "="
+              (PY4CL2::PYTHONIZE B) "," ")"))
+T
+```
 
-Lispification of python names is conditional, in that: if the name is a function name or module name, that is to be interned, then `CamelCase` and `joint_words` are converted to `camel-case` and `joint-words` For argument names, this is only done, if they do not have capital letters. This process is handled in import-export.lisp.
-
+The format of the calling expression does depend on the signature of the function.
 
 
 
 # What remains?
 
 See [TODO].
-
-
----
-
 
 # Also check out
 

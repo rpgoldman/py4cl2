@@ -1,7 +1,7 @@
 
 ;;;; package.lisp
 
-(defpackage #:py4cl
+(defpackage #:py4cl2
   (:use #:cl #:iterate)
   (:shadowing-import-from #:iterate #:as #:for)
   (:export ; python-process
@@ -9,7 +9,6 @@
    #:pystop
    #:python-alive-p
    #:python-start-if-not-alive
-   #:pyversion-info
    #:pyinterrupt)
   (:export ; callpython
    #:pyerror
@@ -18,17 +17,16 @@
    #:pyeval
    #:pyexec
    #:pycall
-   #:pycall-async
    #:pymethod 
-   #:pycall-monitor 
-   #:pymethod-monitor 
    #:pygenerator 
    #:pyslot-value 
+   #:pyversion-info
    #:pyhelp 
-   #:chain 
-   #:pysetf
-   #:remote-objects
-   #:remote-objects*)
+   #:chain
+   #:chain*
+   #:@
+   #:with-remote-object
+   #:with-remote-objects)
   (:export ; import-export
    #:pymethod-list 
    #:pyslot-list 

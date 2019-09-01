@@ -1,4 +1,4 @@
-(in-package :py4cl)
+(in-package :py4cl2)
 
 (defvar *config* () "Used for storing configuration at a centralized location.")
 ;; Refer initialize function to note which variables are included under *config*
@@ -35,7 +35,7 @@ Enter full file path for storage (default /tmp/_numpy_pickle.npy): "
 
 (defun save-config ()
   (let ((config-path (concatenate 'string
-                                  (directory-namestring py4cl/config:*base-directory*)
+                                  (directory-namestring py4cl2/config:*base-directory*)
                                   ".config")))
     
     (with-open-file (f config-path :direction :output :if-exists :supersede
@@ -45,7 +45,7 @@ Enter full file path for storage (default /tmp/_numpy_pickle.npy): "
 
 (defun load-config ()
   (let ((config-path (concatenate 'string
-                                  (directory-namestring py4cl/config:*base-directory*)
+                                  (directory-namestring py4cl2/config:*base-directory*)
                                   ".config"))
         (cl-json:*json-symbols-package* *package*))
     (setq *config* (with-open-file (f config-path)
@@ -54,6 +54,7 @@ Enter full file path for storage (default /tmp/_numpy_pickle.npy): "
 (defun config-var (var) (cdr (assoc var *config*)))
 (defun (setf config-var) (new-value var)
   (setf (cdr (assoc var *config*)) new-value)
+  ;; say, the user wants the python process to be project local
   (unless (eq var 'pycmd) (save-config))
   (when (python-alive-p) (pycall "_py4cl_load_config")))
 

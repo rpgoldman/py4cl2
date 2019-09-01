@@ -1,12 +1,16 @@
 ;; This file is divided into:
 ;; - Preparations for calling
+;;   - dispatch-reply: Used for calling and passing lisp functions to python
+;;     Note that this calling can be nested: probably, "return_values"
+;;     py4cl.py file keeps track of this nesting (see LispCallbackObject class
+;;     in python
 ;; - Raw Functions
 ;; - Utility Functions
 ;;   - eval, exec, call, method, async, monitor
 ;;   - chain
 ;;   - remote objects
 
-(in-package :py4cl)
+(in-package :py4cl2)
 
 ;; ============================ PREPARATIONS FOR CALLING ======================
 
@@ -28,9 +32,8 @@
          (return-value
           (loop
              (case (read-char read-stream) ; First character is type of message
-               ;; Returned value
-               (#\r (return (stream-read-value read-stream)))
-               ;; Error
+               (#\r (return (stream-read-value read-stream)))  ; Returned value
+
                (#\e (error 'pyerror  
                            :text (stream-read-string read-stream)))
 
@@ -41,28 +44,26 @@
                (#\s (destructuring-bind (handle slot-name) (stream-read-value read-stream)
                       (let ((object (lisp-object handle)))
                         ;; User must register a function to handle slot access
-                        (dispatch-reply write-stream
-                                        (restart-case
-                                            (python-getattr object slot-name)
-                                          ;; Provide some restarts for missing handler or missing slot
-                                          (return-nil () nil)
-                                          (return-zero () 0)
-                                          (enter-value (return-value)
-                                            :report "Provide a value to return"
-                                            :interactive (lambda ()
-                                                           (format t "Enter a value to return: ")
-                                                           (list (read)))
-                                            return-value))))))
+                        (dispatch-reply
+                         write-stream
+                         (restart-case
+                             (python-getattr object slot-name)
+                           ;; Provide some restarts for missing handler or missing slot
+                           (return-nil () nil)
+                           (return-zero () 0)
+                           (enter-value (return-value)
+                             :report "Provide a value to return"
+                             :interactive (lambda ()
+                                            (format t "Enter a value to return: ")
+                                            (list (read)))
+                             return-value))))))
                
-               ;; Callback. Value returned is a list, containing the function ID then the args
-               (#\c
+               (#\c ;; Callback. Return a list, containing function ID, then the args
                 (let ((call-value (stream-read-value read-stream)))
-                  (let ((return-value (apply (lisp-object (first call-value)) (second call-value))))
-                    ;; Send a reply
+                  (let ((return-value (apply (lisp-object (first call-value))
+                                             (second call-value))))
                     (dispatch-reply write-stream return-value))))
-
-               ;; Print stdout
-               (#\p
+               (#\p ; Print stdout
                 (let ((print-string (stream-read-value read-stream)))
                   (princ print-string)))
                
@@ -103,6 +104,11 @@ For instance,
 will result in 'sys' name not defined PYERROR."
   (apply #'raw-py #\x strings))
 
+(defun (setf raw-pyeval) (value &rest args)
+  (apply #'raw-pyexec (append args
+                              (list "=" (pythonize value))))
+  value)
+
 ;; =========================== UTILITY FUNCTIONS ===============================
 
 (defun pythonizep (value)
@@ -141,59 +147,29 @@ Can be useful for modifying a value directly in python.
   (apply #'pyexec (append args (list "=" value))) ; would nconc be better?
   value)
 
-(defun pythonize-name (name)
-  "Returns downcased SYMBOL-NAME of SYMBOL, and hyphens replaced with underscores.
-  Eg. (pythonize-name 'some-example) -> \"some_example\".
-Returns the string as it is."
-  (etypecase name
-    (string name)
-    (symbol (iter (for char in-string (format nil "~(~a~)" name))
-                  (collect (if (char= char #\-)
-                               #\_
-                               char)
-                    result-type string)))
-    (t (pythonize name))))
+(defun %pycall-args (&rest args)
+  (apply #'concatenate
+         'string
+         "("
+         `(,@(iter (for arg in args)
+                   (for pythonized-arg = (pythonize arg))
+                   (if (and (symbolp arg)
+                            (eq (find-package :keyword)
+                                (symbol-package arg)))
+                       (collect pythonized-arg)
+                       (progn (collect pythonized-arg)
+                              (collect ","))))
+             ")")))
 
-;; Note: PYCALL does not use PYEVAL/RAW-PYEVAL
 (defun pycall (fun-name &rest args)
   "Calls FUN-NAME with ARGS as arguments. Arguments can be keyword based, or 
-otherwise. 
-FUN-NAME can be a string, symbol or python-object.
-  eval is used if FUN-NAME is not a PYTHON-OBJECT.
-  If FUN-NAME is a symbol, the name of the symbol is used after calling
-    PYTHONIZE-NAME on it. 
-  FUN-NAME is NOT PYTHONIZEd if it is a string."
-  (python-start-if-not-alive) ; should delete here? what about async?
-  (delete-freed-python-objects) ; delete before pythonizing
-  (delete-numpy-pickle-arrays)
-  (let ((stream (uiop:process-info-input *python*)))
-    (write-char #\f stream) ; function call
-    (stream-write-value `(,(pythonize-name fun-name) ,args) stream)
-    (force-output stream))
-  (dispatch-messages *python*))
-
-(defun pycall-async (fun-name &rest args)
-  "Call a python function asynchronously. 
-Returns a lambda which when called returns the result."
-  (python-start-if-not-alive) ; why not delete here? - see pycall may be
-  (let* ((process *python*)
-         (stream (uiop:process-info-input process)))
-    (write-char #\a stream) ; asynchronous function call
-    (stream-write-value `(,(pythonize-name fun-name) ,args) stream)
-    (force-output stream)
-    (let ((handle (dispatch-messages process))
-          value)
-      (lambda ()
-        (if handle
-            ;; Retrieve the value from python
-            (progn
-              (write-char #\R stream)
-              (stream-write-value handle stream)
-              (force-output stream)
-              (setf handle nil
-                    value (dispatch-messages process)))
-            ;; If no handle then already have the value
-            value)))))
+ otherwise."
+  (raw-pyeval "("
+              (typecase fun-name
+                (string fun-name)
+                (t (pythonize fun-name)))
+              ")"
+              (apply #'%pycall-args args)))
 
 (defun pymethod (object method &rest args)
   "PYCALLs METHOD of OBJECT with ARGS
@@ -207,232 +183,95 @@ Note: FUN-NAME is NOT PYTHONIZEd if it is a string.
   (python-start-if-not-alive)
   (apply #'pycall
          (concatenate 'string
-                      (pythonize object) "." (pythonize-name method))
+                      (pythonize object) "." (pythonize method))
          args))
-
-(defun pycall-monitor (fun-name arg-list &key (interval 1) (output *standard-output*))
-  "Same as PYCALL, but \"monitors\" the output of the function. Useful for
-functions like keras.Model.fit."
-  (python-start-if-not-alive)
-  (let ((call (bt:make-thread
-               (lambda ()
-                 (let ((to-py (uiop:process-info-input *python*)))
-                   (write-char #\m to-py)
-                   (stream-write-value (list fun-name arg-list) to-py)
-                   (force-output to-py)))))
-        (from-py (uiop:process-info-output py4cl::*python*)))
-    (iter (while (bt:thread-alive-p call))
-          (write-string (read-line from-py) output)
-          (terpri output)
-          (force-output output)
-          (sleep interval)
-          (finally
-           (iter (for line = (read-line from-py))
-                 (when (string= line "_py4cl_monitor_error")
-                   (error 'pyerror
-                          :text (stream-read-value from-py)))
-                 (while (not (ignore-errors ; if the string is not 18 char long
-                               (string= (subseq line 0 18) "_py4cl_monitor_end"))))
-                 (write-string line output)
-                 (terpri output))))
-    (dispatch-messages *python*)))
-
-(defun pymethod-monitor (obj method-name arg-list &key (interval 1) (output *standard-output*))
-  "Same as PYCALL-MONITOR, but handy for calling methods."
-  (apply #'pycall-monitor
-	 (concatenate 'string (pythonize obj)
-                      "." (pythonize-name method-name))
-         (cons arg-list
-               `(:interval ,interval :output ,output))))
 
 (defun pygenerator (function stop-value)
   (pycall "_py4cl_generator" function stop-value))
 
 (defun pyslot-value (object slot-name)
-  (pyeval object "." (pythonize-name slot-name)))
+  (pyeval object "." (pythonize slot-name)))
+
+(defun pyversion-info ()
+  "Return a list, using the result of python's sys.version_info."
+  (pyexec "import sys")
+  (pyeval "tuple(sys.version_info)"))
 
 (defun pyhelp (object)
   (pyeval "help(" object ")"))
 
 ;; Chain -----------------------------------------------------------------------
 
-(defun function-args (args)
-  "Internal function, intended to be called by the CHAIN macro.
-Converts function arguments to a list of strings and (pythonize )
-function calls. Handles keywords and insertion of commas. 
-Returns a list which can be passed to PYTHON-EVAL.
+;;; If someone wants to handle multidimensional array slicing and stuff, they should take
+;;; a look at: https://github.com/hylang/hy/issues/541
+(defun %chain* (&rest chain)
+  (if (= 1 (length chain))
+      (let ((chain (first chain)))
+        (typecase chain
+          (cons (cond ((member (car chain) '(@ chain))
+                       (format nil "~{~a~^.~}" (mapcar #'%chain* (cdr chain))))
+                      ((eq 'aref (car chain))
+                       (apply #'concatenate
+                              'string
+                              (%chain* (cadr chain))
+                              (mapcar (lambda (link) (format nil "[~A]"
+                                                             (%chain* link)))
+                                      (cddr chain))))
+                      (t
+                       (apply #'concatenate
+                              'string
+                              (if (stringp (car chain))
+                                  (car chain)
+                                  (%chain* (car chain)))
+                              "("
+                              `(,@(iter (for link in (cdr chain))
+                                        (for pythonized-link = (%chain* link))
+                                        (collect pythonized-link)
+                                        (unless (and (symbolp link)
+                                                     (eq (find-package :keyword)
+                                                         (symbol-package link)))
+                                          (collect ",")))
+                                  ")")))))
+          (t (pythonize chain))))
+      (format nil "~{~a~^.~}" (mapcar #'%chain* chain))))
 
-Examples:
+(defun chain* (&rest chain) (raw-pyeval (apply #'%chain* chain)))
+(defmacro chain (&rest chain) `(raw-pyeval ,(apply #'%chain* chain)))
 
-  (py4cl::function-args '(1 :test 2))
-  => ((PY4CL::PYTHONIZE 1) \",\" \"test\" \"=\" (PY4CL::PYTHONIZE 2))
-"
-  (if (not args)
-      '("")
-      (if (keywordp (first args))
-          (append
-           (list (string-downcase (first args))
-                 "="
-                 `(pythonize ,(second args)))
-           (if (cddr args)
-               (append '(",") (function-args (cddr args)))))
-          
-          (append
-           (list `(pythonize ,(first args)))
-           (if (rest args)
-               (append '(",") (function-args (rest args))))))))
-
-(defun python-eval* (cmd-char &rest args)
-  "Internal function, which converts ARGS into a string to be evaluated
-This handles both EVAL and EXEC calls with CMD-CHAR being different
-in the two cases. 
-Anything in ARGS which is not a string is passed through PYTHONIZE
-"
-  (python-start-if-not-alive)
-  (let ((stream (uiop:process-info-input *python*))
-        (str (apply #'concatenate 'string (loop for val in args
-                                             collecting (if (typep val 'string)
-                                                            val
-                                                            (pythonize val))))))
-    ;; Write "x" if exec, otherwise "e"
-    (write-char cmd-char stream)
-    (stream-write-string str stream)
-    (force-output stream)
-    ;; Wait for response from Python
-    (dispatch-messages *python*)))
-
-(defun python-eval (&rest args)
-  "Evaluate an expression in python, returning the result
-Arguments ARGS can be strings, or other objects. Anything which 
-is not a string is converted to a python value
-Examples:
- (python-eval \"[i**2 for i in range(\" 4 \")]\") => #(0 1 4 9)
- (let ((a 10) (b 2))
-   (py4cl:python-eval a "*" b)) => 20
-"
-   (delete-freed-python-objects)
-   (apply #'python-eval* #\e args))
-
-(defun (setf python-eval) (value &rest args)
-  "Set an expression to a value. Just adds \"=\" and the value
-to the end of the expression. Note that the result is evaluated
-with exec rather than eval.
-Examples:
-    (setf (python-eval \"a\") 2)  ; python \"a=2\"
-"
-  (apply #'python-eval* #\x (append args (list "=" (py4cl::pythonize value))))
+(defun (setf chain*) (value &rest args)
+  (apply #'raw-pyexec (list (apply #'%chain* args)
+                            "="
+                            (pythonize value)))
   value)
 
-(defun (setf chain) (value &rest args)
-  "Set an expression to a value. Just adds \"=\" and the value
-to the end of the expression. Note that the result is evaluated
-with exec rather than eval.
-
-Examples:
-
-    (setf (pyeval \"a\") 2)  ; python \"a=2\"
-"
-  (apply #'python-eval* #\x (append args (list "=" (py4cl::pythonize value))))
-  value)
-
-(defmacro chain (target &rest chain)
-  "Chain method calls, member access, and indexing operations
-on objects. The operations in CHAIN are applied in order from
-first to last to the TARGET object.
-
-TARGET can be
-  cons -- a python function to call, returning an object to operate on
-  otherwise -- a value, to be converted to a python value
-
-CHAIN can consist of
-   cons   -- a method to call
-   symbol -- a member data variable
-   otherwise -- a value put between [] brackets to access an index
-
-Keywords inside python function calls are converted to python keywords.
-
-Functions can be specified using a symbol or a string. If a symbol is used
-then it is converted to python using STRING-DOWNCASE. 
-
-Examples:
-
-  (chain \"hello {0}\" (format \"world\") (capitalize)) 
-     => python: \"hello {0}\".format(\"world\").capitalize()
-     => \"Hello world\"
-
-  (chain (range 3) stop) 
-     => python: range(3).stop
-     => 3
-
-  (chain \"hello\" 4)
-     => python: \"hello\"[4]
-     => \"o\"
-"
-  (python-start-if-not-alive)
-  (delete-numpy-pickle-arrays)
-  `(py4cl::python-eval
-    ;; TARGET 
-    ,@(if (consp target)
-          ;; A list -> python function call
-          `(,(let ((func (first target))) ; The function name
-               (if (stringp func)
-                   func  ; Leave string unmodified
-                   (string-downcase func))) ; Otherwise convert to lower-case string
-             "("
-             ,@(function-args (rest target))
-             ")")
-          ;; A value
-          (list (list 'py4cl::pythonize target)))
-    ;; CHAIN
-    ,@(loop for link in chain
-         appending
-           (cond
-             ((consp link)
-              ;; A list. Usually a method to call, but [] indicates __getitem__
-              (if (string= (first link) "[]")
-                  ;; Calling the __getitem__ method
-                  (list "[" (list 'py4cl::pythonize  ; So that strings are escaped
-                                  (if (cddr link)
-                                      (append '(list) (rest link)) ; More than one -> wrap in list/tuple
-                                      (cadr link))) ; Only one -> no tuple
-                        "]")
-                  ;; Calling a method
-                  `("."
-                    ,(let ((func (first link)))
-                       (if (stringp func)
-                           func  ; Leave string unmodified
-                           (string-downcase func))) ; Otherwise convert to lower-case string
-                    "("
-                    ,@(function-args (rest link))
-                    ")")))
-             ((symbolp link) (list (format nil ".~(~a~)" link)))
-             (t (list "[" (list 'py4cl::pythonize link) "]"))))))
-
-
-;; Remote Objects --------------------------------------------------------------
-
-(defmacro remote-objects (&body body)
+(defmacro with-remote-object ((var value) &body body)
   "Ensures that all values returned by python functions
 and methods are kept in python, and only handles returned to lisp.
 This is useful if performing operations on large datasets."
-  `(progn
+  `(let ()
      (python-start-if-not-alive)
      (let ((stream (uiop:process-info-input *python*)))
-       ;; Turn on remote objects
-       (write-char #\O stream)
+       (write-char #\O stream)        ;; Turn on remote objects
        (force-output stream)
        (unwind-protect
-            (progn ,@body)
-         ;; Turn off remote objects
-         (write-char #\o stream)
+            (let ((,var (pyeval ,value)))
+              ,@body)
+         (write-char #\o stream)          ;; Turn off remote objects
          (force-output stream)))))
 
-(defmacro remote-objects* (&body body)
+(defmacro with-remote-objects (bindings &body body)
   "Ensures that all values returned by python functions
 and methods are kept in python, and only handles returned to lisp.
-This is useful if performing operations on large datasets.
-
-This version evaluates the result, returning it as a lisp value if possible.
-"
-  `(pyeval (remote-objects ,@body)))
+This is useful if performing operations on large datasets."
+  `(let ()
+     (python-start-if-not-alive)
+     (let ((stream (uiop:process-info-input *python*)))
+       (write-char #\O stream)        ;; Turn on remote objects
+       (force-output stream)
+       (unwind-protect
+            (let ,(loop for (var binding) in bindings
+                     collect `(,var (pyeval ,binding)))
+              ,@body)
+         (write-char #\o stream)          ;; Turn off remote objects
+         (force-output stream)))))
 
