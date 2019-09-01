@@ -375,7 +375,7 @@ temp = Foo()")
                          1 0)))
   (assert-equalp #(4 5)
       (py4cl2:chain (aref #2A((1 2 3) (4 5 6))
-                         1 (slice 0 2))))
+                          1 (slice 0 2))))
 
   (let ((dict (py4cl2:pyeval "{\"hello\":\"world\", \"ping\":\"pong\"}")))
     (assert-equalp "world"
@@ -416,6 +416,19 @@ temp = Foo()")
 
   (assert-equalp 31
       (py4cl2:chain ("TestClass") ("doThing" :value 31))))
+
+(defclass test-class () ((value :initarg :value)))
+(defmethod python-getattr ((object test-class) slot-name)
+  (cond
+    ((string= slot-name "value") ; data member
+      (slot-value object 'value))
+    ((string= slot-name "func")  ; method, return a function
+      (lambda (arg) (* 2 arg)))
+    (t (call-next-method)))) ; Otherwise go to next method
+(deftest chain-nested (callpython-chain)
+  (assert-equal 42
+      (let ((instance (make-instance 'test-class :value 21))) 
+        (chain* `((@ ,instance func) (@ ,instance value))))))
 
 (deftest setf-chain (callpython-chain)
   ;; Define an empty class which can be modified

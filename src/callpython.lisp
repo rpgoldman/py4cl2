@@ -204,47 +204,42 @@ Note: FUN-NAME is NOT PYTHONIZEd if it is a string.
 
 ;;; If someone wants to handle multidimensional array slicing and stuff, they should take
 ;;; a look at: https://github.com/hylang/hy/issues/541
-(defun %chain (&rest chain)
-  (format nil "~{~A~^.~}"
-          (mapcar (lambda (elt)
-                    (typecase elt
-                      (null "")
-                      (cons (apply #'concatenate 'string
-                                   (case (car elt)
-                                     (aref
-                                      `(,(%chain (cadr elt))
-                                         ,@(mapcar (lambda (idx)
-                                                     (format nil "[~A]" idx))
-                                                   (mapcar #'%chain (cddr elt)))))
-                                     (t `(,(typecase (car elt)
-                                             (string (car elt))
-                                             (t (pythonize (car elt))))
-                                           ,(apply #'%pycall-args (cdr elt)))))))
-                      (t (pythonize elt))))
-                  chain)))
+(defun %chain* (&rest chain)
+  (if (= 1 (length chain))
+      (let ((chain (first chain)))
+        (typecase chain
+          (cons (cond ((member (car chain) '(@ chain))
+                       (format nil "~{~a~^.~}" (mapcar #'%chain* (cdr chain))))
+                      ((eq 'aref (car chain))
+                       (apply #'concatenate
+                              'string
+                              (%chain* (cadr chain))
+                              (mapcar (lambda (link) (format nil "[~A]"
+                                                             (%chain* link)))
+                                      (cddr chain))))
+                      (t
+                       (apply #'concatenate
+                              'string
+                              (if (stringp (car chain))
+                                  (car chain)
+                                  (%chain* (car chain)))
+                              "("
+                              `(,@(iter (for link in (cdr chain))
+                                        (for pythonized-link = (%chain* link))
+                                        (collect pythonized-link)
+                                        (unless (and (symbolp link)
+                                                     (eq (find-package :keyword)
+                                                         (symbol-package link)))
+                                          (collect ",")))
+                                  ")")))))
+          (t (pythonize chain))))
+      (format nil "~{~a~^.~}" (mapcar #'%chain* chain))))
 
-(defmacro chain (&body chain)
-    "Chain method calls, member access, and indexing operations
-on objects.
-Keywords inside python function calls are converted to python keywords.
-Functions can be specified using a symbol or a string. If a symbol is used
-then it is converted to python using STRING-DOWNCASE. 
-Examples:
-  (chain \"hello {0}\" (format \"world\") (capitalize)) 
-     => python: \"hello {0}\".format(\"world\").capitalize()
-     => \"Hello world\"
-  (chain (range 3) stop) 
-     => python: range(3).stop
-     => 3
-  (chain \"hello\" 4)
-     => python: \"hello\"[4]
-     => \"o\"
-"
-    `(raw-pyeval ,(apply #'%chain chain)))
+(defun chain* (&rest chain) (raw-pyeval (apply #'%chain* chain)))
+(defmacro chain (&rest chain) `(raw-pyeval ,(apply #'%chain* chain)))
 
-(defun chain* (&rest chain) (raw-pyeval (apply #'%chain chain)))
 (defun (setf chain*) (value &rest args)
-  (apply #'raw-pyexec (list (apply #'%chain args)
+  (apply #'raw-pyexec (list (apply #'%chain* args)
                             "="
                             (pythonize value)))
   value)

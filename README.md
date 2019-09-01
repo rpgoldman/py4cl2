@@ -1,6 +1,6 @@
 # Github Pages
 
-Detailed documentation is available on [github-pages](https://digikar99.github.io/py4cl/).
+Detailed documentation is available on [github-pages](https://digikar99.github.io/py4cl2/).
 
 # Quick Demonstration
 

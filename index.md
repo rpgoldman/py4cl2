@@ -6,32 +6,36 @@ title: py4cl2
 
 # Introduction
 
-py4cl is a package by Ben Dudson, aimed at making python libraries availble in Common Lisp,
+[py4cl](https://github.com/bendudson/py4cl) is a package by Ben Dudson, aimed at making python libraries availble in Common Lisp,
 using streams to communicate with a separate python process - the approach taken by [cl4py](https://github.com/marcoheisig/cl4py). This is
 different to the CFFI approach used by [burgled-batteries](https://github.com/pinterface/burgled-batteries),
 but has the same goal. 
 
-py4cl2 is an improvement over the original py4cl. (See [Highlights and Limitations](#highlights-and-limitations-of-py4cl).
+[py4cl2](https://github.com/digikar99/py4cl2) is an improvement over the original py4cl. (See [Highlights and Limitations](#highlights-and-limitations-of-py4cl2).)
 
-Please report the issues on github: [this fork](https://github.com/digikar99/py4cl/issues).
+Please report the issues on github: [py4cl2](https://github.com/digikar99/py4cl2/issues) or [py4cl](https://github.com/bendudson/py4cl)).
 
 
 # Highlights and Limitations of `py4cl2`
 
-- Speed: About 9500 `(pycall "int" "5")` instructions per second @ 1GHz intel 8750H. 
+- Speed: About 6500 `(pycall "int" "5")` instructions per second @ 1GHz intel 8750H. 
 This shouldn't be a bottleneck if you're planning to run "long" processes in python. (For example, deep learning :). )
 - Virtual environments: [`pycmd`](#pycmd) (`*python-command*` in `py4cl`): Choose which python binary to use. Works with miniconda.
 - Multiple python processes (not documented here) - parallel execution?
 
+<div><img src="readme_slime.png" width="80%" style="margin:auto; display:block;"/></div>
+<!-- ![slime-demo-image](readme_slime.png) -->
 
 ## Improvements over py4cl
-- Name changes: several (but not all) names have been shorted from `python-` to `py`
+- Changes: several (but not all) names have been shorted from `python-` to `py`; `remote-objects` have been changed to `with-remote-object(s)`. Personal preference for these names stems from:
+  - `defpyfun/module` reminds of the equivalent in `burgled-batteries` and `cffi`
+  - `py`names are shorter
+  - `with-remote` seems more appropriate
+  - `chain` and `chain*` with more "uniformity"
 - Arguments are imported; submodules can be imported with an option to [defpymodule]. However, this is only possible for python3.
-- Improvements in large array transfer speed, using numpy-file-format (see [initialize](#initialize). Besides this, [remote-objects] has been in existence since `py4cl`
+- Improvements in large array transfer speed, using numpy-file-format (see [initialize](#initialize); though this does not beat `remote-objects`, in existence since `py4cl`, 
 - Interrupt the python process using [(pyinterrupt)](#pyinterrupt)
 - `defpymodule` (previously `import-module`) is works "as-expected" with asdf / `defpackage`.
-- Known bug fixes: `(python-eval "5")` used to return `5` in `py4cl`
-- Changes (improvements?) in chain
 
 - See [TODO].
 
@@ -65,7 +69,7 @@ On python side:
 Clone this repository into `~/quicklisp/local-projects/` or other
 location where it can be discovered by ASDF:
 ```sh
-git clone https://github.com/digikar99/py4cl.git
+git clone https://github.com/digikar99/py4cl2.git
 ```
 
 Original version by [bendudson](https://github.com/bendudson/py4cl) can be found at: 
@@ -549,13 +553,12 @@ CL-USER> (chain ("TestClass") ("doThing" :value 31))
 There is also `(setf chain)`:
 
 ```lisp
-CL-USER> (remote-objects*
-           (let ((array (np:zeros '(2 2))))
-             (setf (chain* `(aref ,array 0 1)) 1.0
-                   (chain* `(aref ,array 1 0)) -1.0)
-             array))
+CL-USER> (pyeval 
+          (with-remote-object (array (np:zeros '(2 2)))
+            (setf (chain* `(aref ,array 0 1)) 1.0
+                  (chain* `(aref ,array 1 0)) -1.0)
+            array))
 #2A((0.0 1.0) (-1.0 0.0))
-
 ```
 
 Note that this modifies the value in python, so the above example only
@@ -570,8 +573,8 @@ CL-USER> (let ((array (np:zeros '(2 2))))
 #2A((0.0 0.0) (0.0 0.0))
 ```
 
-## `remote-objects(*)`
-`(remote-objects &body body)
+## `with-remote-object(s)`
+`(with-remote-objects (var value) &body body)
 
 If a sequence of python functions and methods are being used to manipulate data,
 then data may be passed between python and lisp. This is fine for small amounts
@@ -582,11 +585,12 @@ in which all python functions return handles rather than values to lisp. This en
 python functions to be combined without transferring much data.
 
 ```lisp
-(py4cl:remote-objects (py4cl:python-eval "1+2")) ; => #S(PY4CL::PYTHON-OBJECT :TYPE "<class 'int'>" :HANDLE 0)
+(with-remote-objects () (py4cl:python-eval "1+2")) 
+; => #S(PY4CL::PYTHON-OBJECT :TYPE "<class 'int'>" :HANDLE 0)
 ```
 
 ```lisp
-(py4cl:remote-objects* (py4cl:python-eval "1+2")) ; => 3
+(pyeval (with-remote-objects () (py4cl:python-eval "1+2"))) ; => 3
 ```
 
 The advantage comes when dealing with large arrays or other datasets:
@@ -613,6 +617,7 @@ Note that this requires you to solely use python functions and methods. So, do n
 
 ```lisp
 (with-remote-objects () (print (aref (numpy:ones :shape '(10000000)) 0)))
+; Error
 ```
 
 to work.
@@ -628,7 +633,7 @@ Lisp structs and class objects can be passed to python, put into data structures
 returned:
 
 ```lisp
-(py4cl:import-function "dict") ; Makes python dictionaries
+(defpyfun "dict") ; Makes python dictionaries
 
 (defstruct test-struct 
     x y)
@@ -636,7 +641,7 @@ returned:
 (let ((map (dict :key (make-test-struct :x 1 :y 2))))  ; Make a dictionary, return as hash-map
   ;; Get the struct from the hash-map, and get the Y slot
   (test-struct-y
-    (py4cl:chain map "key")))  ; => 2
+    (chain* `(aref ,map "key"))))  ; => 2
 ```
 
 
@@ -657,7 +662,7 @@ method).
   ((value :initarg :value)))
 
 ;; Define a method to handle calls from python
-(defmethod py4cl:python-getattr ((object test-class) slot-name)
+(defmethod python-getattr ((object test-class) slot-name)
   (cond
     ((string= slot-name "value") ; data member
       (slot-value object 'value))
@@ -668,7 +673,7 @@ method).
 (let ((instance (make-instance 'test-class :value 21))) 
   ;; Get the value from the slot, call the method
   ;; python: instance.func(instance.value)
-  (py4cl:chain instance (func (py4cl:chain instance value))))  ; => 42
+  (chain* `((@ ,instance func) (@ ,instance value))))  ; => 42
 ```
 Inheritance then works as usual with CLOS methods:
 ```lisp
@@ -685,8 +690,8 @@ Inheritance then works as usual with CLOS methods:
 
 (let ((object (make-instance 'child-class :value 42 :other 3)))
   (list 
-    (py4cl:chain object value) ; Call TEST-CLASS getattr method via CALL-NEXT-METHOD
-    (py4cl:chain object other))) ;=> (42 3)
+    (chain* object 'value) ; Call TEST-CLASS getattr method via CALL-NEXT-METHOD
+    (chain* object 'other))) ;=> (42 3)
 ```
 
 # Testing 
@@ -701,7 +706,7 @@ or
 
 ```lisp
 (ql:quickload :py4cl-tests)
-(py4cl-tests:run)
+(py4cl1-tests:run)
 ```
 
 
