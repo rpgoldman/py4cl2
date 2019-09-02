@@ -72,8 +72,6 @@ If still not alive, raises a condition."
   (let ((stream (uiop:process-info-input process-info)))
     ;; ask the python process to quit; might require a few sec?
     (write-char #\q stream))
-  ;; (pyinterrupt process-info)
-  #-ccl (uiop:close-streams process-info)
   (uiop:terminate-process process-info)
   (setf *python* nil) ;; what about multiple processes?
   (clear-lisp-objects))
