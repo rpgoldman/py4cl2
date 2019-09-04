@@ -226,10 +226,12 @@ def lispify(obj):
     If return_values is false then always creates a handle
     """
     if return_values > 0:
-        return lispify_handle(obj)
+        if isinstance(obj, Exception): return str(obj)
+        else: return lispify_handle(obj)
 
     try:
-        return lispifiers[type(obj)](obj)
+        if isinstance(obj, Exception): return str(obj)
+        else: return lispifiers[type(obj)](obj)
     except KeyError:
         # Special handling for numbers. This should catch NumPy types
         # as well as built-in numeric types
@@ -267,6 +269,9 @@ def send_value(value):
     Send a value to stdout as a string, with length of string first
     """
     try:
+        # if type(value) == str and return_values > 0:
+            # value_str = value # to handle stringified-errors along with remote-objects
+        # else:
         value_str = lispify(value)
     except Exception as e:
         # At this point the message type has been sent,
@@ -288,7 +293,7 @@ def return_value(value):
     
 def return_error(error):
     return_stream.write('e')
-    send_value(str(error))
+    send_value(error)
 
 def pythonize(value): # assumes the symbol name is downcased by the lisp process
     """
