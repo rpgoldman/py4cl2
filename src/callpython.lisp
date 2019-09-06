@@ -254,7 +254,7 @@ This is useful if performing operations on large datasets."
        (write-char #\O stream)        ;; Turn on remote objects
        (force-output stream)
        (unwind-protect
-            (let ((,var (pyeval ,value)))
+            (let ((,var ,value))
               ,@body)
          (write-char #\o stream)          ;; Turn off remote objects
          (force-output stream)))))
@@ -269,8 +269,22 @@ This is useful if performing operations on large datasets."
        (write-char #\O stream)        ;; Turn on remote objects
        (force-output stream)
        (unwind-protect
-            (let ,(loop for (var binding) in bindings
-                     collect `(,var (pyeval ,binding)))
+            (let ,bindings
+              ,@body)
+         (write-char #\o stream)          ;; Turn off remote objects
+         (force-output stream)))))
+
+(defmacro with-remote-objects* (bindings &body body)
+  "Ensures that all values returned by python functions
+and methods are kept in python, and only handles returned to lisp.
+This is useful if performing operations on large datasets."
+  `(let ()
+     (python-start-if-not-alive)
+     (let ((stream (uiop:process-info-input *python*)))
+       (write-char #\O stream)        ;; Turn on remote objects
+       (force-output stream)
+       (unwind-protect
+            (let* ,bindings
               ,@body)
          (write-char #\o stream)          ;; Turn off remote objects
          (force-output stream)))))
