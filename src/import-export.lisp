@@ -61,10 +61,16 @@
         symbol-name)))
 
 (defun pythonize-kwargs (arg-plist)
-  (iter (generate elt in arg-plist)
-        (collect (pythonize (next elt)))
-        (collect (pythonize (next elt)))
-        (collect ",")))
+  (nconc (iter (generate elt in arg-plist)
+               (collect (pythonize (next elt)))
+               (collect (pythonize (next elt)))
+               (collect ","))
+         '(")")))
+
+;;; If anyone wants to generate something so as to allow this, feel free to :)
+;;; (pyfun 1 2 3 :a 'a :b 'b)
+;;; args '(1 2 3)
+;;; kwargs '(:a a :b b)
 
 ;; https://stackoverflow.com/questions/2677185/how-can-i-read-a-functions-signature-including-default-argument-values
 (defun get-arg-list (fullname lisp-package)
@@ -89,52 +95,57 @@
              (default-return (list '(&rest args) ; see the case for allow-other-keys
                                    `(() (apply #'pycall ,fullname args))))
              (allow-other-keys nil)
-             arg-symbol)
+             other-kwarg-symbol)
         ;; below, pass-list is the argument list passed to the raw-pyexec,
         ;; or underlying function
         ;; parameter-list is the argument list corresponding to defun-visible-to-the-user
+
+        ;; handling the general case of *args and **kwargs is a bit too hard,
+        ;; particularly that lisp lambda-lists do not have one-to-one mapping with them
+        
         (iter (for (key val) in-hashtable sig-dict)
-              (for name = (pyeval val ".name"))
+              (for name = (pyeval val ".name")) ; this will not contain * or **
               (for default = (pyeval val ".default"))
-              (when (or ;(some #'upper-case-p name)
-                     (typep default 'python-object))
-                (return-from get-arg-list default-return))
-              (if (search "*" (pyeval "str(" val ")")) (next-iteration))
-              (if (search "**" (pyeval "str(" val ")"))
-                  (progn
-                    (setq allow-other-keys t)
-                    (collect 'cl:&allow-other-keys into parameter-list))
-                  (progn
-                    (setq arg-symbol (intern (lispify-name name) lisp-package))
-                    (collect (list arg-symbol
-                                   (if (or (symbolp default) (listp default))
-                                       `',default
-                                       default))
-                      into parameter-list)
-                    (collect arg-symbol into parameter-list-without-defaults)
-                    (appending (if pos-only
-                                   `((pythonize ,arg-symbol) ",")
-                                   `(,name "=" (pythonize ,arg-symbol) ","))
-                               into pass-list)))
-              (finally 
-               (return-from get-arg-list
-                 (cond ((null pass-list) default-return)
-                       (pos-only `((&optional ,@parameter-list)
-                                   (() (raw-pyeval ,fullname "(" ,@pass-list ")"))))
-                       (allow-other-keys
-                        `((&rest args &key ,@parameter-list)
-                          (() (apply #'raw-pyeval
-                                     ,fullname "(" ,@pass-list
-                                     (append (pythonize-kwargs
-                                              (progn
-                                                (mapc (lambda (symbol)
-                                                        (remf args
-                                                              (find-symbol (symbol-name symbol) :keyword)))
-                                                      ',parameter-list-without-defaults)
-                                                args))
-                                             '(")"))))))
-                       (t `((&key ,@parameter-list)
-                            (() (raw-pyeval ,fullname "(" ,@pass-list ")")))))))))))
+              (for name-str = (pyeval "str(" val ")"))
+              (when (or (typep default 'python-object) ; handle would likely be lost
+                        (and (search "*" name-str)
+                             (not (search "**" name-str))))           
+                (return-from get-arg-list default-return)) ; and be unreliable
+              
+              (for arg-symbol = (intern (lispify-name name) lisp-package))
+              (when (search "**" name-str)
+                (setq allow-other-keys t)
+                (setq other-kwarg-symbol arg-symbol)
+                (next-iteration))
+              (for arg-default = (if (or (symbolp default) (listp default))
+                                     `',default
+                                     default))
+              (for parameter-elt = (list arg-symbol arg-default))
+              (for pass-elt = (if pos-only
+                                  `((pythonize ,arg-symbol) ",")
+                                  `(,name "=" (pythonize ,arg-symbol) ",")))
+              (collect parameter-elt into parameter-list)
+              (collect arg-symbol into arg-symbols)
+              (appending pass-elt into pass-list)
+              (finally
+               (return (cond (pos-only
+                              `((&optional ,@parameter-list)
+                                (() (raw-pyeval ,fullname "(" ,@pass-list ")"))))
+                             (allow-other-keys
+                              `((&rest ,other-kwarg-symbol
+                                       &key ,@parameter-list &allow-other-keys)
+                                (() (apply #'raw-pyeval ,fullname "("
+                                           ,@pass-list ","
+                                           (pythonize-kwargs
+                                            (progn
+                                              (mapc (lambda (symbol)
+                                                      (remf ,other-kwarg-symbol
+                                                            (find-symbol (symbol-name symbol)
+                                                                         :keyword)))
+                                                    ',arg-symbols)
+                                              ,other-kwarg-symbol))))))
+                             (t `((&key ,@parameter-list)
+                                  (() (raw-pyeval ,fullname "(" ,@pass-list ")")))))))))))
 
 
 
