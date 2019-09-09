@@ -575,24 +575,26 @@ CL-USER> (let ((array (np:zeros '(2 2))))
 #2A((0.0 0.0) (0.0 0.0))
 ```
 
-## `with-remote-object(s)`
-`(with-remote-objects (var value) &body body)
+## `with-remote-objects(*)`
+`(with-remote-objects &body body)
 
 If a sequence of python functions and methods are being used to manipulate data,
 then data may be passed between python and lisp. This is fine for small amounts
 of data, but inefficient for large datasets.
 
-The `with-remote-object` and `with-remote-objects` macros provide `unwind-protect` environments
+The `with-remote-objects` and `with-remote-objects*` macros provide `unwind-protect` environments
 in which all python functions return handles rather than values to lisp. This enables
 python functions to be combined without transferring much data.
 
 ```lisp
-(with-remote-objects () (py4cl:python-eval "1+2")) 
+(with-remote-objects (py4cl:python-eval "1+2")) 
 ; => #S(PY4CL::PYTHON-OBJECT :TYPE "<class 'int'>" :HANDLE 0)
 ```
 
+`with-remote-objects*` evaluates the last result, instead of merely returning a handle
+
 ```lisp
-(pyeval (with-remote-objects () (py4cl:python-eval "1+2"))) ; => 3
+(with-remote-objects* (py4cl:python-eval "1+2")) ; => 3
 ```
 
 The advantage comes when dealing with large arrays or other datasets:
@@ -601,24 +603,22 @@ CL-USER> (time (let ((arr (make-array 1000000
                                       :element-type 'single-float
                                       :initial-element 2.0))) 
                  (np:sum (np:add arr arr))))
-;  0.289 seconds of real time
-;  8,032,544 bytes consed
-  
+;  0.258 seconds of real time
+;  8,065,504 bytes consed
 4000000.0
-CL-USER> (time (pyeval ; arr is transferred to python only once, during the binding
-                (with-remote-objects ((arr (make-array 1000000 
-                                                       :element-type 'single-float
-                                                       :initial-element 2.0))) 
-                  (np:sum (np:add arr arr))))) 
-;  0.061 seconds of real time
-;  4,032,704 bytes consed
-  
+CL-USER> (time (with-remote-objects 
+                 (let ((arr (make-array 1000000 
+                                        :element-type 'single-float
+                                        :initial-element 2.0))) 
+                   (np:sum (np:add arr arr)))))
+;  0.100 seconds of real time
+;  4,065,456 bytes consed
 4000000.0
 ```
 Note that this requires you to solely use python functions and methods. So, do not expect something like this to work:
 
 ```lisp
-(with-remote-objects () (print (aref (numpy:ones :shape '(10000000)) 0)))
+(with-remote-objects (print (aref (np:ones :shape '(10000000)) 0)))
 ; Error
 ```
 

@@ -443,14 +443,14 @@ class testclass:
 
 ;; ========================= CALLPYTHON-REMOTE =================================
 
-(deftest remote-objects (callpython-remote)
+(deftest with-remote-objects (callpython-remote)
   (assert-equalp 'py4cl2::python-object
-      (type-of (py4cl2:with-remote-objects () (py4cl2:pyeval "1+2"))))
+      (type-of (py4cl2:with-remote-objects (py4cl2:pyeval "1+2"))))
   (assert-equalp 3
-      (py4cl2:pyeval (py4cl2:with-remote-objects () (py4cl2:pyeval "1+2"))))
+      (py4cl2:with-remote-objects* (py4cl2:pyeval "1+2")))
   (assert-equalp 'py4cl2::python-object
-      (type-of (py4cl2:with-remote-objects ()
-                 (py4cl2:with-remote-objects ()
+      (type-of (py4cl2:with-remote-objects 
+                 (py4cl2:with-remote-objects 
                    (py4cl2:pyeval "1+2"))
                  (py4cl2:pyeval "1+2")))))
 

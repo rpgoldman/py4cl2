@@ -25,7 +25,6 @@
    #:chain
    #:chain*
    #:@
-   #:with-remote-object
    #:with-remote-objects
    #:with-remote-objects*)
   (:export ; import-export
