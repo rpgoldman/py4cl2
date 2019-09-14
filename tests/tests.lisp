@@ -462,6 +462,7 @@ class testclass:
 (py4cl2:defpyfun "sum" "" :lisp-fun-name "PYSUM")
 (py4cl2:defpyfun "Fraction" "fractions")
 (py4cl2:defpyfun "gcd" "fractions" :as "g")
+
 (deftest defpyfun (import-export)
   (py4cl2:pystop) ; taking "safety" into account
   (assert-equalp 1/2 (fraction :numerator 1 :denominator 2))
@@ -477,13 +478,20 @@ class testclass:
 (eval-when (:compile-toplevel)
   (py4cl2:pyexec "
 def foo(A, b):
-  return True"))
-(py4cl2:defpyfun "foo")  (py4cl2:defpyfun "foo")
+  return True")
+  (py4cl2:pyexec "def bar(a=1, b=2, **kwargs): return kwargs"))
+(py4cl2:defpyfun "foo")
+(py4cl2:defpyfun "bar")
+
 (deftest defpyfun-names (import-export)
   (py4cl2:pyexec "
 def foo(A, b):
   return True")
-  (assert-true (foo :a 4 :b 3)))
+  (assert-true (foo :a 4 :b 3))
+  (py4cl2:pyexec "def bar(a=1, b=2, **kwargs): return kwargs")
+  (assert-equal '() (alexandria:hash-table-alist (bar)))
+  (assert-equal '() (alexandria:hash-table-alist (bar :a 3)))
+  (assert-equal '(("c" . 3)) (alexandria:hash-table-alist (bar :c 3))))
 
 ;; Call python during callback
 (deftest python-during-callback (callpython-utility)

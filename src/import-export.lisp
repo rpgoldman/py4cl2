@@ -135,7 +135,7 @@
                               `((&rest ,other-kwarg-symbol
                                        &key ,@parameter-list &allow-other-keys)
                                 (() (apply #'raw-pyeval ,fullname "("
-                                           ,@pass-list ","
+                                           ,@pass-list
                                            (pythonize-kwargs
                                             (progn
                                               (mapc (lambda (symbol)
