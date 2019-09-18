@@ -208,7 +208,9 @@ Note: FUN-NAME is NOT PYTHONIZEd if it is a string.
   (if (= 1 (length chain))
       (let ((chain (first chain)))
         (typecase chain
-          (cons (cond ((member (car chain) '(@ chain))
+          (cons (cond ((and (symbolp (car chain))
+                            (member (symbol-name (car chain)) '("@" "CHAIN")
+                                    :test 'string=)) 
                        (format nil "~{~a~^.~}" (mapcar #'%chain* (cdr chain))))
                       ((eq 'aref (car chain))
                        (apply #'concatenate
