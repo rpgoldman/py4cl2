@@ -22,7 +22,7 @@ Please report the issues on github: [py4cl2](https://github.com/digikar99/py4cl2
 This shouldn't be a bottleneck if you're planning to run "long" processes in python. (For example, deep learning :). )
 - Virtual environments: [`pycmd`](#pycmd) (`*python-command*` in `py4cl`): Choose which python binary to use. Works with miniconda.
 - Multiple python processes (not documented here) - parallel execution?
-- Currently, if multiple threads try communicating with the python process, the processes behave in an undocumented and non-useful manner - for example, when using Hunchentoot to issue multiple jobs in parallel
+- Only a single thread can communicate with a single python process
 - Tested on SBCL and CCL
 
 <div><img src="readme_slime.png" width="80%" style="margin:auto; display:block;"/></div>
