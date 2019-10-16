@@ -76,9 +76,12 @@ class LispCallbackObject (object):
             allargs += (Symbol(":"+str(key)), value)
 
         old_return_values = return_values # Save to restore after
-        return_stream.write('c')
-        send_value((self.handle, allargs))
-        return_value = old_return_values
+        try:
+            return_values = 0
+            return_stream.write('c')
+            send_value((self.handle, allargs))
+        finally:
+            return_values = old_return_values
         
         # try:
             # return_values = 0 # Need to send the values

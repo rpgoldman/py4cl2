@@ -130,12 +130,12 @@ world"))
                 (gethash "pizza"
                          (py4cl2:pyeval "{u'pizza': 3}"))))
 
-(deftest eval-ratios (callpython-raw
+(deftest eval-ratios (callpython-raw)
   (assert-equalp 1/2 (py4cl2:pyeval 1/2)) ; round trip
   (assert-equalp 1/4 (py4cl2:pyeval 1/2 "/" 2)) ; manipula-ble
   ;; Complex ratios not supported in python so converts to floats
   (assert-equality #'= #C(0.5 1.0)
-    (py4cl:python-eval #C(1 2) "*" 1/2)))
+    (py4cl2:pyeval #C(1 2) "*" 1/2)))
 
 ;; ======================== CALLPYTHON-UTILITY =====================================
 
