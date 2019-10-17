@@ -811,9 +811,13 @@ class Foo():
     (with-output-to-string (*standard-output*)
       (setf (py4cl2:config-var 'py4cl2:numpy-pickle-location) "tmp")
       (setf (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound) 10000)
+      (setf (py4cl2:config-var (intern "NON-EXISTENT" :py4cl2)) "non-existent")
       (assert-equal "tmp"
           (py4cl2:pyeval "_py4cl_config['numpyPickleLocation']"))
       (assert-equal 10000
           (py4cl2:pyeval "_py4cl_config['numpyPickleLowerBound']"))
+      (assert-equal "non-existent"
+          (py4cl2:pyeval "_py4cl_config['nonExistent']"))
+      (unintern 'py4cl2::non-existent :py4cl2)
       (setq py4cl2:*config* original-config)
       (py4cl2:save-config))))
