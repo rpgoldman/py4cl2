@@ -257,12 +257,16 @@ Arguments:
                        pymodule-name
                        ".__path__)]")))
     (iter (for (submodule has-submodules) in-vector submodules)
-          (collect `(defpymodule ,(concatenate 'string
-                                               pymodule-name "." submodule)
-                        ,has-submodules
-                      :lisp-package ,(concatenate 'string lisp-package "."
-                                                  (lispify-name submodule))
-                      :is-submodule t)))))
+          (for submodule-fullname = (concatenate 'string
+                                                 pymodule-name "." submodule))
+          (when (or has-submodules
+                    (ignore-errors (pyeval "type(" submodule-fullname
+                                           ") == type(pkgutils)")))
+            (collect `(defpymodule ,submodule-fullname
+                          ,has-submodules
+                          :lisp-package ,(concatenate 'string lisp-package "."
+                                                      (lispify-name submodule))
+                          :is-submodule t))))))
 
 (defmacro defpymodule (pymodule-name &optional (import-submodules nil)
 
@@ -300,37 +304,39 @@ Arguments:
   (pyexec "import pkgutil")
   
   ;; fn-names  All callables whose names don't start with "_" 
-  (let* ((fun-names (pyeval "[name for name, fn in inspect.getmembers("
-                            pymodule-name
-                            ", callable) if name[0] != '_']"))
-         ;; Get the package name by passing through reader, rather than using STRING-UPCASE
-         ;; so that the result reflects changes to the readtable
-         ;; Note that the package doesn't use CL to avoid shadowing
-         (exporting-package
-          (or (find-package lisp-package) (make-package lisp-package :use '())))
-         (fun-symbols (map 'list
-                           (lambda (pyfun-name)
-                                (fun-symbol pyfun-name
-                                            (concatenate 'string
-                                                         pymodule-name
-                                                         "."
-                                                         pyfun-name)
-                                            lisp-package))
-                              fun-names)))
-    `(progn
-       ,(macroexpand `(defpackage ,lisp-package
-                        (:use)
-                        (:export ,@fun-symbols)))
-       ,@(if import-submodules (macroexpand `(defpysubmodules ,pymodule-name ,lisp-package)))
-       ,@(iter (for fun-name in-vector fun-names)
-               (for fun-symbol in fun-symbols)
-               (collect (macroexpand `(defpyfun
-                                          ,fun-name ,pymodule-name
-                                        :lisp-package ,exporting-package
-                                        :lisp-fun-name ,(format nil "~A" fun-symbol)
-                                        :called-from-defpymodule t
-                                        :safety ,safety))))
-       t)))
+  (restart-case
+      (let* ((fun-names (pyeval "[name for name, fn in inspect.getmembers("
+                                pymodule-name
+                                ", callable) if name[0] != '_']"))
+             ;; Get the package name by passing through reader, rather than using STRING-UPCASE
+             ;; so that the result reflects changes to the readtable
+             ;; Note that the package doesn't use CL to avoid shadowing
+             (exporting-package
+              (or (find-package lisp-package) (make-package lisp-package :use '())))
+             (fun-symbols (map 'list
+                               (lambda (pyfun-name)
+                                 (fun-symbol pyfun-name
+                                             (concatenate 'string
+                                                          pymodule-name
+                                                          "."
+                                                          pyfun-name)
+                                             lisp-package))
+                               fun-names)))
+        `(progn
+           ,(macroexpand `(defpackage ,lisp-package
+                            (:use)
+                            (:export ,@fun-symbols)))
+           ,@(if import-submodules (macroexpand `(defpysubmodules ,pymodule-name ,lisp-package)))
+           ,@(iter (for fun-name in-vector fun-names)
+                   (for fun-symbol in fun-symbols)
+                   (collect (macroexpand `(defpyfun
+                                              ,fun-name ,pymodule-name
+                                            :lisp-package ,exporting-package
+                                            :lisp-fun-name ,(format nil "~A" fun-symbol)
+                                            :called-from-defpymodule t
+                                            :safety ,safety))))
+           t))
+    (continue-ignoring-errors nil))) ; (defpymodule "torch" t) is one test case
 
 (defmacro defpyfuns (&rest args)
   "Each ARG is supposed to be a 2-3 element list of 
