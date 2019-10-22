@@ -499,9 +499,7 @@ class testclass:
   (assert-equalp (cos 45) (math:cos 45)))
 
 (eval-when (:compile-toplevel)
-  (py4cl2:pyexec "
-def foo(A, b):
-  return True")
+  (py4cl2:pyexec "def foo(A, b): return True")
   (py4cl2:pyexec "def bar(a=1, b=2, **kwargs): return kwargs"))
 (py4cl2:defpyfun "foo")
 (py4cl2:defpyfun "bar")

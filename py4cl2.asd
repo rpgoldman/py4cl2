@@ -11,12 +11,11 @@
                "bordeaux-threads"
                "parse-number"
                "uiop"
-               "numpy-file-format"
-               "pythonic-string-reader")
+               "numpy-file-format")
   :pathname #P"src/"
   :serial t
   :components ((:file "package")
-	       (:file "config")
+               (:file "config")
                (:file "reader")
                (:file "writer")
                (:file "python-process")
