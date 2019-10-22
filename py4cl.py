@@ -19,15 +19,20 @@ return_stream = sys.stdout
 output_stream = sys.stderr
 sys.stdout = sys.stderr
 
+eval_globals = {}
 config = {}
 def load_config():
-    with open(os.path.dirname(__file__) + "/.config") as conf:
-        global config
-        config = json.load(conf)
-        try:
-            eval_globals['_py4cl_config'] = config
-        except:
-            pass
+    if os.path.exists((os.path.dirname(__file__) + "/../.config")):
+        with open(os.path.dirname(__file__) + "/../.config") as conf:
+            global config
+            config = json.load(conf)
+            try:
+                eval_globals['_py4cl_config'] = config
+            except:
+                pass
+    else:
+        print(".config file not found!")
+        eval_globals['_py4cl_config'] = {}
 load_config()
         
 class Symbol(object):
@@ -355,7 +360,6 @@ python_objects = {}
 python_handle = itertools.count(0)
  
 # Make callback function accessible to evaluation
-eval_globals = {}
 eval_globals["_py4cl_LispCallbackObject"] = LispCallbackObject
 eval_globals["_py4cl_Symbol"] = Symbol
 eval_globals["_py4cl_UnknownLispObject"] = UnknownLispObject

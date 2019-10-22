@@ -28,13 +28,13 @@ By default this is is set to *PYTHON-COMMAND*
 "
   (setq *python*
         (uiop:launch-program
-            (concatenate 'string
-                         command        ; Run python executable
-                         " -u "
-                         ;; Path *base-pathname* is defined in py4cl.asd
-                         ;; Calculate full path to python script
-                         (namestring (merge-pathnames #p"py4cl.py"
-                                                      py4cl2/config:*base-directory*)))
+         (print (concatenate 'string
+                             command        ; Run python executable
+                             " -u "
+                             "<(cat "
+                             (namestring (merge-pathnames #p"py4cl.py"
+                                                          py4cl2/config:*base-directory*))
+                             " )"))
             :input :stream
             :output :stream
             :error-output :stream))

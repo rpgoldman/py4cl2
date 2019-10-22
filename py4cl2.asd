@@ -11,7 +11,8 @@
                "bordeaux-threads"
                "parse-number"
                "uiop"
-               "numpy-file-format")
+               "numpy-file-format"
+               "pythonic-string-reader")
   :pathname #P"src/"
   :serial t
   :components ((:file "package")
@@ -22,7 +23,7 @@
                (:file "lisp-classes")
                (:file "callpython")
                (:file "import-export")
-	       (:file "do-after-load"))
+               (:file "do-after-load"))
   :in-order-to ((test-op (test-op "py4cl2-tests"))))
 
 ;; This is to store the path to the source code
