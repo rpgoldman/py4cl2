@@ -1,6 +1,10 @@
 # Github Pages
 
-Detailed documentation is available on [github-pages](https://digikar99.github.io/py4cl2/).
+Detailed documentation is available on [github-pages](https://digikar99.github.io/py4cl2/) (could be a bit outdated).
+
+# Releases
+
+Check the [Releases](https://github.com/digikar99/py4cl2/releases) section.
 
 # Quick Demonstration
 
