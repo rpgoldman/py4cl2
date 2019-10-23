@@ -4,6 +4,8 @@ title: py4cl2
 
 ---
 
+[Last update: v2.0-beta-4]
+
 # Introduction
 
 [py4cl](https://github.com/bendudson/py4cl) is a package by Ben Dudson, aimed at making python libraries availble in Common Lisp,
@@ -23,6 +25,8 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 - Virtual environments: [`pycmd`](#pycmd) (`*python-command*` in `py4cl`): Choose which python binary to use. Works with miniconda.
 - Multiple python processes (not documented here) - parallel execution?
 - Tested on SBCL and CCL
+- No support for inheriting python classes - should require MOP
+- Embeddable into lisp-image - the code from py4cl.py is copied into *python-code* and heredocs are used
 
 <div><img src="readme_slime.png" width="80%" style="margin:auto; display:block;"/></div>
 <!-- ![slime-demo-image](readme_slime.png) -->
@@ -37,7 +41,7 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 - Improvements in large array transfer speed, using numpy-file-format (see [initialize](#initialize); though this does not beat `remote-objects`, in existence since `py4cl`, 
 - Interrupt the python process using [(pyinterrupt)](#pyinterrupt)
 - `defpymodule` (previously `import-module`) is works "as-expected" with asdf / `defpackage`.
-- stderr and stdout of python process is read asynchronously from a separate thread - this does render the use of `with-output-to-string` useless for wrapping around python functions; a work-around is to set `py4cl2::*py4cl-tests*` to `t` and use `(uiop:process-info-output py4cl::*python*)`. (Refer [tests.lisp](https://github.com/digikar99/py4cl2/blob/master/tests/tests.lisp) for examples.)
+- stderr and stdout of python process is read asynchronously from a separate thread - this renders the use of `with-output-to-string` useless for wrapping around python functions; a work-around is to set `py4cl2::*py4cl-tests*` to `t` and use `(uiop:process-info-output py4cl::*python*)`. (Refer [tests.lisp](https://github.com/digikar99/py4cl2/blob/master/tests/tests.lisp) for examples.)
 
 - See [TODO].
 
@@ -84,6 +88,13 @@ However, since then, several changes have been made.
 Load into Lisp with
 ```lisp
 (ql:quickload :py4cl2)
+```
+
+## Tests
+
+```lisp
+(ql:quickload :py4cl2-tests)
+(py4cl2-tests:run)
 ```
 
 
