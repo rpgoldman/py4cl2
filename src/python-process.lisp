@@ -19,6 +19,13 @@ See https://askubuntu.com/questions/1118109/how-do-i-tell-if-a-command-is-runnin
 
 (defvar *py4cl-tests* nil)
 
+(defvar *python-code*
+  (let ((filename (namestring (merge-pathnames #p"py4cl.py"
+                                               py4cl2/config:*base-directory*))))
+    (with-output-to-string (*standard-output*)
+      (iter (for line in-file filename using #'read-line)
+            (write-line line)))))
+
 (defun pystart (&optional (command (config-var 'pycmd)))
   "Start a new python subprocess
 This sets the global variable *python* to the process phandle,
@@ -28,13 +35,19 @@ By default this is is set to *PYTHON-COMMAND*
 "
   (setq *python*
         (uiop:launch-program
-            (concatenate 'string
-                         command        ; Run python executable
-                         " -u "
-                         ;; Path *base-pathname* is defined in py4cl.asd
-                         ;; Calculate full path to python script
-                         (namestring (merge-pathnames #p"py4cl.py"
-                                                      py4cl2/config:*base-directory*)))
+         (concatenate 'string
+                      "bash -c '"
+                      command        ; Run python executable
+                      " -u "
+                      " <(cat <<\"EOF\""
+                      (string #\newline)
+                      *python-code*
+                      (string #\newline)
+                      "EOF"
+                      (string #\newline)
+                      ") "
+                      (namestring py4cl2/config:*base-directory*)
+                      "'")
             :input :stream
             :output :stream
             :error-output :stream))

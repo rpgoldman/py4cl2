@@ -19,15 +19,21 @@ return_stream = sys.stdout
 output_stream = sys.stderr
 sys.stdout = sys.stderr
 
+eval_globals = {}
 config = {}
 def load_config():
-    with open(os.path.dirname(__file__) + "/.config") as conf:
-        global config
-        config = json.load(conf)
-        try:
-            eval_globals['_py4cl_config'] = config
-        except:
-            pass
+    config_file = sys.argv[1] + ".config"
+    if os.path.exists(config_file):
+        with open(config_file) as conf:
+            global config
+            config = json.load(conf)
+            try:
+                eval_globals["_py4cl_config"] = config
+            except:
+                pass
+    else:
+        print(".config file not found!")
+        eval_globals["_py4cl_config"] = {}
 load_config()
         
 class Symbol(object):
@@ -58,7 +64,7 @@ class LispCallbackObject (object):
         """
         Delete this object, sending a message to Lisp
         """
-        return_stream.write('d')
+        return_stream.write("d")
         send_value(self.handle)
 
     def __call__(self, *args, **kwargs):
@@ -78,15 +84,10 @@ class LispCallbackObject (object):
         old_return_values = return_values # Save to restore after
         try:
             return_values = 0
-            return_stream.write('c')
+            return_stream.write("c")
             send_value((self.handle, allargs))
         finally:
             return_values = old_return_values
-        
-        # try:
-            # return_values = 0 # Need to send the values
-        # finally:
-            # pass
 
         # Wait for a value to be returned.
         # Note that the lisp function may call python before returning
@@ -109,7 +110,7 @@ class UnknownLispObject (object):
         """
         Delete this object, sending a message to Lisp
         """
-        return_stream.write('d')
+        return_stream.write("d")
         send_value(self.handle)
         
     def __str__(self):
@@ -117,7 +118,7 @@ class UnknownLispObject (object):
 
     def __getattr__(self, attr):
         # Check if there is a slot with this name
-        return_stream.write('s')
+        return_stream.write("s")
         send_value((self.handle, attr))
         
         # Wait for the result
@@ -160,14 +161,13 @@ lispifiers = {
     complex    : lambda x: "#C(" + lispify(x.real) + " " + lispify(x.imag) + ")",
     list       : lambda x: "#(" + " ".join(lispify(elt) for elt in x) + ")",
     tuple      : lambda x: "(" + " ".join(lispify(elt) for elt in x) + ")",
-    # Note: With dict -> hash table, use :test 'equal so that string keys work as expected
-    dict       : lambda x: "#.(let ((table (make-hash-table :test 'equal))) " + " ".join("(setf (gethash {} table) {})".format(lispify(key), lispify(value)) for key, value in x.items()) + " table)",
-    str        : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\"",
-    type(u'unicode') : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\"", # Unicode in python 2
+    # Note: With dict -> hash table, use :test equal so that string keys work as expected
+    dict       : lambda x: "#.(let ((table (make-hash-table :test (quote equal)))) " + " ".join("(setf (gethash {} table) {})".format(lispify(key), lispify(value)) for key, value in x.items()) + " table)",
+    str        : lambda x: "\"" + x.replace("\\", "\\\\").replace("\"", "\\\"")  + "\"",
     type       : lambda x: python_to_lisp_type[x],
     Symbol     : str,
     UnknownLispObject : lambda x: "#.(py4cl2::lisp-object {})".format(x.handle),
-    # there's another lispifier just below
+    # there is another lispifier just below
 }
 
 # This is used to test if a value is a numeric type
@@ -185,7 +185,7 @@ try:
     def lispify_ndarray(obj):
         """Convert a NumPy array to a string which can be read by lisp
         Example:
-        array([[1, 2],     => '#2A((1 2) (3 4))'
+        array([[1, 2],     => "#2A((1 2) (3 4))"
               [3, 4]])
         """
         if "numpyPickleLowerBound" in config and \
@@ -193,8 +193,8 @@ try:
            obj.size > config["numpyPickleLowerBound"]:
             numpy_pickle_location = config["numpyPickleLocation"]
             numpy.save(numpy_pickle_location, obj, allow_pickle = True)
-            return ('#.(numpy-file-format:load-array "'
-                    + numpy_pickle_location + '")')
+            return ("#.(numpy-file-format:load-array \""
+                    + numpy_pickle_location + "\")")
         if obj.ndim == 0:
             # Convert to scalar then lispify
             return lispify(numpy.asscalar(obj))
@@ -225,7 +225,7 @@ def lispify_handle(obj):
 
 def lispify(obj):
     """
-    Turn a python object into a string which can be parsed by Lisp's reader.
+    Turn a python object into a string which can be parsed by Lisp reader.
     
     If return_values is false then always creates a handle
     """
@@ -279,7 +279,7 @@ def send_value(value):
         value_str = lispify(value)
     except Exception as e:
         # At this point the message type has been sent,
-        # so we can't change to throw an exception/signal condition
+        # so we cannot change to throw an exception/signal condition
         value_str = "Lispify error: " + str(e)
     print(len(value_str), file = return_stream, flush=True)
     return_stream.write(value_str)
@@ -291,12 +291,12 @@ def return_value(value):
     """
     if isinstance(value, Exception):
         return return_error(value)
-    return_stream.write('r')
+    return_stream.write("r")
     return_stream.flush()
     send_value(value)
     
 def return_error(error):
-    return_stream.write('e')
+    return_stream.write("e")
     send_value(error)
 
 def pythonize(value): # assumes the symbol name is downcased by the lisp process
@@ -304,7 +304,7 @@ def pythonize(value): # assumes the symbol name is downcased by the lisp process
     Convertes the value (Symbol) to python conventioned strings.
     In particular, replaces "-" with "_"
     """
-    return str(value)[1:].replace('-', '_')
+    return str(value)[1:].replace("-", "_")
         
 def message_dispatch_loop():
     """
@@ -330,19 +330,19 @@ def message_dispatch_loop():
                 # result = cache[expr]()
                 result = eval(expr, eval_globals, eval_locals)
                 return_value(result)
-            elif cmd_type == 'x': # Execute a statement
+            elif cmd_type == "x": # Execute a statement
                 exec(recv_string(), eval_globals, eval_locals)
                 return_value(None)
-            elif cmd_type == 'q':
+            elif cmd_type == "q":
                 exit(0)
-            elif cmd_type == 'r': # return value from lisp function
+            elif cmd_type == "r": # return value from lisp function
                 return recv_value()
             elif cmd_type == "O":  # Return only handles
                 return_values += 1
             elif cmd_type == "o":  # Return values when possible (default)
                 return_values -= 1
             else:
-                return_error("Unknown message type '{0}'".format(cmd_type))
+                return_error("Unknown message type \"{0}\"".format(cmd_type))
         except KeyboardInterrupt as e: # to catch SIGINT
             # output_stream.write("Python interrupted!\n")
             return_value(None)
@@ -350,18 +350,17 @@ def message_dispatch_loop():
             return_error(e)
 
 
-# Store for python objects which can't be translated to Lisp objects
+# Store for python objects which cannot be translated to Lisp objects
 python_objects = {}
 python_handle = itertools.count(0)
  
 # Make callback function accessible to evaluation
-eval_globals = {}
 eval_globals["_py4cl_LispCallbackObject"] = LispCallbackObject
 eval_globals["_py4cl_Symbol"] = Symbol
 eval_globals["_py4cl_UnknownLispObject"] = UnknownLispObject
 eval_globals["_py4cl_objects"] = python_objects
 eval_globals["_py4cl_generator"] = generator
-# These store the environment used when eval'ing strings from Lisp
+# These store the environment used when eval-ing strings from Lisp
 eval_globals["_py4cl_config"] = config
 eval_globals["_py4cl_load_config"] = load_config
 try:
@@ -391,6 +390,3 @@ async_handle = itertools.count(0) # Running counter
 
 # Main loop
 message_dispatch_loop()
-
-
-
