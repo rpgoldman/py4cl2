@@ -30,13 +30,6 @@
   "Run all the tests for py4cl2."
   (run-suite 'py4cl :use-debugger interactive?))
 
-(defun read-py4cl-output ()
-  (let ((py-out (uiop:process-info-error-output py4cl2::*python*)))
-    (with-output-to-string (str)
-      (iter (while (listen py-out))
-            (for char = (read-char py-out nil))
-            (write-char char str)))))
-
 ;; ======================== PROCESS-BASIC =====================================
 
 (deftest start-and-alive-p (process-basic)
@@ -61,17 +54,15 @@
   (py4cl2:pystop))
 
 (deftest raw-io-flush (callpython-raw)
-  (let ((py4cl2::*py4cl-tests* t))
-    (py4cl2:pystop)
-    (assert-equalp "hello" (py4cl2:raw-pyeval "'hello'"))
-    (assert-equalp "world" (py4cl2:raw-pyeval "'world'"))
-    (py4cl2:pyexec "import sys")
-    (assert-equalp "hello world"
-        (progn (py4cl2:raw-pyexec "sys.stdout.write(\"hello world\")")
-               (read-py4cl-output)))
-    (assert-equalp "testing"
-        (progn (py4cl2:raw-pyexec "sys.stdout.write(\"testing\")")
-               (read-py4cl-output)))))
+  (assert-equalp "hello" (py4cl2:raw-pyeval "'hello'"))
+  (assert-equalp "world" (py4cl2:raw-pyeval "'world'"))
+  (py4cl2:pyexec "import sys")
+  (assert-equalp "hello world"
+                 (with-python-output 
+                   (py4cl2:raw-pyexec "sys.stdout.write(\"hello world\")")))
+  (assert-equalp "testing"
+                 (with-python-output 
+                   (py4cl2:raw-pyexec "sys.stdout.write(\"testing\")"))))
 
 (deftest eval-integer (callpython-raw)
   (let ((result (py4cl2:raw-pyeval "1 + 2 * 3")))
@@ -116,8 +107,7 @@ world"))
   (unless (= 2 (first *pyversion*))
     ;; Should return the result of print, not the string printed
     (assert-equalp nil
-        (with-open-stream (*standard-output* (make-broadcast-stream))
-          (py4cl2:raw-pyeval "print(\"hello\")"))
+        (py4cl2:raw-pyeval "print(\"hello\")")
 				"This fails with python 2")))
 
 (deftest unicode-string-type (callpython-raw)
@@ -227,8 +217,7 @@ world"))
 (deftest pyexec (callpython-utility)
   (unless (= 2 (first *pyversion*))
       (assert-equalp nil
-          (with-open-stream (*standard-output* (make-broadcast-stream))
-            (py4cl2:pyexec "print(\"hello\")"))
+          (py4cl2:pyexec "print(\"hello\")")
         "This fails with python 2"))
   (assert-equalp nil ; in case someone makes this a macro some day!
       (let ((module "sys")) (py4cl2:pyexec "import " module)))
@@ -251,11 +240,9 @@ world"))
     (py4cl2:pystop)
     (py4cl2:pyexec "import sys")
     (assert-equalp "hello world"
-        (progn (py4cl2:pycall "sys.stdout.write" "hello world")
-               (read-py4cl-output)))
+        (with-python-output (py4cl2:pycall "sys.stdout.write" "hello world")))
     (assert-equalp "testing"
-        (progn (py4cl2:pycall "sys.stdout.write" "testing")
-               (read-py4cl-output)))))
+        (with-python-output (py4cl2:pycall "sys.stdout.write" "testing")))))
 
 (deftest pycall-one-arg-int (callpython-utility)
   (assert-equalp 42
@@ -304,8 +291,7 @@ world"))
     (assert-equalp "5" (py4cl2:pycall 'str 5))
     (py4cl2:pyexec "import sys")
     (assert-equalp "hello world"
-        (progn (py4cl2:pycall 'sys.stdout.write "hello world")
-               (read-py4cl-output)))))
+        (with-python-output (py4cl2:pycall 'sys.stdout.write "hello world")))))
 
 
 (deftest pycall-hash-table-empty (callpython-utility)
@@ -769,9 +755,9 @@ except ImportError:
 ;; Stream #<BASIC-CHARACTER-OUTPUT-STREAM UTF-8 (PIPE/36) #x3020019EE9AD> is private to #<PROCESS repl-thread(12) [Sleep] #x302000AC72FD>
 
 #-ccl (deftest interrupt (process-interrupt)
-  (let ((py4cl2::*py4cl-tests* t))
-    (py4cl2:pystop)
-    (py4cl2:pyexec "
+        (let ((py4cl2::*py4cl-tests* t))
+          (py4cl2:pystop)
+          (py4cl2:pyexec "
 class Foo():
   def foo(self):
     import time
@@ -780,33 +766,35 @@ class Foo():
     sys.stdout.flush()
     time.sleep(5)
     return")
-    (assert-equalp "hello"
-        (let* ((rv nil)
-               (mon-thread (bt:make-thread
-                            (lambda ()
-                              (py4cl2:pycall "Foo().foo")
-                              (setq rv (read-py4cl-output))))))
-          (sleep 1)
-          (py4cl2:pyinterrupt)
-          (bt:join-thread mon-thread)
-          rv))
-    (assert-equalp "hello"
-        (let* ((rv nil)
-               (mon-thread (bt:make-thread
-                            (lambda ()
-                              (py4cl2:pymethod (py4cl2:pycall "Foo") 'foo)
-                              (setq rv (read-py4cl-output))))))
-          (sleep 1)
-          (py4cl2:pyinterrupt)
-          (bt:join-thread mon-thread)
-          rv))
+          (assert-equalp "hello"
+              (let* ((rv nil)
+                     (mon-thread (bt:make-thread
+                                  (lambda ()
+                                    (setq rv
+                                          (with-python-output (py4cl2:pycall "Foo().foo")))))))
+                (sleep 1)
+                (py4cl2:pyinterrupt)
+                (bt:join-thread mon-thread)
+                rv))
+          (assert-equalp "hello"
+              (let* ((rv nil)
+                     (mon-thread (bt:make-thread
+                                  (lambda ()
+                                    (setq rv
+                                          (with-python-output
+                                            (py4cl2:pymethod (py4cl2:pycall "Foo") 'foo)))))))
+                (sleep 1)
+                (py4cl2:pyinterrupt)
+                (bt:join-thread mon-thread)
+                rv)))
 
     ;; Check if no "residue" left
-    (assert-equalp 5 (py4cl2:pyeval 5))))
+
+  (assert-equalp 5 (py4cl2:pyeval 5)))
 
 (deftest config-change (py4cl-config)
   (let ((original-config (copy-tree *config*)))
-    (with-output-to-string (*standard-output*)
+    (with-python-output
       (setf (py4cl2:config-var 'py4cl2:numpy-pickle-location) "tmp")
       (setf (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound) 10000)
       (setf (py4cl2:config-var (intern "NON-EXISTENT" :py4cl2)) "non-existent")

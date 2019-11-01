@@ -6,6 +6,7 @@
   (:shadowing-import-from #:iterate #:as #:for)
   (:export ; python-process
    #:pystart
+   #:with-python-output
    #:pystop
    #:python-alive-p
    #:python-start-if-not-alive

@@ -52,13 +52,35 @@ By default this is is set to *PYTHON-COMMAND*
             :output :stream
             :error-output :stream))
   (unless *py4cl-tests*
-    (bt:make-thread (lambda ()
-                      (when *python*
-                        (let ((py-out (uiop:process-info-error-output *python*)))
-                          (iter (while (and *python* (python-alive-p *python*)))
-                                (for char = (read-char py-out nil))
-                                (when char (write-char char))))))))
+    (bt:make-thread
+     (lambda ()
+       (when *python*
+         (let ((py-out (uiop:process-info-error-output *python*)))
+           (iter outer
+                 (while (and *python* (python-alive-p *python*)))
+                 (for char = (progn
+                               (peek-char nil py-out nil)
+                               (iter (while *in-with-python-output*)
+                                     (bt:wait-on-semaphore *python-output-semaphore*)
+                                     (in outer (next-iteration)))
+                               (read-char py-out nil)))
+                 (when char (write-char char))))))))
   (incf *current-python-process-id*))
+
+(defvar *python-output-semaphore* (bt:make-semaphore))
+(defvar *in-with-python-output* nil)
+
+(defmacro with-python-output (&body forms-decl)
+  `(with-output-to-string (*standard-output*)
+     (unwind-protect (progn
+                       (setq *in-with-python-output* t)
+                       ,@forms-decl
+                       (let ((py-out (uiop:process-info-error-output *python*)))
+                         (iter (while (listen py-out))
+                               (for char = (read-char py-out nil))
+                               (when char (write-char char)))))
+       (setq *in-with-python-output* nil)
+       (bt:signal-semaphore *python-output-semaphore*))))
 
 (defun python-alive-p (&optional (process-info *python*))
   "Returns non-NIL if the python process is alive
