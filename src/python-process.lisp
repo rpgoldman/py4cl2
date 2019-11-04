@@ -52,22 +52,26 @@ By default this is is set to *PYTHON-COMMAND*
             :output :stream
             :error-output :stream))
   (unless *py4cl-tests*
-    (bt:make-thread
-     (lambda ()
-       (when *python*
-         (let ((py-out (uiop:process-info-error-output *python*)))
-           (iter outer
-                 (while (and *python* (python-alive-p *python*)))
-                 (for char = (progn
-                               (peek-char nil py-out nil)
-                               (iter (while *in-with-python-output*)
-                                     (bt:wait-on-semaphore *python-output-semaphore*)
-                                     (in outer (next-iteration)))
-                               (read-char py-out nil)))
-                 (when char (write-char char))))))))
+    (setq *python-output-thread*
+          (bt:make-thread
+           (lambda ()
+             (when *python*
+               (let ((py-out (uiop:process-info-error-output *python*)))
+                 (iter outer
+                       (while (and *python* (python-alive-p *python*)))
+                       (for char =
+                            (progn
+                              (peek-char t py-out nil)
+                              (when *in-with-python-output*
+                                (iter (while *in-with-python-output*)
+                                      (bt:wait-on-semaphore *python-output-semaphore*))
+                                (in outer (next-iteration)))
+                              (read-char py-out nil)))
+                       (when char (write-char char)))))))))
   (incf *current-python-process-id*))
 
 (defvar *python-output-semaphore* (bt:make-semaphore))
+(defvar *python-output-thread*)
 (defvar *in-with-python-output* nil)
 
 (defmacro with-python-output (&body forms-decl)
@@ -108,6 +112,7 @@ If still not alive, raises a condition."
     ;; ask the python process to quit; might require a few sec?
     (write-char #\q stream))
   (uiop:terminate-process process-info)
+  (if (bt:thread-alive-p *python-output-thread*) (bt:destroy-thread *python-output-thread*))
   (setf *python* nil) ;; what about multiple processes?
   (clear-lisp-objects))
 

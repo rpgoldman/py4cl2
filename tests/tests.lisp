@@ -64,6 +64,11 @@
                  (with-python-output 
                    (py4cl2:raw-pyexec "sys.stdout.write(\"testing\")"))))
 
+;; If locks and synchronization are not implemented properly, this
+;; would likely fail; in fact, SBCL itself seems to stop
+(deftest with-python-output-stress-test (callpython-raw)
+  (iter (repeat 10000) (with-python-output (pyexec "print('hello')"))))
+
 (deftest eval-integer (callpython-raw)
   (let ((result (py4cl2:raw-pyeval "1 + 2 * 3")))
     (assert-true (typep result 'integer))
