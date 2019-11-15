@@ -2,9 +2,12 @@
 
 (asdf:defsystem "py4cl2"
   :serial t
-  :description "Call Python libraries from Common Lisp"
-  :author "Ben Dudson <benjamin.dudson@york.ac.uk>"
+  :description "Some improvements over py4cl. py4cl is a library for interfacting with python libraries from common lisp, using streams to communicate with the python process. 
+Report the issues at https://github.com/digikar99/py4cl2/issues
+(More) Documentation is available at https://digikar99.github.io/py4cl2/"
+  :author "Ben Dudson <benjamin.dudson@york.ac.uk> (Original author), Shubhamkar Ayare <shubhamayare@yahoo.co.in> (Fork Contributor)"
   :license "MIT"
+  :version "2.0-beta-5" ; py4cl is assumed to be version 1
   :depends-on ("trivial-garbage"
                "iterate"
                "cl-json"
