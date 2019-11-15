@@ -4,7 +4,7 @@ title: py4cl2
 
 ---
 
-[Last update: v2.0-beta-4]
+[Last update: v2.0-beta-5]
 
 # Introduction
 
@@ -31,7 +31,7 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 <div><img src="readme_slime.png" width="80%" style="margin:auto; display:block;"/></div>
 <!-- ![slime-demo-image](readme_slime.png) -->
 
-## Improvements over py4cl
+## Changes over py4cl
 - Changes: several (but not all) names have been shorted from `python-` to `py`; `remote-objects` have been changed to `with-remote-object(s)`. Personal preference for these names stems from:
   - `defpyfun/module` reminds of the equivalent in `burgled-batteries` and `cffi`
   - `py`names are shorter
@@ -41,7 +41,7 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 - Improvements in large array transfer speed, using numpy-file-format (see [initialize](#initialize); though this does not beat `remote-objects`, in existence since `py4cl`, 
 - Interrupt the python process using [(pyinterrupt)](#pyinterrupt)
 - `defpymodule` (previously `import-module`) is works "as-expected" with asdf / `defpackage`.
-- stderr and stdout of python process is read asynchronously from a separate thread - this renders the use of `with-output-to-string` useless for wrapping around python functions; a work-around is to set `py4cl2::*py4cl-tests*` to `t` and use `(uiop:process-info-output py4cl::*python*)`. (Refer [tests.lisp](https://github.com/digikar99/py4cl2/blob/master/tests/tests.lisp) for examples.)
+- use `(with-python-output &body body)` to capture python output; previously `(with-output-to-stream (*standard-output*) &body body)` could have worked.
 
 - See [TODO].
 
