@@ -61,7 +61,7 @@ By default this is is set to *PYTHON-COMMAND*
                        (while (and *python* (python-alive-p *python*)))
                        (for char =
                             (progn
-                              (peek-char t py-out nil)
+                              (peek-char nil py-out nil)
                               (when *in-with-python-output*
                                 (iter (while *in-with-python-output*)
                                       (bt:wait-on-semaphore *python-output-semaphore*))
