@@ -43,13 +43,15 @@
   "Converts NAME to a lisp-like name. Specifically:
   1. Replaces underscores with hyphens.
   2. CamelCase is converted to CAMEL-CASE"
-  (let ((words (mapcar (lambda (word)
-                         (coerce word 'string))
-                       (remove-if #'null
-                                  (break-into-words (coerce name 'list))))))
+  (let* ((words (mapcar (lambda (word)
+                          (coerce word 'string))
+                        (remove-if #'null
+                                   (break-into-words (coerce name 'list)))))
+         (prefinal-string (string-upcase (format nil "~{~A~^-~}" words))))
     (remove-if (lambda (ch)
                  (char= ch #\_))
-               (string-upcase (format nil "~{~A~^-~}" words)))))
+               prefinal-string
+               :end (1- (length prefinal-string)))))
 
 (defun get-unique-symbol (symbol-name package-name)
   (multiple-value-bind (symbol location)
@@ -178,13 +180,14 @@ def _py4cl_non_callable(ele):
                                  ((pyeval "inspect.isclass(" pyfullname ")") 'class)
                                  (t t)))
             (lisp-fun-name (lispify-name pyfun-name)))
-        (ecase callable-type
-          (class (intern (concatenate 'string
-                                      lisp-fun-name "/CLASS")
-                         lisp-package))
-          (function (intern lisp-fun-name lisp-package))
-          (t (intern (get-unique-symbol lisp-fun-name lisp-package)
-                     lisp-package))))  ;; later, specialize further if needed
+        (intern (ecase callable-type
+                  (class (concatenate 'string lisp-fun-name "/CLASS"))
+                  (function (if (upper-case-p (char pyfun-name 0))
+                                (concatenate 'string lisp-fun-name "/1")
+                                lisp-fun-name))
+                  (t (get-unique-symbol lisp-fun-name lisp-package)))
+                lisp-package))
+      ;; later, specialize further if needed
       (intern (lispify-name pyfun-name) lisp-package)))
 
 ;; In essence, this macro should give the full power of the
