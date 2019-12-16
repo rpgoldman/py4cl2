@@ -486,6 +486,25 @@ class testclass:
   (py4cl2:pystop) ; taking "safety" into account
   (assert-equalp 6 (pysum '(2 1 3))))
 
+(eval-when (:compile-toplevel)
+  (pyexec
+   "def allNulls(a=[], b=(), c=False, d=None):
+  assert type(a)==list
+  assert type(b)==tuple
+  assert type(c)==bool
+  assert type(d)==type(None)
+  return True"))
+(defpyfun "allNulls")
+(deftest defpyfun-null (import-export)
+  (pyexec
+   "def allNulls(a=[], b=(), c=False, d=None):
+  assert type(a)==list
+  assert type(b)==tuple
+  assert type(c)==bool
+  assert type(d)==type(None)
+  return True")
+  (assert-true (all-nulls)))
+
 (deftest defpymodule-math (import-export)
   (assert-equalp (cos 45) (math:cos 45)))
 
