@@ -4,11 +4,11 @@ title: py4cl2
 
 ---
 
-[Last update: v2.0-beta-5]
+[Last update: v2.0.6]
 
 # Introduction
 
-[py4cl](https://github.com/bendudson/py4cl) is a package by Ben Dudson, aimed at making python libraries availble in Common Lisp,
+[py4cl][benduson/py4cl] is a package by Ben Dudson, aimed at making python libraries availble in Common Lisp,
 using streams to communicate with a separate python process - the approach taken by [cl4py](https://github.com/marcoheisig/cl4py). This is
 different to the CFFI approach used by [burgled-batteries](https://github.com/pinterface/burgled-batteries),
 but has the same goal. 
@@ -24,7 +24,7 @@ Please report the issues on github: [py4cl2](https://github.com/digikar99/py4cl2
 This shouldn't be a bottleneck if you're planning to run "long" processes in python. (For example, deep learning :). )
 - Virtual environments: [`pycmd`](#pycmd) (`*python-command*` in `py4cl`): Choose which python binary to use. Works with miniconda.
 - Multiple python processes (not documented here) - parallel execution?
-- Tested on SBCL and CCL
+- Tested on SBCL, CCL, ABCL, and ECL (as mentioned in the [original README][bendudson/py4cl]) does not have `uiop:launch-program`; known issues for full support with ABCL include 
 - No support for inheriting python classes - should require MOP
 - Embeddable into lisp-image - the code from py4cl.py is copied into *python-code* and heredocs are used
 
@@ -37,7 +37,8 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
   - `py`names are shorter
   - `with-remote` seems more appropriate
   - `chain` and `chain*` with more "uniformity"
-- Arguments are imported; submodules can be imported with an option to [defpymodule]. However, this is only possible for python3.
+- Arguments are imported; submodules can be imported with an option to [defpymodule]. However, this is only possible for python3. Argument ordering can be wrong with ABCL.
+- Incomplete support on ABCL (known issues include argument-list-ordering, interrupts); untested on ECL; only tested on SBCL and ECL.
 - Improvements in large array transfer speed, using numpy-file-format (see [initialize](#initialize); though this does not beat `remote-objects`, in existence since `py4cl`, 
 - Interrupt the python process using [(pyinterrupt)](#pyinterrupt)
 - `defpymodule` (previously `import-module`) is works "as-expected" with asdf / `defpackage`.
@@ -826,3 +827,4 @@ This template was taken from [The Common Lisp Cookbook][tCLC].
 [pycall]: #pycall
 [TODO]: https://github.com/digikar99/py4cl/blob/master/TODO.org
 [Name Mapping]: #name-mapping
+[bendudson/py4cl]: https://github.com/bendudson/py4cl
