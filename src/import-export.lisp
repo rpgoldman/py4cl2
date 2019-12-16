@@ -65,7 +65,10 @@
 (defun pythonize-kwargs (arg-plist)
   (nconc (iter (generate elt in arg-plist)
                (collect (pythonize (next elt)))
-               (collect (pythonize (next elt)))
+               (collect (let ((next-elt (next elt)))
+                          (if (member next-elt '("[]" "()" "False") :test 'equal)
+                              next-elt)
+                          (pythonize next-elt)))
                (collect ","))
          '(")")))
 
@@ -108,8 +111,11 @@
         (iter (for (key val) in-hashtable sig-dict)
               (for name = (pyeval val ".name")) ; this will not contain * or **
               (for default = (pyeval val ".default"))
+              (for type = (pyeval "str(type(" val ".default))"))
               (for name-str = (pyeval "str(" val ")"))
               (when (or (typep default 'python-object) ; handle would likely be lost
+                        ;; if there is *args, just exit
+                        ;; if there is only **kwargs, &allow-other-keys can handle it
                         (and (search "*" name-str)
                              (not (search "**" name-str))))           
                 (return-from get-arg-list default-return)) ; and be unreliable
@@ -120,12 +126,21 @@
                 (setq other-kwarg-symbol arg-symbol)
                 (next-iteration))
               (for arg-default = (if (or (symbolp default) (listp default))
-                                     `',default
+                                     (if (null default)
+                                         (cond ((string= type "<class 'tuple'>") "()")
+                                               ((string= type "<class 'list'>") "[]")
+                                               ((string= type "<class 'bool'>") "False")
+                                               (t nil))
+                                         `',default)
                                      default))
               (for parameter-elt = (list arg-symbol arg-default))
               (for pass-elt = (if pos-only
                                   `((pythonize ,arg-symbol) ",")
-                                  `(,name "=" (pythonize ,arg-symbol) ",")))
+                                  `(,name "=" ,(if (member arg-default
+                                                           '("[]" "()" "False")
+                                                           :test 'equal)
+                                                   arg-symbol
+                                                   `(pythonize ,arg-symbol)) ",")))
               (collect parameter-elt into parameter-list)
               (collect arg-symbol into arg-symbols)
               (appending pass-elt into pass-list)
@@ -148,7 +163,6 @@
                                               ,other-kwarg-symbol))))))
                              (t `((&key ,@parameter-list)
                                   (() (raw-pyeval ,fullname "(" ,@pass-list ")")))))))))))
-
 
 
 (defun pymethod-list (python-object &key (as-vector nil))
