@@ -5,7 +5,8 @@
   :license "MIT"
   :depends-on ("py4cl2"
                "clunit"
-               "trivial-garbage")
+               "trivial-garbage"
+               "swank")
   :pathname #P"tests/"
   :components ((:file "tests"))
   :perform (test-op (o c) (symbol-call :py4cl2-tests :run))) 

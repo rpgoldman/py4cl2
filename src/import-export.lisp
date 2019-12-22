@@ -90,7 +90,14 @@
                    '(&rest keys &key out (where t) &allow-other-keys))
            ((declare (ignore out where))
             (apply #'pycall ,fullname ,@arg-list-without-keys keys))))
-      (let* ((signature (ignore-errors (pyeval "inspect.signature(" fullname ")")))
+      (let* ((return-with-default-return nil)
+             (signature (handler-case (pyeval "inspect.signature(" fullname ")")
+                          (pyerror (e)
+                            (when (search "no signature found"
+                                          (slot-value e 'text))
+                              (setq return-with-default-return t)
+                              nil))
+                          (t nil)))
              ;; errors could be value error or type error
              (pos-only (find #\/ (pyeval "str(" signature ")")))
              ;; we are ignoring futther keyword args
@@ -107,8 +114,10 @@
 
         ;; handling the general case of *args and **kwargs is a bit too hard,
         ;; particularly that lisp lambda-lists do not have one-to-one mapping with them
-        
-        (iter (for (key val) in-hashtable sig-dict)
+
+        (iter (initially (when return-with-default-return
+                           (return-from get-arg-list default-return)))
+              (for (key val) in-hashtable sig-dict)
               (for name = (pyeval val ".name")) ; this will not contain * or **
               (for default = (pyeval val ".default"))
               (for type = (pyeval "str(type(" val ".default))"))
@@ -161,6 +170,8 @@
                                                                          :keyword)))
                                                     ',arg-symbols)
                                               ,other-kwarg-symbol))))))
+                             ((null parameter-list)
+                              `(() (raw-pyeval ,fullname "(" ")")))
                              (t `((&key ,@parameter-list)
                                   (() (raw-pyeval ,fullname "(" ,@pass-list ")")))))))))))
 

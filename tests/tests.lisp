@@ -505,6 +505,23 @@ class testclass:
   return True")
   (assert-true (all-nulls)))
 
+(eval-when (:compile-toplevel)
+  (pyexec "def noArgFunc(): return True")
+  (pyexec "def restArgs(a, b, *args): return True")
+  (pyexec "def kwRestArgs(a, b, **kwargs): return True"))
+(defpyfun "noArgFunc")
+(defpyfun "restArgs")
+(defpyfun "kwRestArgs")
+(deftest defpyfun-args (import-export)
+  (pyexec "def noArgFunc(): return True")
+  (pyexec "def restArgs(a, b, *args): return True")
+  (pyexec "def kwRestArgs(a, b, **kwargs): return True")
+  (assert-equal (swank-backend:arglist #'no-arg-func) nil)
+  (assert-equal '(&rest py4cl2::args)
+      (swank-backend:arglist #'rest-args))
+  (assert-equal '(&rest kwargs &key (a nil) (b nil) &allow-other-keys)
+      (swank-backend:arglist #'kw-rest-args)))
+
 (deftest defpymodule-math (import-export)
   (assert-equalp (cos 45) (math:cos 45)))
 
@@ -515,9 +532,7 @@ class testclass:
 (py4cl2:defpyfun "bar")
 
 (deftest defpyfun-names (import-export)
-  (py4cl2:pyexec "
-def foo(A, b):
-  return True")
+  (py4cl2:pyexec "def foo(A, b): return True")
   (assert-true (foo :a 4 :b 3))
   (py4cl2:pyexec "def bar(a=1, b=2, **kwargs): return kwargs")
   (assert-equal '() (alexandria:hash-table-alist (bar)))
