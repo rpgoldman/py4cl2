@@ -4,7 +4,7 @@ title: py4cl2
 
 ---
 
-[Last update: v2.0.6]
+[Last update: v2.0.7]
 
 # Introduction
 
@@ -312,7 +312,7 @@ Refer `(describe 'defpyfun)`.
 ```lisp
 (defpymodule pymodule-name &optional import-submodules &key 
   (lisp-package (lispify-name (or as pymodule-name)))
-  (reload t) (safety t) (is-submodule nil)
+  (reload t) (safety t) (is-submodule nil) (continue-ignoring-errors))
 ```
 
 `lisp-package` is the name of the symbol that the package would be bound to.
