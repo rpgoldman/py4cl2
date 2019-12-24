@@ -171,7 +171,7 @@
                                                     ',arg-symbols)
                                               ,other-kwarg-symbol))))))
                              ((null parameter-list)
-                              `(() (raw-pyeval ,fullname "(" ")")))
+                              `(() (() (raw-pyeval ,fullname "(" ")"))))
                              (t `((&key ,@parameter-list)
                                   (() (raw-pyeval ,fullname "(" ,@pass-list ")")))))))))))
 
