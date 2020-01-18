@@ -7,7 +7,7 @@ Report the issues at https://github.com/digikar99/py4cl2/issues
 (More) Documentation is available at https://digikar99.github.io/py4cl2/"
   :author "Ben Dudson <benjamin.dudson@york.ac.uk> (Original author), Shubhamkar Ayare <shubhamayare@yahoo.co.in> (Fork Contributor)"
   :license "MIT"
-  :version "2.0.7" ; py4cl is assumed to be version 1
+  :version "2.1.0" ; py4cl is assumed to be version 1
   :depends-on ("trivial-garbage"
                "iterate"
                "cl-json"

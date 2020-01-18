@@ -111,9 +111,9 @@ world"))
 (deftest eval-print (callpython-raw)
   (unless (= 2 (first *pyversion*))
     ;; Should return the result of print, not the string printed
-    (assert-equalp nil
+    (assert-equalp "None"
         (py4cl2:raw-pyeval "print(\"hello\")")
-				"This fails with python 2")))
+      "This fails with python 2")))
 
 (deftest unicode-string-type (callpython-raw)
   ;; Python 2 and python 3 handle unicode differently
@@ -131,6 +131,9 @@ world"))
   ;; Complex ratios not supported in python so converts to floats
   (assert-equality #'= #C(0.5 1.0)
     (py4cl2:pyeval #C(1 2) "*" 1/2)))
+
+(deftest eval-nil (callpython-raw)
+  (assert-equalp "()" (raw-pyeval "()")))
 
 ;; ======================== CALLPYTHON-UTILITY =====================================
 
@@ -157,7 +160,7 @@ world"))
 
   ;; Test empty arrays
   (assert-equalp #()
-                 (py4cl2:pyeval #()))
+      (py4cl2:pyeval #()))
 
   ;; Unless the values are strings
   (let ((str "hello"))
@@ -221,11 +224,11 @@ world"))
 
 (deftest pyexec (callpython-utility)
   (unless (= 2 (first *pyversion*))
-      (assert-equalp nil
-          (py4cl2:pyexec "print(\"hello\")")
-        "This fails with python 2"))
+    (assert-equalp nil
+        (multiple-value-list (py4cl2:pyexec "print(\"hello\")"))
+      "This fails with python 2"))
   (assert-equalp nil ; in case someone makes this a macro some day!
-      (let ((module "sys")) (py4cl2:pyexec "import " module)))
+      (multiple-value-list (let ((module "sys")) (py4cl2:pyexec "import " module))))
   (assert-equalp '("hello" 5) ; in case someone makes this a macro some day!
       (let ((a "'hello'") (b 5))
         (py4cl2:pyexec "temp1 = " a)
@@ -435,7 +438,7 @@ temp = Foo()")
     (t (call-next-method)))) ; Otherwise go to next method
 (deftest chain-nested (callpython-chain)
   (assert-equal 42
-      (let ((instance (make-instance 'test-class :value 21))) 
+      (let ((instance (make-instance 'test-class :value 21)))
         (chain* `((@ ,instance func) (@ ,instance value))))))
 
 (deftest setf-chain (callpython-chain)
@@ -471,13 +474,24 @@ class testclass:
 
 ;; ========================== IMPORT-EXPORT ====================================
 
+(defmacro define-pyfun-with-test (name
+                                  (&rest pyexec-forms)
+                                     (&rest defpyfun-forms)
+                                  &body body)
+  `(progn
+     (eval-when (:compile-toplevel)
+       ,@pyexec-forms)
+     ,@defpyfun-forms
+     (deftest ,name (import-export)
+       ,@pyexec-forms
+       ,@body)))
 
 ;; more extensive tests for defpyfun and defpymodule are required
-(py4cl2:defpyfun "sum" "" :lisp-fun-name "PYSUM")
-(py4cl2:defpyfun "Fraction" "fractions")
-(py4cl2:defpyfun "gcd" "fractions" :as "g")
-
-(deftest defpyfun (import-export)
+(define-pyfun-with-test defpyfun
+    ()
+    ((py4cl2:defpyfun "sum" "" :lisp-fun-name "PYSUM")
+     (py4cl2:defpyfun "Fraction" "fractions")
+     (py4cl2:defpyfun "gcd" "fractions" :as "g"))
   (py4cl2:pystop) ; taking "safety" into account
   (assert-equalp 1/2 (fraction :numerator 1 :denominator 2))
   (py4cl2:pystop) ; taking "safety" into account
@@ -486,58 +500,53 @@ class testclass:
   (py4cl2:pystop) ; taking "safety" into account
   (assert-equalp 6 (pysum '(2 1 3))))
 
-(eval-when (:compile-toplevel)
-  (pyexec
-   "def allNulls(a=[], b=(), c=False, d=None):
-  assert type(a)==list
-  assert type(b)==tuple
-  assert type(c)==bool
-  assert type(d)==type(None)
-  return True"))
-(defpyfun "allNulls")
-(deftest defpyfun-null (import-export)
-  (pyexec
-   "def allNulls(a=[], b=(), c=False, d=None):
+(define-pyfun-with-test defpyfun-null
+    ((pyexec "def allNulls(a=[], b=(), c=False, d=None):
   assert type(a)==list
   assert type(b)==tuple
   assert type(c)==bool
   assert type(d)==type(None)
   return True")
-  (assert-true (all-nulls)))
+     (pyexec "def allNullsReturnAll(a=[], b=(), c=False, d=None):
+  return (a,b,c,d)"))
+    ((defpyfun "allNulls")
+     (defpyfun "allNullsReturnAll"))
+  (pycall "allNulls")
+  (assert-true (all-nulls))
+  (assert-true (equalp '(#() "()" nil "None") (all-nulls-return-all)))
+  (assert-true (equalp '(5 5 5 5) (all-nulls-return-all :a 5 :b 5 :c 5 :d 5)))
+  (assert-true (equalp '("hello" "hello" "hello" "hello")
+                       (all-nulls-return-all :a "hello" :b "hello"
+                                             :c "hello" :d "hello"))))
 
-(eval-when (:compile-toplevel)
-  (pyexec "def noArgFunc(): return True")
-  (pyexec "def restArgs(a, b, *args): return True")
-  (pyexec "def kwRestArgs(a, b, **kwargs): return True"))
-(defpyfun "noArgFunc")
-(defpyfun "restArgs")
-(defpyfun "kwRestArgs")
-(deftest defpyfun-args (import-export)
-  (pyexec "def noArgFunc(): return True")
-  (pyexec "def restArgs(a, b, *args): return True")
-  (pyexec "def kwRestArgs(a, b, **kwargs): return True")
+(define-pyfun-with-test defpyfun-args
+    ((pyexec "def noArgFunc(): return True")
+     (pyexec "def restArgs(a, b, *args): return True")
+     (pyexec "def kwRestArgs(a, b, **kwargs): return True"))
+    ((defpyfun "noArgFunc")
+     (defpyfun "restArgs")
+     (defpyfun "kwRestArgs"))
   (assert-equal (swank-backend:arglist #'no-arg-func) nil)
   (assert-equal '(&rest py4cl2::args)
       (swank-backend:arglist #'rest-args))
-  (assert-equal '(&rest kwargs &key (a nil) (b nil) &allow-other-keys)
+  (assert-equal '(&rest kwargs &key (a 'nil) (b 'nil) &allow-other-keys)
       (swank-backend:arglist #'kw-rest-args)))
 
 (deftest defpymodule-math (import-export)
   (assert-equalp (cos 45) (math:cos 45)))
 
-(eval-when (:compile-toplevel)
-  (py4cl2:pyexec "def foo(A, b): return True")
-  (py4cl2:pyexec "def bar(a=1, b=2, **kwargs): return kwargs"))
-(py4cl2:defpyfun "foo")
-(py4cl2:defpyfun "bar")
-
-(deftest defpyfun-names (import-export)
-  (py4cl2:pyexec "def foo(A, b): return True")
+(define-pyfun-with-test defpyfun-names
+    ((py4cl2:pyexec "def foo(A, b): return True")
+     (py4cl2:pyexec "def bar(a=1, b=2, **kwargs): return kwargs")
+     (py4cl2:pyexec "def nilAndT(nil, t): return (nil, t)"))
+    ((py4cl2:defpyfun "foo")
+     (py4cl2:defpyfun "bar")
+     (py4cl2:defpyfun "nilAndT"))
   (assert-true (foo :a 4 :b 3))
-  (py4cl2:pyexec "def bar(a=1, b=2, **kwargs): return kwargs")
   (assert-equal '() (alexandria:hash-table-alist (bar)))
   (assert-equal '() (alexandria:hash-table-alist (bar :a 3)))
-  (assert-equal '(("c" . 3)) (alexandria:hash-table-alist (bar :c 3))))
+  (assert-equal '(("c" . 3)) (alexandria:hash-table-alist (bar :c 3)))
+  (assert-equalp '("hello" #(5)) (nil-and-t :.nil "hello" :.t #(5))))
 
 ;; Call python during callback
 (deftest python-during-callback (callpython-utility)

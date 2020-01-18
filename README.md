@@ -34,7 +34,7 @@ Check the [Releases](https://github.com/digikar99/py4cl2/releases) section.
 (py4cl2:defpymodule "matplotlib.pyplot" nil :lisp-package "PLT")
 
 (plt:plot *data*)
-(plt:xlabel :xlabel "Time")
+(plt:xlabel "Time")
 (plt:savefig "result.pdf")
 (plt:show)
 ```

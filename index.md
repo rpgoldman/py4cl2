@@ -4,7 +4,7 @@ title: py4cl2
 
 ---
 
-[Last update: v2.0.7]
+[Last update: v2.1.0]
 
 # Introduction
 
@@ -37,6 +37,7 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
   - `py`names are shorter
   - `with-remote` seems more appropriate
   - `chain` and `chain*` with more "uniformity"
+  - semantics of `nil`: see [Type Mapping and Pythonize](#type-mapping-and-pythonize)
 - Arguments are imported; submodules can be imported with an option to [defpymodule]. However, this is only possible for python3. Argument ordering can be wrong with ABCL.
 - Incomplete support on ABCL (known issues include argument-list-ordering, interrupts); untested on ECL; only tested on SBCL and ECL.
 - Improvements in large array transfer speed, using numpy-file-format (see [initialize](#initialize); though this does not beat `remote-objects`, in existence since `py4cl`, 
@@ -735,24 +736,31 @@ reader; the lisp function `pythonize` outputs strings which can be
 
 
 ```
-| Lisp type | Python type   |
-|-----------+---------------|
-| NIL       | None          |
-| integer   | int           |
-| ratio     | float         |
-| real      | float         |
-| complex   | complex float |
-| string    | str           |
-| hash map  | dict          |
-| list      | tuple         |
-| vector    | list          |
-| array     | NumPy array   |
-| symbol    | Symbol class  |
-| function  | function      |
+| Lisp type | Python type           |
+|-----------+-----------------------|
+| NIL       | None                  |
+| integer   | int                   |
+| ratio     | fraction.Fractions    |
+| real      | float                 |
+| complex   | complex float         |
+| string    | str                   |
+| hash map  | dict                  |
+| list      | tuple                 |
+| vector    | list                  |
+| array     | NumPy array           |
+| symbol    | Symbol class          |
+| function  | function              |
 ```
 
-Note that python does not have all the numerical types which lisp has,
-for example rational numbers or complex integers.
+Special conversion rules include:
+
+```
+nil     False
+t       True
+"None"  None
+"()"    ()        # empty tuple
+```
+
 
 Because `pyeval` and `pyexec` evaluate strings as python
 expressions, strings passed to them are not escaped or converted as

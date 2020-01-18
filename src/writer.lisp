@@ -40,11 +40,9 @@ Default implementation creates a handle to an unknown Lisp object.")
   (:method (obj)
     (concatenate 'string
                  "_py4cl_UnknownLispObject(\""
-                 (write-to-string
-                 (type-of obj))
+                 (write-to-string (type-of obj))
                  "\", "
-                 (write-to-string
-                  (object-handle obj))
+                 (write-to-string (object-handle obj))
                  ")")))
 
 (defmethod pythonize ((obj real))
@@ -75,12 +73,12 @@ which is interpreted correctly by python (3.7.2)."
              (> (array-total-size obj)
                 (config-var 'numpy-pickle-lower-bound)))
     (let ((filename (concatenate 'string
-				 (config-var 'numpy-pickle-location)
-				 "." (write-to-string (incf *numpy-pickle-index*)))))
+                                 (config-var 'numpy-pickle-location)
+                                 "." (write-to-string (incf *numpy-pickle-index*)))))
       (numpy-file-format:store-array obj filename)
       (return-from pythonize
-	(concatenate 'string "_py4cl_load_pickled_ndarray_and_delete('"
-		     filename"')"))))
+        (concatenate 'string "_py4cl_load_pickled_ndarray_and_delete('"
+                     filename"')"))))
   
   ;; Handle case of empty array
   (if (= (array-total-size obj) 0)
@@ -107,40 +105,45 @@ which is interpreted correctly by python (3.7.2)."
   "Convert a list. This leaves a trailing comma so that python
 evals a list with a single element as a tuple
 "
-  (if obj
-      (with-output-to-string (stream)
-        (write-char #\( stream)
-        (dolist (val obj)
-          (write-string (pythonize val) stream)
-          (write-char #\, stream))
-        (write-char #\) stream))
-      "None"))
+  (let ((python-value (cdr (assoc obj *lisp-to-python-alist* :test 'equalp))))
+    (cond (python-value python-value)
+          (obj (with-output-to-string (stream)
+                 (write-char #\( stream)
+                 (dolist (val obj)
+                   (write-string (pythonize val) stream)
+                   (write-char #\, stream))
+                 (write-char #\) stream)))
+          (t (error "Non exhaustive cases")))))
 
 (defmethod pythonize ((obj string))
-  (if (find-if (lambda (ch) (char= #\newline ch)) obj)
-      (with-output-to-string (return-string)
-        (write-string "\"\"\"" return-string)
-        (write-string
-         (let ((escaped-string (write-to-string (coerce obj
-                                                        '(vector character))
-                                                :escape t :readably t)))
-           (subseq escaped-string 1 (1- (length escaped-string))))
-         return-string)
-        (write-string "\"\"\"" return-string))
-      (write-to-string (coerce obj '(vector character))
-                       :escape t :readably t)))
+  (let ((python-value (cdr (assoc obj *lisp-to-python-alist* :test 'equalp))))
+    (cond (python-value python-value)
+          ((find-if (lambda (ch) (char= #\newline ch)) obj)
+           (with-output-to-string (return-string)
+             (write-string "\"\"\"" return-string)
+             (write-string
+              (let ((escaped-string (write-to-string (coerce obj
+                                                             '(vector character))
+                                                     :escape t :readably t)))
+                (subseq escaped-string 1 (1- (length escaped-string))))
+              return-string)
+             (write-string "\"\"\"" return-string)))
+          (t (write-to-string (coerce obj '(vector character))
+                              :escape t :readably t)))))
 
-(defvar *lisp-to-python-types-alist*
-  '((t "True")
-    (nil "None")
-    (float "float")
-    (boolean "bool")
-    (null "type(None)")
-    (integer "int")
-    (complex "complex")
-    (vector "list")
-    (hash-table "dict")
-    (string "str")))
+(defvar *lisp-to-python-alist*
+  '((t . "True")
+    (nil . "False")
+    (float . "float")
+    (boolean . "bool")
+    (null . "type(None)")
+    (integer . "int")
+    (complex . "complex")
+    (vector . "list")
+    (hash-table . "dict")
+    (string . "str")
+    ("None" . "None")
+    ("()" . "()")))
 ;; leaves out inspect._empty    
 
 (defmethod pythonize ((obj symbol))
@@ -150,43 +153,32 @@ evals a list with a single element as a tuple
   '|Foo-Bar| :  \"Foo-Bar\"  : Foo_Bar
   '*foo-bar* : \"*FOO-BAR*\" : FOO_BAR
       t      :     \"T\"     :  True
-     nil     :    \"NIL\"    :  None"
-  (let* ((symbol-name (symbol-name obj))
-         (name (cond ((and (char= (char symbol-name 0) #\*) ; *global-variable* == PYTHON_CONSTANT
-                           (char= (char symbol-name (1- (length symbol-name)))))
-                      (subseq symbol-name 1 (1- (length symbol-name))))
-                     ((string= "NIL" symbol-name) "None")
-                     ((string= "T" symbol-name) "True")
-                     ((every #'(lambda (char) ; = every character is either upper-case 
-                                 (not (lower-case-p char))) ; or is not an alphabet
-                             symbol-name)
-                      (format nil "~(~a~)" symbol-name))
-                     (t symbol-name))))
-    
-    (iter (for char in-string name)
-          (collect (if (char= char #\-)
-                       #\_
-                       char)
-            into python-name
-            result-type string)
-          (finally (return
-                     (if (equalp (symbol-package obj) (find-package :keyword))
-                         (format nil "~A = " python-name)
-                         python-name))))))
-
-(defun depythonize (string &optional (can-be-global nil))
-  (let ((hyphenated (iter (for c in-string string)
-                          (collect (if (char= c #\_) #\- c)
-                            result-type 'string))))
-    (cond ((string= hyphenated "None") "NIL")
-          ((string= hyphenated "True") "T")
-          ((and can-be-global
-                (every #'(lambda (char) ; = every character is either upper-case 
-                           (not (lower-case-p char))) ; or is not an alphabet
-                       hyphenated))
-           (format nil "*~A*" hyphenated))
-          ((some #'upper-case-p hyphenated) hyphenated)
-          (t (string-upcase hyphenated)))))
+     nil     :    \"NIL\"    :  False"
+  (let ((python-value (cdr (assoc obj *lisp-to-python-alist*))))
+    (if python-value
+        python-value
+        (let* ((symbol-name (symbol-name obj))
+               (name (cond ((and (char= (char symbol-name 0) #\*) ; *global-variable* == PYTHON_CONSTANT
+                                 (char= (char symbol-name (1- (length symbol-name)))))
+                            (subseq symbol-name 1 (1- (length symbol-name))))
+                           ((string= "T" symbol-name) "True")
+                           ((every #'(lambda (char) ; = every character is either upper-case 
+                                       (not (lower-case-p char))) ; or is not an alphabet
+                                   symbol-name)
+                            (format nil "~(~a~)" symbol-name))
+                           (t symbol-name))))
+          ;; Replace - by _
+          (iter (for char in-string name)
+                (collect (if (char= char #\-)
+                             #\_
+                             char)
+                  into python-name
+                  result-type string)
+                ;; Use keywords as if to indicate keyword python argument name
+                (finally (return
+                           (if (equalp (symbol-package obj) (find-package :keyword))
+                               (format nil "~A = " python-name)
+                               python-name))))))))
 
 (defmethod pythonize ((obj hash-table))
   "Convert hash-table to python map.
@@ -203,10 +195,10 @@ Produces a string {key1:value1, key2:value2,}"
   "Handle a function by converting to a callback object
 The lisp function is stored in the same object store as other objects."
   (concatenate 'string
-                 "_py4cl_LispCallbackObject("
-                 (write-to-string
-                  (object-handle obj))
-                 ")"))
+               "_py4cl_LispCallbackObject("
+               (write-to-string
+                (object-handle obj))
+               ")"))
 
 (defmethod pythonize ((obj python-object))
   "A handle for a python object, stored in a dict in Python"

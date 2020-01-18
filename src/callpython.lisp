@@ -61,7 +61,10 @@
                (#\c ;; Callback. Return a list, containing function ID, then the args
                 (let ((call-value (stream-read-value read-stream)))
                   (let ((return-value (apply (lisp-object (first call-value))
-                                             (second call-value))))
+                                             (if (and (stringp (second call-value))
+                                                      (string= "()" (second call-value)))
+                                                 ()
+                                                 (second call-value)))))
                     (dispatch-reply write-stream return-value))))
                (#\p ; Print stdout
                 (let ((print-string (stream-read-value read-stream)))
@@ -102,7 +105,8 @@ For instance,
     sys.stdout.write('hello')
   foo()
 will result in 'sys' name not defined PYERROR."
-  (apply #'raw-py #\x strings))
+  (apply #'raw-py #\x strings)
+  (values))
 
 (defun (setf raw-pyeval) (value &rest args)
   (apply #'raw-pyexec (append args
