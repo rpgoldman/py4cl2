@@ -313,7 +313,7 @@ Refer `(describe 'defpyfun)`.
 ```lisp
 (defpymodule pymodule-name &optional import-submodules &key 
   (lisp-package (lispify-name (or as pymodule-name)))
-  (reload t) (safety t) (is-submodule nil) (continue-ignoring-errors))
+  (reload t) (safety t) (continue-ignoring-errors t))
 ```
 
 `lisp-package` is the name of the symbol that the package would be bound to.

@@ -286,6 +286,8 @@ Arguments:
                                                       :as as)))))
          ,(second pass-list)))))
 
+(defvar *is-submodule* nil
+  "Used for coordinating import statements from defpymodule while calling recursively")
 
 (defun defpysubmodules (pymodule-name lisp-package continue-ignoring-errors)
   (let ((submodules
@@ -299,26 +301,27 @@ Arguments:
           (when (or has-submodules
                     (ignore-errors (pyeval "type(" submodule-fullname
                                            ") == type(pkgutils)")))
-            (collect `(defpymodule ,submodule-fullname
-                          ,has-submodules
-                        :lisp-package ,(concatenate 'string lisp-package "."
-                                                    (lispify-name submodule))
-                        :is-submodule t
-                        :continue-ignoring-errors ,continue-ignoring-errors))))))
+            (collect (let ((*is-submodule* t))
+                       (macroexpand-1
+                        `(defpymodule ,submodule-fullname
+                             ,has-submodules
+                           :lisp-package ,(concatenate 'string lisp-package "."
+                                                       (lispify-name submodule))
+                           :continue-ignoring-errors ,continue-ignoring-errors))))))))
 
-(declaim (ftype (function (string string boolean) pymodule-import-string)))
-(defun pymodule-import-string (pymodule-name lisp-package is-submodule)
+(declaim (ftype (function (string string) pymodule-import-string)))
+(defun pymodule-import-string (pymodule-name lisp-package)
   (let ((package-in-python (pythonize (intern lisp-package))))
     (values
-     (if is-submodule
+     (if *is-submodule*
          ""
          (concatenate 'string "import " pymodule-name
                       " as " package-in-python))
      package-in-python)))
 
-(defun function-reload-string (&key pymodule-name lisp-package is-submodule fun-name as)
+(defun function-reload-string (&key pymodule-name lisp-package fun-name as)
   (if *called-from-defpymodule*
-      (pymodule-import-string pymodule-name lisp-package is-submodule)
+      (pymodule-import-string pymodule-name lisp-package)
       (concatenate 'string "from " pymodule-name " import " fun-name " as " as)))
 
 ;;; One we need is the name of the package inside python
@@ -327,7 +330,6 @@ Arguments:
 ;;; pythonize to the python name.
 (defmacro defpymodule (pymodule-name &optional (import-submodules nil)
                        &key
-                         (is-submodule nil) ;; used by defpysubmodules
                          (lisp-package (lispify-name pymodule-name))
                          (reload t) (safety t)
                          (continue-ignoring-errors t))
@@ -341,7 +343,6 @@ Arguments:
   PYMODULE-NAME: name of the module in python, before importing
   IMPORT-SUBMODULES: leave nil for purposes of speed, if you won't use the  
     submodules
-  IS-SUBMODULE: used by internal macro defpysubmodules
   LISP-PACKAGE: lisp package, in which to intern (and export) the callables
   RELOAD: whether to redefine and reimport
   SAFETY: value of safety to pass to defpyfun; see defpyfun"
@@ -361,7 +362,7 @@ Arguments:
   
   ;; fn-names  All callables whose names don't start with "_"
   (multiple-value-bind (package-import-string package-in-python)
-      (pymodule-import-string pymodule-name lisp-package is-submodule)
+      (pymodule-import-string pymodule-name lisp-package)
     (pyexec package-import-string)
     (handler-bind ((pyerror (lambda (e)
                               (if continue-ignoring-errors
@@ -402,7 +403,6 @@ Arguments:
                                   (*function-reload-string*
                                    (function-reload-string :pymodule-name pymodule-name
                                                            :lisp-package lisp-package
-                                                           :is-submodule is-submodule
                                                            :fun-name fun-name)))
                              (macroexpand-1 `(defpyfun
                                                  ,fun-name ,package-in-python
