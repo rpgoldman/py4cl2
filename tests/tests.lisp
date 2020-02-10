@@ -1,4 +1,6 @@
 (py4cl2:defpymodule "math")
+(py4cl2:defpymodule "numpy" t :lisp-package "NP")
+
 (defpackage :py4cl2-tests
   (:use :cl :clunit :py4cl2 :iterate)
   (:export :run))
@@ -58,14 +60,15 @@
   (assert-equalp "world" (py4cl2:raw-pyeval "'world'"))
   (py4cl2:pyexec "import sys")
   (assert-equalp "hello world"
-                 (with-python-output 
-                   (py4cl2:raw-pyexec "sys.stdout.write(\"hello world\")")))
+      (with-python-output 
+        (py4cl2:raw-pyexec "sys.stdout.write(\"hello world\")")))
   (assert-equalp "testing"
-                 (with-python-output 
-                   (py4cl2:raw-pyexec "sys.stdout.write(\"testing\")"))))
+      (with-python-output 
+        (py4cl2:raw-pyexec "sys.stdout.write(\"testing\")"))))
 
 ;; If locks and synchronization are not implemented properly, this
 ;; would likely fail; in fact, SBCL itself seems to stop
+;; SBCL can also stop inspite of it being implemented correctly.
 (deftest with-python-output-stress-test (callpython-raw)
   (iter (repeat 10000) (with-python-output (pyexec "print('hello')"))))
 
@@ -485,6 +488,15 @@ class testclass:
      (deftest ,name (import-export)
        ,@pyexec-forms
        ,@body)))
+
+(deftest numpy-import-as-np (import-export)
+  ;; also check whether "all" options as expected
+  (defpymodule "numpy" t :lisp-package "NP")
+  ;; np. formats are accessible
+  (assert-true (pyeval 'np.float32))
+  (pystop)
+  ;; package is imported as np even after stopping
+  (assert-equalp #(5 7 9) (np:add '(1 2 3) '(4 5 6))))
 
 ;; more extensive tests for defpyfun and defpymodule are required
 (define-pyfun-with-test defpyfun

@@ -4,7 +4,7 @@ title: py4cl2
 
 ---
 
-[Last update: v2.1.0]
+[Last update: v2.2.0]
 
 # Introduction
 
@@ -289,7 +289,7 @@ Names are lispified by converting underscores hyphens, and converting CamelCase 
 ```lisp
 (defpyfun fun-name &optional pymodule-name &key 
   (as fun-name) (lisp-fun-name (lispify-name as))
-  (lisp-package *package*) (called-from-defpymodule nil)
+  (lisp-package *package*)
   (safety t)
 ```
 `lisp-fun-name` is the name of the symbol that would be `fboundp`ed to the function [that calls the python function].
