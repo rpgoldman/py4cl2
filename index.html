@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="None">
+  
+  
+  <link rel="shortcut icon" href="img/favicon.ico">
+  <title>py4cl2</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700|Roboto+Slab:400,700|Inconsolata:400,700" />
+
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/theme_extra.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css" />
+  
+  <script>
+    // Current page data
+    var mkdocs_page_name = "py4cl2";
+    var mkdocs_page_input_path = "index.md";
+    var mkdocs_page_url = null;
+  </script>
+  
+  <script src="js/jquery-2.1.1.min.js" defer></script>
+  <script src="js/modernizr-2.8.3.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/lisp.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script> 
+  
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+        <a href="." class="icon icon-home"> py4cl2</a>
+        <div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="./search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+                <ul class="current">
+                    <li class="toctree-l1 current"><a class="reference internal current" href=".">py4cl2</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#highlights-and-limitations-of-py4cl">Highlights and Limitations of py4cl</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#changes-over-py4cl">Changes over py4cl</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#dependencies">Dependencies</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#installation_1">Installation</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#using-ultralisp">Using ultralisp</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#from-git-recommended">From git (recommended)</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#tests">Tests</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#setting-up">Setting up</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#initialize">initialize</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#config-config-var">*config* / config-var</a>
+    </li>
+        </ul>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#examples-and-documentation">Examples and Documentation</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#python-processes">Python Processes</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#pycmd">pycmd</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#pyversion-info">pyversion-info</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#pyinterrupt">pyinterrupt</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#py-cd">py-cd</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#other-useful-functions">Other useful functions</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#doing-arbitrary-things-in-python">Doing arbitrary things in python</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#raw-pyeval">raw-pyeval</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#raw-pyexec">raw-pyexec</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#pyeval">pyeval</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#pyexec">pyexec</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#defining-python-functions-and-modules">Defining python functions and modules</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#defpyfun">defpyfun</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#defpymodule">defpymodule</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#defpyfuns">defpyfuns</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#pyerror">pyerror</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#using-functions-and-methods">Using functions and methods</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#pycall">pycall</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#pymethod">pymethod</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#pyslot-value">pyslot-value</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#export-function">export-function</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#pyhelp">pyhelp</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#generators-and-lambdas">Generators and Lambdas</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#pygenerator">pygenerator</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#lambdas">lambdas</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#slot-and-method-lists">Slot and Method Lists</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#pyslot-list">pyslot-list</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#pymethod-list">pymethod-list</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#chain">chain(*)</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#with-remote-objects">with-remote-objects(*)</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#python-getattr">python-getattr</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#testing">Testing</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#type-mapping-and-pythonize">Type Mapping and Pythonize</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#name-mapping">Name Mapping</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#what-remains">What remains?</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#future-work">Future Work</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#also-check-out">Also check out</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#the-common-lisp-cookbook">The Common Lisp Cookbook</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                    </li>
+                </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href=".">py4cl2</a>
+      </nav>
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".">Docs</a> &raquo;</li>
+    
+      
+    
+    <li>py4cl2</li>
+    <li class="wy-breadcrumbs-aside">
+      
+        <a href="https://github.com/digikar99/py4cl2/edit/master/docs/index.md"
+          class="icon icon-github"> Edit on GitHub</a>
+      
+    </li>
+  </ul>
+  
+  <hr/>
+</div>
+          <div role="main">
+            <div class="section">
+              
+                <h1 id="py4cl2">py4cl2</h1>
+<p>[Last update: v2.2.0]</p>
+<h2 id="introduction">Introduction</h2>
+<p><a href="https://github.com/bendudson/py4cl">py4cl</a> is a package by Ben Dudson, aimed at making python libraries availble in Common Lisp,
+using streams to communicate with a separate python process - the approach taken by <a href="https://github.com/marcoheisig/cl4py">cl4py</a>. This is
+different to the CFFI approach used by <a href="https://github.com/pinterface/burgled-batteries">burgled-batteries</a>,
+but has the same goal. </p>
+<p><a href="https://github.com/digikar99/py4cl2">py4cl2</a> is an improvement over the original py4cl. (See <a href="#highlights-and-limitations-of-py4cl">Highlights and Limitations</a>.)</p>
+<p>Please report the issues on github: <a href="https://github.com/digikar99/py4cl2/issues">py4cl2</a> or <a href="https://github.com/bendudson/py4cl/issues">py4cl</a>).</p>
+<h2 id="highlights-and-limitations-of-py4cl">Highlights and Limitations of <code>py4cl</code></h2>
+<ul>
+<li>Speed: About 6500 <code>(pycall "int" "5")</code> instructions per second @ 1GHz intel 8750H. 
+This shouldn't be a bottleneck if you're planning to run "long" processes in python. (For example, deep learning :). )</li>
+<li>Virtual environments: <a href="#pycmd"><code>pycmd</code></a> (<code>*python-command*</code> in <code>py4cl</code>): Choose which python binary to use. Works with miniconda.</li>
+<li>Multiple python processes (not documented here) - parallel execution?</li>
+<li>Tested on SBCL, CCL, ABCL, and ECL (as mentioned in the <a href="https://github.com/bendudson/py4cl">original README</a>) does not have <code>uiop:launch-program</code>; known issues for full support with ABCL include </li>
+<li>No support for inheriting python classes - should require MOP</li>
+<li>Embeddable into lisp-image - the code from py4cl.py is copied into <em>python-code</em> and heredocs are used</li>
+</ul>
+<div><img src="readme_slime.png" width="80%" style="margin:auto; display:block;"/></div>
+
+<!-- ![slime-demo-image](readme_slime.png) -->
+
+<h3 id="changes-over-py4cl">Changes over py4cl</h3>
+<ul>
+<li>Changes: several (but not all) names have been shorted from <code>python-</code> to <code>py</code>; <code>remote-objects</code> have been changed to <code>with-remote-object(s)</code>. Personal preference for these names stems from:</li>
+<li><code>defpyfun/module</code> reminds of the equivalent in <code>burgled-batteries</code> and <code>cffi</code></li>
+<li><code>py</code>names are shorter</li>
+<li><code>with-remote</code> seems more appropriate</li>
+<li><code>chain</code> and <code>chain*</code> with more "uniformity"</li>
+<li>semantics of <code>nil</code>: see <a href="#type-mapping-and-pythonize">Type Mapping and Pythonize</a></li>
+<li>Arguments are imported; submodules can be imported with an option to [defpymodule]. However, this is only possible for python3. Argument ordering can be wrong with ABCL.</li>
+<li>Incomplete support on ABCL (known issues include argument-list-ordering, interrupts); untested on ECL; only tested on SBCL and ECL.</li>
+<li>Improvements in large array transfer speed, using numpy-file-format (see <a href="#initialize">initialize</a>; though this does not beat <code>remote-objects</code>, in existence since <code>py4cl</code>, </li>
+<li>Interrupt the python process using <a href="#pyinterrupt">(pyinterrupt)</a></li>
+<li><code>defpymodule</code> (previously <code>import-module</code>) is works "as-expected" with asdf / <code>defpackage</code>.</li>
+<li>
+<p>use <code>(with-python-output &amp;body body)</code> to capture python output; previously <code>(with-output-to-stream (*standard-output*) &amp;body body)</code> could have worked.</p>
+</li>
+<li>
+<p>See <a href="https://github.com/digikar99/py4cl/blob/master/TODO.org">TODO</a>.</p>
+</li>
+</ul>
+<h2 id="installation">Installation</h2>
+<h3 id="dependencies">Dependencies</h3>
+<p>This fork is possible due to the following (and therefore, depends on):</p>
+<p>On the CL side:</p>
+<ul>
+<li>trivial-garbage</li>
+<li>iterate</li>
+<li>bordeaux-threads</li>
+<li>cl-json</li>
+<li>parse-number</li>
+<li>uiop (some implementations have an older version of uiop; support for <code>launch-program</code> is needed for asynchronous processes)</li>
+<li><a href="https://github.com/marcoheisig/numpy-file-format">numpy-file-format</a> *</li>
+</ul>
+<p>* possibly not available on quicklisp (may be see <a href="https://stackoverflow.com/questions/8441224/how-to-install-new-packages-for-common-lisp-without-asdf-install">How to install new packages for common lisp without asdf-install
+</a>; in essence, download the github-repo to somewhere asdf can find.)</p>
+<p>On python side:</p>
+<ul>
+<li>numpy (optional)</li>
+</ul>
+<p>(other packages should be available in a standard python distribution - tested with CPython.)</p>
+<h3 id="installation_1">Installation</h3>
+<h4 id="using-ultralisp">Using ultralisp</h4>
+<h4 id="from-git-recommended">From git (recommended)</h4>
+<p>Download the (latest) release from the <a href="https://github.com/digikar99/py4cl2/releases">Releases</a> and untar/unzip into <code>~/quicklisp/local-projects/</code> or any other
+location where it can be discovered by <code>quicklisp</code>:</p>
+<pre><code class="sh">wget -qO- https://github.com/digikar99/py4cl2/archive/v2.2.0.tar.gz | tar xvz - -C ~/quicklisp/local-projects
+</code></pre>
+
+<p>Load into  with</p>
+<pre><code class="lisp">(ql:quickload :py4cl2)
+</code></pre>
+
+<h3 id="tests">Tests</h3>
+<pre><code class="lisp">(ql:quickload :py4cl2-tests)
+(py4cl2-tests:run)
+</code></pre>
+
+<h3 id="setting-up">Setting up</h3>
+<h4 id="initialize">initialize</h4>
+<p>On loading this library for the first time, run <code>initialize</code> and provide the necessary details.</p>
+<pre><code class="lisp">(py4cl2:initialize)
+</code></pre>
+
+<p>(You may want to note the printed information, about the location of config-file. Of course, you can call this function again, but be sure to refill the values.)</p>
+<p>The library uses (temporary) pickled .npy files for transferring large numpy arrays efficiently
+between lisp and python. This process is IO intensive, writing as much as 100MB or even a GB each time.
+Using a ram-disk is recommended for this purpose. (<a href="https://unix.stackexchange.com/questions/66329/creating-a-ram-disk-on-linux">How to create a ram disk on Linux?</a>)</p>
+<h4 id="config-config-var">*config* / config-var</h4>
+<p>These values can also be accessed using <code>*config*</code> and <code>config-var</code>:</p>
+<pre><code class="lisp">CL-USER&gt; py4cl2:*config*
+((PY4CL2:PYCMD . &quot;/home/user/miniconda3/bin/python&quot;)
+ (PY4CL2:NUMPY-PICKLE-LOCATION . &quot;/home/user/ram-disk/_numpy_pickle.npy&quot;)
+ (PY4CL2:NUMPY-PICKLE-LOWER-BOUND . 100000))
+CL-USER&gt; (py4cl2:config-var 'py4cl2:numpy-pickle-location)
+&quot;/home/user/ram-disk/_numpy_pickle.npy&quot;
+CL-USER&gt; (setf (config-var 'py4cl2:pycmd) &quot;python&quot;)
+&quot;python&quot;
+</code></pre>
+
+<p>Complementary to <code>config-var</code> are <code>save-config</code> and <code>load-config</code>. The latter is called on startup, the config-file exists. <code>(setf config-var)</code> calls the former unless it is <code>pycmd</code>, as well as asks the python process to load the config, from the config file. (The exception for <code>pycmd</code> exists so as to let the users set up project-local environments.)</p>
+<h2 id="examples-and-documentation">Examples and Documentation</h2>
+<pre><code class="lisp">CL-USER&gt; (use-package :py4cl2)
+</code></pre>
+
+<h3 id="python-processes">Python Processes</h3>
+<p>It all starts with a python process (actually, more than one as well - this use hasn't been documented here.).</p>
+<h4 id="pycmd">pycmd</h4>
+<pre><code class="lisp">CL-USER&gt; (config-var 'pycmd)
+&quot;python&quot;
+</code></pre>
+
+<p>Also see <a href="#config--config-var">config-var</a>.</p>
+<h4 id="pyversion-info">pyversion-info</h4>
+<pre><code class="lisp">CL-USER&gt; (pyversion-info)
+(3 7 3 &quot;final&quot; 0)
+</code></pre>
+
+<h4 id="pyinterrupt">pyinterrupt</h4>
+<p><code>(pyinterrupt &amp;optional process)</code></p>
+<p>A simple <code>C-c C-c</code> only interrupts the lisp process from slime - the python process keeps running. <code>(pyinterrupt)</code> can be used in these cases to send a SIGINT (2) to the python process.</p>
+<p>Also note that if <code>pyinterrupt</code> is not called before sending the next form to <code>eval</code> or <code>exec</code>, the input-output would go out of sync. A known way to get out is to <code>(pystop)</code> the python-process.</p>
+<p>Therefore, you may want to have <code>(pyinterrupt)</code> called on the reception of SIGINT in SLIME:</p>
+<pre><code class="lisp">(when (find-package :swank)
+  (defvar swank-simple-break)
+  (setf (fdefinition 'swank-simple-break)
+        (fdefinition (find-symbol &quot;SIMPLE-BREAK&quot; :swank)))
+  (defun swank:simple-break
+      (&amp;optional (datum &quot;Interrupt from Emacs&quot;) &amp;rest args) 
+    (py4cl2:pyinterrupt)
+    (apply (fdefinition 'swank-simple-break) datum args)))
+</code></pre>
+
+<p>However, I have been unable to get the code to work (by adding to <code>do-after-load</code> with as well as without SLIME. Further, people may not like a library to fiddle with their environments - so it might be better to leave it up to the user to set it.</p>
+<h4 id="py-cd">py-cd</h4>
+<p><code>(py-cd path)</code></p>
+<p>Equivalent of <code>slime-cd</code>, since python is a separate process.</p>
+<h4 id="other-useful-functions">Other useful functions</h4>
+<h5 id="pystart">pystart</h5>
+<h5 id="pystop">pystop</h5>
+<h5 id="python-alive-p">python-alive-p</h5>
+<h5 id="python-start-if-not-alive">python-start-if-not-alive</h5>
+<h3 id="doing-arbitrary-things-in-python">Doing arbitrary things in python</h3>
+<p>Unlike lisp, python (and most other languages) make a distinction between <em>statements</em> and <em>expressions</em>: see <a href="https://www.quora.com/Whats-the-difference-between-a-statement-and-an-expression-in-Python-Why-is-print-%E2%80%98hi%E2%80%99-a-statement-while-other-functions-are-expressions">Quora</a> or <a href="https://stackoverflow.com/questions/4728073/what-is-the-difference-between-an-expression-and-a-statement-in-python">stackoverflow</a>.</p>
+<p>A general rule of thumb from there is: if you can print it, or assign it to a variable, then it's an expression, otherwise it's a statement.</p>
+<p>Both <code>pyeval</code> and <code>pyexec</code> take any type of arguments. The <code>arg</code> is <code>pythonize</code>d if the <code>arg</code> is not a <code>string</code>, or it is a <code>string</code> that can be read into a <code>real</code>.</p>
+<h4 id="raw-pyeval">raw-pyeval</h4>
+<p><code>(raw-pyeval &amp;rest strings)</code></p>
+<p>Concatenates the strings and sends them to the python process for <code>eval</code>uation. The concatenation should be a valid python expression. Returns the result of evaluating the expression.</p>
+<h4 id="raw-pyexec">raw-pyexec</h4>
+<p><code>(raw-pyexec &amp;rest strings)</code></p>
+<p>Concatenates the strings and sends them to the python process for <code>exec</code>uation. The concatenation should be a valid python statement. Returns nil.</p>
+<p>Note that <a href="https://stackoverflow.com/questions/12505047/in-python-why-doesnt-an-import-in-an-exec-in-a-function-work">one limitation of <code>pyexec</code> is that modules imported on the top-level (of python) are not available inside some things</a>. These "some things" include functions.</p>
+<p>The following should illustrate this point:</p>
+<pre><code class="lisp">CL-USER&gt; (pyexec &quot;import time&quot;)
+NIL
+CL-USER&gt; (pyeval &quot;time.time()&quot;)
+1.5623434e9
+CL-USER&gt; (pyexec &quot;
+def foo():
+  return time.time()&quot;)
+NIL
+CL-USER&gt; (pyeval &quot;foo()&quot;)
+; Evaluation aborted on #&lt;PYERROR {100C24DF03}&gt; ;; says 'time' is not defined
+CL-USER&gt; (pyeval &quot;time.time()&quot;)
+1.5623434e9
+</code></pre>
+
+<p>THe workaround in this case is to <code>import</code> inside the <code>def</code>.</p>
+<p>Often times, the two commands above would be tedious - since you'd need to convert objects into their string representations every time. To avoid this hassle, there are the following useful functions.</p>
+<h4 id="pyeval">pyeval</h4>
+<p><code>(pyeval &amp;rest args)</code></p>
+<p>For python expressions </p>
+<pre><code class="lisp">CL-USER&gt; (pyeval 4 &quot;+&quot; 3)
+7
+</code></pre>
+
+<p>There's also <code>(setf pyeval)</code>, which unlike <code>(pyexec)</code>, can return non-<code>nil</code> values.</p>
+<pre><code class="lisp">CL-USER&gt; (setf (pyeval &quot;a&quot;) &quot;5&quot;)
+&quot;5&quot;
+CL-USER&gt; (pyeval &quot;a&quot;)
+&quot;5&quot;
+</code></pre>
+
+<p><code>pyeval</code> (and <code>pyexec</code>) treats the string as a python string, if it can be parsed into a number.
+In fact, in accordance with an internal function <code>pythonizep</code>.</p>
+<pre><code class="lisp">CL-USER&gt; (pyeval &quot;1.0&quot;)
+&quot;1.0&quot;
+CL-USER&gt; (pyeval &quot;hello&quot;)
+; Evaluation aborted on #&lt;PYERROR {1003AC0183}&gt;.
+</code></pre>
+
+<p>See also <a href="#doing-arbitrary-things-in-python">Doing arbitrary things in python</a>.</p>
+<h4 id="pyexec">pyexec</h4>
+<p><code>(pyexec &amp;rest args)</code></p>
+<p>For python statements</p>
+<pre><code class="lisp">CL-USER&gt; (pyexec &quot;
+if True:
+  print(5)
+else:
+  print(10)&quot;)
+; 5
+NIL
+</code></pre>
+
+<p><code>pyexec</code> (and <code>pyeval</code>) treats the string as a python string, if it can be parsed into a number).
+In fact, in accordance with an internal function <code>pythonizep</code>. (See <a href="#pyeval">pyeval</a>.)</p>
+<p>See also <a href="#doing-arbitrary-things-in-python">Doing arbitrary things in python</a> to learn about <code>pyeval</code> and <code>pyexec</code>.</p>
+<h3 id="defining-python-functions-and-modules">Defining python functions and modules</h3>
+<p>Rather, we define functions that call python functions.</p>
+<p>Names are lispified by converting underscores hyphens, and converting CamelCase to camel-case. Also see <a href="#name-mapping">Name Mapping</a>. </p>
+<h4 id="defpyfun">defpyfun</h4>
+<pre><code class="lisp">(defpyfun fun-name &amp;optional pymodule-name &amp;key 
+  (as fun-name) (lisp-fun-name (lispify-name as))
+  (lisp-package *package*)
+  (safety t)
+</code></pre>
+
+<p><code>lisp-fun-name</code> is the name of the symbol that would be <code>fboundp</code>ed to the function [that calls the python function].</p>
+<p>Example Usage:</p>
+<pre><code class="lisp">CL-USER&gt; (defpyfun &quot;Input&quot; &quot;keras.layers&quot; :lisp-fun-name &quot;INP&quot;)
+INP
+
+CL-USER&gt; (inp :shape '(1 2))
+##S(PY4CL2::PYTHON-OBJECT
+   :TYPE &quot;&lt;class 'tensorflow.python.framework.ops.Tensor'&gt;&quot;
+   :HANDLE 1849)
+</code></pre>
+
+<p><code>safety</code> takes care to import the required function from the required module after python process restarts for some reason. However, this affects speed.</p>
+<p>Refer <code>(describe 'defpyfun)</code>.</p>
+<h4 id="defpymodule">defpymodule</h4>
+<pre><code class="lisp">(defpymodule pymodule-name &amp;optional import-submodules &amp;key 
+  (lisp-package (lispify-name (or as pymodule-name)))
+  (reload t) (safety t) (continue-ignoring-errors t))
+</code></pre>
+
+<p><code>lisp-package</code> is the name of the symbol that the package would be bound to.</p>
+<p>Example Usage:</p>
+<pre><code class="lisp">CL-USER&gt; (defpymodule &quot;keras.layers&quot; t :lisp-package &quot;KL&quot;)
+T
+
+CL-USER&gt; (kl:input :shape '(1 2))
+#S(PY4CL2::PYTHON-OBJECT
+   :TYPE &quot;&lt;class 'tensorflow.python.framework.ops.Tensor'&gt;&quot;
+   :HANDLE 816)
+
+CL-USER&gt; (pycall (kl.advanced-activations:softmax/class :input-shape '(1 2))
+                 (kl:input :shape '(1 2)))
+#S(PY4CL2::PYTHON-OBJECT
+   :TYPE &quot;&lt;class 'tensorflow.python.framework.ops.Tensor'&gt;&quot;
+   :HANDLE 144)
+</code></pre>
+
+<p>Note that unlike Common Lisp, python has a single namespace. Therefore, currently,
+to call a callable (in Python) object, but not defined as a function in Common Lisp,
+you'd need to use something like <a href="#pycall">pycall</a>.</p>
+<h4 id="defpyfuns">defpyfuns</h4>
+<p>(Undocumented here.)</p>
+<h3 id="pyerror">pyerror</h3>
+<p>(Undocumented here.)</p>
+<h3 id="using-functions-and-methods">Using functions and methods</h3>
+<h4 id="pycall">pycall</h4>
+<p><code>(pycall fun-name &amp;rest args)</code></p>
+<p>Equivalent to the lisp <code>(funcall function &amp;rest arguments)</code>. Call a python (or lisp! See <a href="#generators-and-lambdas">generators and lambdas</a>) function.</p>
+<pre><code class="lisp">CL-USER&gt; (py4cl2:pycall &quot;print&quot; &quot;hello&quot;)
+;; hello
+NIL
+CL-USER&gt; (py4cl2:pycall #'+ 2 3 1)
+6
+</code></pre>
+
+<p>Note that <code>fun-name</code> can be a name (see <a href="#name-mapping">Name Mapping</a>), a function, or a [callable] python-object. See the example in <a href="#defpymodule">defpymodule</a>.</p>
+<h4 id="pymethod">pymethod</h4>
+<p><code>(pymethod obj method-name &amp;rest args)</code></p>
+<p><code>pymethod</code> always pythonizes; <code>method-name</code> is <a href="#name-mapping">name mapped to Python names</a>.</p>
+<pre><code class="lisp">SEQ2SEQ&gt; (pymethod model 'summary) ;; for some &quot;ready&quot; model
+__________________________________________________________________________________________________
+Layer (type)                    Output Shape         Param #     Connected to                     
+==================================================================================================
+input_1 (InputLayer)            (None, None, 43)     0                                            
+__________________________________________________________________________________________________
+input_2 (InputLayer)            (None, None, 64)     0                                            
+__________________________________________________________________________________________________
+lstm_1 (LSTM)                   [(None, 256), (None, 307200      input_1[0][0]                    
+__________________________________________________________________________________________________
+lstm_2 (LSTM)                   [(None, None, 256),  328704      input_2[0][0]                    
+                                                                 lstm_1[0][1]                     
+                                                                 lstm_1[0][2]                     
+__________________________________________________________________________________________________
+dense_1 (Dense)                 (None, None, 64)     16448       lstm_2[0][0]                     
+==================================================================================================
+Total params: 652,352
+Trainable params: 652,352
+Non-trainable params: 0
+__________________________________________________________________________________________________
+NIL
+</code></pre>
+
+<p>See <a href="#pymethod-list">pymethod-list</a>.</p>
+<h4 id="pyslot-value">pyslot-value</h4>
+<p><code>(pyslot-value object slot-name)</code></p>
+<pre><code class="lisp">CL-USER&gt; (pyslot-value model 'input-shape)
+#((NIL NIL 43) (NIL NIL 64))
+</code></pre>
+
+<p>See <a href="#pyslot-list">pyslot-list</a></p>
+<p>Also see <a href="#name-mapping">Name Mapping</a>.</p>
+<h4 id="export-function">export-function</h4>
+<p><code>(export-funtion function python-name)</code></p>
+<p>Lisp functions can be made available to python code using <code>export-function</code>:</p>
+<pre><code class="lisp">(py4cl:python-exec &quot;from scipy.integrate import romberg&quot;)
+
+(py4cl:export-function (lambda (x) (/ (exp (- (* x x)))
+                                      (sqrt pi))) &quot;gaussian&quot;)
+
+(py4cl:python-eval &quot;romberg(gaussian, 0.0, 1.0)&quot;) ; =&gt; 0.4213504
+</code></pre>
+
+<h4 id="pyhelp">pyhelp</h4>
+<p><code>(pyhelp python-object)</code></p>
+<p>Calls python's <code>help</code> function on <code>python-object</code>. (NOTE: some descriptions, especially
+for modules, are too big to be transferred in a reasonable time.)</p>
+<h3 id="generators-and-lambdas">Generators and Lambdas</h3>
+<h4 id="pygenerator">pygenerator</h4>
+<p><code>(pygenerator function stop-value)</code></p>
+<pre><code class="lisp">CL-USER&gt; (let ((a 0)) (defun foo () (incf a)))
+FOO
+
+CL-USER&gt; (pyeval &quot;[x for x in &quot; (pygenerator #'foo 3) &quot;]&quot;)
+#(1 2)
+</code></pre>
+
+<h4 id="lambdas">lambdas</h4>
+<p>Lisp functions are <code>pythonize</code>d to <code>LispCallbackObject</code>s. As the name suggests, python can call LispCallbackObjects (and therefore, lisp functions), just like it is any other python callable (which it is!).</p>
+<pre><code class="lisp">CL-USER&gt; (py4cl::pythonize #'car)
+&quot;_py4cl_LispCallbackObject(4)&quot;
+
+CL-USER&gt; (pycall (lambda (string) (concatenate 'string string &quot; - from Lisp&quot;))
+                 &quot;hello&quot;)
+&quot;hello - from Lisp&quot;
+</code></pre>
+
+<h3 id="slot-and-method-lists">Slot and Method Lists</h3>
+<p>Currently, all the python objects are grouped under the class <code>python-object</code>. The list of methods 
+and slots associated with these objects can be obtained using the following two functions.</p>
+<h4 id="pyslot-list">pyslot-list</h4>
+<p><code>(pyslot-list python-object &amp;key as-vector)</code></p>
+<pre><code class="lisp">CL-USER&gt; (defpyfun &quot;Model&quot; &quot;keras&quot;)
+NIL
+
+CL-USER&gt; (pyslot-list (model))
+(&quot;__class__&quot; &quot;__delattr__&quot; &quot;__dict__&quot; &quot;__doc__&quot; &quot;__eq__&quot; &quot;__ge__&quot;
+ &quot;__getattribute__&quot; &quot;__gt__&quot; &quot;__hash__&quot; &quot;__le__&quot; &quot;__lt__&quot; &quot;__module__&quot; &quot;__ne__&quot;
+ &quot;__repr__&quot; &quot;__str__&quot; &quot;__weakref__&quot; &quot;_built&quot; &quot;_expects_training_arg&quot;
+ &quot;_inbound_nodes&quot; &quot;_initial_weights&quot; &quot;_is_compiled&quot; &quot;_is_graph_network&quot;
+ &quot;_layers&quot; &quot;_losses&quot; &quot;_outbound_nodes&quot; &quot;_per_input_losses&quot; &quot;_per_input_updates&quot;
+ &quot;_updates&quot; &quot;_uses_inputs_arg&quot; &quot;built&quot; &quot;input_spec&quot; &quot;inputs&quot; &quot;layers&quot; &quot;losses&quot;
+ &quot;name&quot; &quot;non_trainable_weights&quot; &quot;optimizer&quot; &quot;outputs&quot; &quot;state_updates&quot;
+ &quot;stateful&quot; &quot;supports_masking&quot; &quot;trainable&quot; &quot;trainable_weights&quot; &quot;updates&quot;
+ &quot;uses_learning_phase&quot; &quot;weights&quot;)
+
+CL-USER&gt; (pyeval (model) &quot;.inputs&quot;)
+NIL
+</code></pre>
+
+<p>Optionally, see <a href="#pyslot-value">pyslot-value</a></p>
+<h4 id="pymethod-list">pymethod-list</h4>
+<p><code>(pymethod-list python-object &amp;key as-vector)</code></p>
+<pre><code class="lisp">CL-USER&gt; (pymethod-list (model))
+(&quot;__call__&quot; &quot;__class__&quot; &quot;__delattr__&quot; &quot;__dir__&quot; &quot;__eq__&quot; &quot;__format__&quot; &quot;__ge__&quot;
+ &quot;__getattribute__&quot; &quot;__getstate__&quot; &quot;__gt__&quot; &quot;__hash__&quot; &quot;__init__&quot;
+ &quot;__init_subclass__&quot; &quot;__le__&quot; &quot;__lt__&quot; &quot;__ne__&quot; &quot;__new__&quot; &quot;__reduce__&quot;
+ &quot;__reduce_ex__&quot; &quot;__repr__&quot; &quot;__setattr__&quot; &quot;__setstate__&quot; &quot;__sizeof__&quot; &quot;__str__&quot;
+ &quot;__subclasshook__&quot; &quot;_add_inbound_node&quot; &quot;_base_init&quot;
+ &quot;_check_trainable_weights_consistency&quot; &quot;_get_node_attribute_at_index&quot;
+ &quot;_init_graph_network&quot; &quot;_init_subclassed_network&quot; &quot;_make_predict_function&quot;
+ &quot;_make_test_function&quot; &quot;_make_train_function&quot; &quot;_node_key&quot; &quot;_set_inputs&quot;
+ &quot;_standardize_user_data&quot; &quot;_updated_config&quot; &quot;_uses_dynamic_learning_phase&quot;
+ &quot;add_loss&quot; &quot;add_update&quot; &quot;add_weight&quot; &quot;assert_input_compatibility&quot; &quot;build&quot;
+ &quot;call&quot; &quot;compile&quot; &quot;compute_mask&quot; &quot;compute_output_shape&quot; &quot;count_params&quot;
+ &quot;evaluate&quot; &quot;evaluate_generator&quot; &quot;fit&quot; &quot;fit_generator&quot; &quot;from_config&quot;
+ &quot;get_config&quot; &quot;get_input_at&quot; &quot;get_input_mask_at&quot; &quot;get_input_shape_at&quot;
+ &quot;get_layer&quot; &quot;get_losses_for&quot; &quot;get_output_at&quot; &quot;get_output_mask_at&quot;
+ &quot;get_output_shape_at&quot; &quot;get_updates_for&quot; &quot;get_weights&quot; &quot;load_weights&quot; &quot;predict&quot;
+ &quot;predict_generator&quot; &quot;predict_on_batch&quot; &quot;reset_states&quot; &quot;run_internal_graph&quot;
+ &quot;save&quot; &quot;save_weights&quot; &quot;set_weights&quot; &quot;summary&quot; &quot;test_on_batch&quot; &quot;to_json&quot;
+ &quot;to_yaml&quot; &quot;train_on_batch&quot;)
+</code></pre>
+
+<p>Optionally, see <a href="#pymethod">pymethod</a>.</p>
+<h3 id="chain">chain(*)</h3>
+<p><code>(chain &amp;rest chain)</code></p>
+<p>This is inspired by the <code>chain</code> in parenscript, discussed in [this issue].</p>
+<p>In python it is quite common to apply a chain of method calls, data
+member access, and indexing operations to an object. To make this work
+smoothly in Lisp, there is the <code>chain</code> macro (Thanks to @kat-co and
+[[https://common-lisp.net/project/parenscript/reference.html][parenscript]] for the inspiration). This consists of a target object,
+followed by a chain of operations to apply.  For example</p>
+<pre><code class="lisp">(chain &quot;hello {0}&quot; (format &quot;world&quot;) (capitalize)) ; =&gt; &quot;Hello world&quot;
+</code></pre>
+
+<p>which is converted to python <code>return "hello {0}".format("world").capitalize()</code>.</p>
+<p><code>chain</code> has two variants: <code>chain</code> is a macro, and <code>chain*</code> is a function.</p>
+<p>A few examples are as follows:</p>
+<pre><code class="lisp">(chain (slice 3) stop) ; =&gt; 3
+</code></pre>
+
+<p>Symbols as first argument, or arguments to python methods, are
+evaluated, so the following works:</p>
+<pre><code class="lisp">(let ((format-str &quot;hello {0}&quot;)
+      (argument &quot;world&quot;))
+ (py4cl:chain format-str (format argument))) ; =&gt; &quot;hello world&quot;
+</code></pre>
+
+<p>Arguments to methods are lisp, since only the top level forms in <code>chain</code> are treated specially:</p>
+<pre><code class="lisp">CL-USER&gt; (chain (slice 3) stop)
+3
+CL-USER&gt; (let ((format-str &quot;hello {0}&quot;)
+               (argument &quot;world&quot;))
+           (chain* format-str `(format ,argument)))
+&quot;hello world&quot;
+CL-USER&gt; (chain* &quot;result: {0}&quot; `(format ,(+ 1 2)))
+&quot;result: 3&quot;
+CL-USER&gt; (chain (aref &quot;hello&quot; 4))
+&quot;o&quot;
+CL-USER&gt; (chain (aref &quot;hello&quot; (slice 2 4)))
+&quot;ll&quot;
+CL-USER&gt; (chain (aref #2A((1 2 3) (4 5 6)) (slice 0 2)))
+#2A((1 2 3) (4 5 6))
+CL-USER&gt; (chain (aref #2A((1 2 3) (4 5 6))  1 (slice 0 2)))
+#(4 5)
+CL-USER&gt; (pyexec &quot;class TestClass:
+      def doThing(self, value = 42):
+        return value&quot;)
+NIL
+CL-USER&gt; (chain (&quot;TestClass&quot;) (&quot;doThing&quot; :value 31))
+31
+</code></pre>
+
+<p>There is also <code>(setf chain)</code>:</p>
+<pre><code class="lisp">CL-USER&gt; (pyeval 
+          (with-remote-object (array (np:zeros '(2 2)))
+            (setf (chain* `(aref ,array 0 1)) 1.0
+                  (chain* `(aref ,array 1 0)) -1.0)
+            array))
+#2A((0.0 1.0) (-1.0 0.0))
+</code></pre>
+
+<p>Note that this modifies the value in python, so the above example only
+works because =array= is a handle to a python object, rather than an
+array which is stored in lisp. The following therefore does not work:</p>
+<pre><code class="lisp">CL-USER&gt; (let ((array (np:zeros '(2 2))))
+           (setf (chain* `(aref ,array 0 1)) 1.0
+                 (chain* `(aref ,array 1 0)) -1.0)
+           array)
+#2A((0.0 0.0) (0.0 0.0))
+</code></pre>
+
+<h3 id="with-remote-objects">with-remote-objects(*)</h3>
+<p>`(with-remote-objects &amp;body body)</p>
+<p>If a sequence of python functions and methods are being used to manipulate data,
+then data may be passed between python and lisp. This is fine for small amounts
+of data, but inefficient for large datasets.</p>
+<p>The <code>with-remote-objects</code> and <code>with-remote-objects*</code> macros provide <code>unwind-protect</code> environments
+in which all python functions return handles rather than values to lisp. This enables
+python functions to be combined without transferring much data.</p>
+<pre><code class="lisp">(with-remote-objects (py4cl:python-eval &quot;1+2&quot;)) 
+; =&gt; #S(PY4CL::PYTHON-OBJECT :TYPE &quot;&lt;class 'int'&gt;&quot; :HANDLE 0)
+</code></pre>
+
+<p><code>with-remote-objects*</code> evaluates the last result, instead of merely returning a handle</p>
+<pre><code class="lisp">(with-remote-objects* (py4cl:python-eval &quot;1+2&quot;)) ; =&gt; 3
+</code></pre>
+
+<p>The advantage comes when dealing with large arrays or other datasets:</p>
+<pre><code class="lisp">CL-USER&gt; (time (let ((arr (make-array 1000000 
+                                      :element-type 'single-float
+                                      :initial-element 2.0))) 
+                 (np:sum (np:add arr arr))))
+;  0.258 seconds of real time
+;  8,065,504 bytes consed
+4000000.0
+CL-USER&gt; (time (with-remote-objects 
+                 (let ((arr (make-array 1000000 
+                                        :element-type 'single-float
+                                        :initial-element 2.0))) 
+                   (np:sum (np:add arr arr)))))
+;  0.100 seconds of real time
+;  4,065,456 bytes consed
+4000000.0
+</code></pre>
+
+<p>Note that this requires you to solely use python functions and methods. So, do not expect something like this to work:</p>
+<pre><code class="lisp">(with-remote-objects (print (aref (np:ones :shape '(10000000)) 0)))
+; Error
+</code></pre>
+
+<p>to work.</p>
+<p>Besides this, see <a href="#setting-up">Setting up</a> for using ram-disk and <code>numpy-file-format</code> to
+combine lisp and python functions.
+.</p>
+<h3 id="python-getattr">python-getattr</h3>
+<p><code>(python-getattr object slot-name)</code></p>
+<p>Lisp structs and class objects can be passed to python, put into data structures and
+returned:</p>
+<pre><code class="lisp">(defpyfun &quot;dict&quot;) ; Makes python dictionaries
+
+(defstruct test-struct 
+    x y)
+
+(let ((map (dict :key (make-test-struct :x 1 :y 2))))  ; Make a dictionary, return as hash-map
+  ;; Get the struct from the hash-map, and get the Y slot
+  (test-struct-y
+    (chain* `(aref ,map &quot;key&quot;))))  ; =&gt; 2
+</code></pre>
+
+<p>In python this is handled using an object of class <code>UnknownLispObject</code>, which
+contains a handle. The lisp object is stored in a hash map
+<code>*lisp-objects*</code>. When the python object is deleted, a message is sent to remove
+the object from the hash map.</p>
+<p>To enable python to access slots, or call methods on a struct or class, a
+handler function needs to be registered. This is done by providing a method 
+for generic function <code>python-getattr</code>. This function will be called when a
+python function attempts to access attributes of an object (<code>__getattr__</code>
+method).</p>
+<pre><code class="lisp">;; Define a class with some slots
+(defclass test-class ()
+  ((value :initarg :value)))
+
+;; Define a method to handle calls from python
+(defmethod python-getattr ((object test-class) slot-name)
+  (cond
+    ((string= slot-name &quot;value&quot;) ; data member
+      (slot-value object 'value))
+    ((string= slot-name &quot;func&quot;)  ; method, return a function
+      (lambda (arg) (* 2 arg)))
+    (t (call-next-method)))) ; Otherwise go to next method
+
+(let ((instance (make-instance 'test-class :value 21))) 
+  ;; Get the value from the slot, call the method
+  ;; python: instance.func(instance.value)
+  (chain* `((@ ,instance func) (@ ,instance value))))  ; =&gt; 42
+</code></pre>
+
+<p>Inheritance then works as usual with CLOS methods:</p>
+<pre><code class="lisp">;; Class inheriting from test-class
+(defclass child-class (test-class)
+  ((other :initarg :other)))
+
+;; Define method which passes to the next method if slot not recognised
+(defmethod py4cl:python-getattr ((object child-class) slot-name)
+  (cond
+    ((string= slot-name &quot;other&quot;)
+     (slot-value object 'other))
+    (t (call-next-method))))
+
+(let ((object (make-instance 'child-class :value 42 :other 3)))
+  (list 
+    (chain* object 'value) ; Call TEST-CLASS getattr method via CALL-NEXT-METHOD
+    (chain* object 'other))) ;=&gt; (42 3)
+</code></pre>
+
+<h2 id="testing">Testing</h2>
+<p>Tests use <a href="https://github.com/tgutu/clunit">clunit</a>, and run on <a href="https://travis-ci.org/">Travis</a> using <a href="https://github.com/luismbo/cl-travis">cl-travis</a>. Most development
+is done under Arch linux with SBCL and Python3. To run the tests
+yourself:</p>
+<pre><code class="lisp">(asdf:test-system :py4cl)
+</code></pre>
+
+<p>or</p>
+<pre><code class="lisp">(ql:quickload :py4cl-tests)
+(py4cl1-tests:run)
+</code></pre>
+
+<h2 id="type-mapping-and-pythonize">Type Mapping and Pythonize</h2>
+<p>Data is passed between python and lisp as text. The python function
+<code>lispify</code> converts values to a form which can be read by the lisp
+reader; the lisp function <code>pythonize</code> outputs strings which can be
+<code>eval</code>'d in python. The following type conversions are done:</p>
+<pre><code>| Lisp type | Python type           |
+|-----------+-----------------------|
+| NIL       | None                  |
+| integer   | int                   |
+| ratio     | fraction.Fractions    |
+| real      | float                 |
+| complex   | complex float         |
+| string    | str                   |
+| hash map  | dict                  |
+| list      | tuple                 |
+| vector    | list                  |
+| array     | NumPy array           |
+| symbol    | Symbol class          |
+| function  | function              |
+</code></pre>
+
+<p>Special conversion rules include:</p>
+<pre><code>nil     False
+t       True
+&quot;None&quot;  None
+&quot;()&quot;    ()        # empty tuple
+</code></pre>
+
+<p>Because <code>pyeval</code> and <code>pyexec</code> evaluate strings as python
+expressions, strings passed to them are not escaped or converted as
+other types are. To pass a string to python as an argument, call <code>py4cl::pythonize</code></p>
+<pre><code class="lisp">CL-USER&gt; (py4cl::pythonize &quot;string&quot;)
+&quot;\&quot;string\&quot;&quot;
+CL-USER&gt; (py4cl::pythonize #'identity)
+&quot;_py4cl_LispCallbackObject(1)&quot;
+CL-USER&gt; (py4cl::pythonize 3.0)
+&quot;3.0&quot;
+CL-USER&gt; (py4cl::pythonize (model)) ;; keras.Model
+&quot;_py4cl_objects[1918]&quot;
+</code></pre>
+
+<p>If python objects cannot be converted into a lisp value, then they are
+stored and a handle is returned to lisp. This handle can be used to
+manipulate the object, and when it is garbage collected the python
+object is also deleted (using the <a href="https://common-lisp.net/project/trivial-garbage/">trivial-garbage</a> 
+package).</p>
+<h2 id="name-mapping">Name Mapping</h2>
+<p>The arguments passed to <code>pycall</code> are parsed as follows: the lisp keywords are converted to their python equivalents. This only entails downcasing the symbol-name of the keywords and replacing hyphens with underscores. If the symbol-name contained capital letters, then, if all the letters are capitals, the symbol-name is downcased; else it stays as it is</p>
+<pre><code class="lisp">CL-USER&gt; (pyexec &quot;
+def foo(A, b):
+  return True&quot;)
+NIL
+CL-USER&gt; (pycall 'foo :*A* 4 :b 3)
+NIL
+CL-USER&gt; (foo :a 4 :b 3)
+; Evaluation aborted on #&lt;PYERROR {100E2AF473}&gt;.
+;; unexpected keyword argument 'a'
+CL-USER&gt; (foo 4 3)
+T
+</code></pre>
+
+<p>Lispfication of python names is done by <code>defpyfun</code>, in import-export.lisp. Both <code>CamelCase</code> and <code>joint_words</code> are converted to <code>camel-case</code> and <code>joint-words</code>; the actual names of the arguments are substituted:</p>
+<pre><code class="lisp">CL-USER&gt; (macroexpand-1 '(defpyfun &quot;foo&quot;))
+(DEFUN FOO (&amp;KEY (A 'NIL) (B 'NIL))
+  &quot;Python function&quot;
+  NIL
+  (PYTHON-START-IF-NOT-ALIVE)
+  (RAW-PYEVAL &quot;foo&quot; &quot;(&quot; &quot;A&quot; &quot;=&quot; (PY4CL2::PYTHONIZE A) &quot;,&quot; &quot;b&quot; &quot;=&quot;
+              (PY4CL2::PYTHONIZE B) &quot;,&quot; &quot;)&quot;))
+T
+</code></pre>
+
+<p>The format of the calling expression does depend on the signature of the function.</p>
+<h2 id="what-remains">What remains?</h2>
+<p>Feel free to create an <a href="https://github.com/digikar99/py4cl2/issues">Issue on Github</a>.</p>
+<h3 id="future-work">Future Work</h3>
+<p>In no order of priority:</p>
+<ul>
+<li>adding/documenting proper multithreaded support</li>
+<li>finding equivalent of inspect._empty in python2 (unable to google)</li>
+<li>importing python classes, and methods, may be, as subclasses 
+  of 'python-object; to be able to use make-instance and slot-value 
+  might require knowledge of MOP, to make python-object at the same level
+  as standard-object</li>
+<li>should return value of defpyfun matter - so as to indicate success or failure?
+  failure is anyways indicated by errors</li>
+<li>ability to define customized arg-lists, documentation, and calling methods
+  for functions: this can serve as a community project to cover up some 
+  naming and arg-list idiosyncrasies</li>
+<li>cleaning up documentation while defining functions - many python functions 
+  have documentation intended for use directly in md/rst files</li>
+</ul>
+<h2 id="also-check-out">Also check out</h2>
+<h3 id="the-common-lisp-cookbook"><a href="http://lispcookbook.github.io/cl-cookbook/">The Common Lisp Cookbook</a></h3>
+              
+            </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+    
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+      
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="versions">
+    <span class="rst-current-version" data-toggle="rst-current-version">
+      
+          <a href="https://github.com/digikar99/py4cl2/" class="fa fa-github" style="float: left; color: #fcfcfc"> GitHub</a>
+      
+      
+      
+    </span>
+</div>
+    <script>var base_url = '.';</script>
+    <script src="js/theme.js" defer></script>
+      <script src="search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
+
+</body>
+</html>
+
+<!--
+MkDocs version : 1.1
+Build Date UTC : 2020-03-01 03:38:41
+-->
