@@ -1,14 +1,10 @@
----
-title: py4cl2
----
-
----
+# py4cl2
 
 [Last update: v2.2.0]
 
-# Introduction
+## Introduction
 
-[py4cl][benduson/py4cl] is a package by Ben Dudson, aimed at making python libraries availble in Common Lisp,
+[py4cl][bendudson/py4cl] is a package by Ben Dudson, aimed at making python libraries availble in Common Lisp,
 using streams to communicate with a separate python process - the approach taken by [cl4py](https://github.com/marcoheisig/cl4py). This is
 different to the CFFI approach used by [burgled-batteries](https://github.com/pinterface/burgled-batteries),
 but has the same goal. 
@@ -18,7 +14,7 @@ but has the same goal.
 Please report the issues on github: [py4cl2](https://github.com/digikar99/py4cl2/issues) or [py4cl](https://github.com/bendudson/py4cl/issues)).
 
 
-# Highlights and Limitations of `py4cl`
+## Highlights and Limitations of `py4cl`
 
 - Speed: About 6500 `(pycall "int" "5")` instructions per second @ 1GHz intel 8750H. 
 This shouldn't be a bottleneck if you're planning to run "long" processes in python. (For example, deep learning :). )
@@ -31,7 +27,7 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 <div><img src="readme_slime.png" width="80%" style="margin:auto; display:block;"/></div>
 <!-- ![slime-demo-image](readme_slime.png) -->
 
-## Changes over py4cl
+### Changes over py4cl
 - Changes: several (but not all) names have been shorted from `python-` to `py`; `remote-objects` have been changed to `with-remote-object(s)`. Personal preference for these names stems from:
   - `defpyfun/module` reminds of the equivalent in `burgled-batteries` and `cffi`
   - `py`names are shorter
@@ -47,15 +43,15 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 
 - See [TODO].
 
-# Installation
+## Installation
 
-## Dependencies
+### Dependencies
 
 This fork is possible due to the following (and therefore, depends on):
 
 On the CL side:
 
-- trivial garbage
+- trivial-garbage
 - iterate
 - bordeaux-threads
 - cl-json
@@ -72,27 +68,21 @@ On python side:
 
 (other packages should be available in a standard python distribution - tested with CPython.)
 
-## Installation
+### Installation
 
-Clone this repository into `~/quicklisp/local-projects/` or other
-location where it can be discovered by ASDF:
+Download the (latest) release from the [Releases](https://github.com/digikar99/py4cl2/releases) and untar/unzip into `~/quicklisp/local-projects/` or any other
+location where it can be discovered by `quicklisp`:
+
 ```sh
-git clone https://github.com/digikar99/py4cl2.git
+wget -qO- https://github.com/digikar99/py4cl2/archive/v2.2.0.tar.gz | tar xvz - -C ~/quicklisp/local-projects
 ```
 
-Original version by [bendudson](https://github.com/bendudson/py4cl) can be found at: 
-```sh
-git clone https://github.com/bendudson/py4cl.git
-```
-
-However, since then, several changes have been made.
-
-Load into Lisp with
+Load into REPL with
 ```lisp
 (ql:quickload :py4cl2)
 ```
 
-## Tests
+### Tests
 
 ```lisp
 (ql:quickload :py4cl2-tests)
@@ -100,9 +90,9 @@ Load into Lisp with
 ```
 
 
-## Setting up
+### Setting up
 
-### `initialize`
+#### initialize
 
 On loading this library for the first time, run `initialize` and provide the necessary details.
 ```lisp
@@ -115,7 +105,7 @@ The library uses (temporary) pickled .npy files for transferring large numpy arr
 between lisp and python. This process is IO intensive, writing as much as 100MB or even a GB each time.
 Using a ram-disk is recommended for this purpose. ([How to create a ram disk on Linux?](https://unix.stackexchange.com/questions/66329/creating-a-ram-disk-on-linux))
 
-### `*config*` / `config-var`
+#### \*config\* / config-var
 These values can also be accessed using `*config*` and `config-var`:
 
 ```lisp
@@ -132,17 +122,17 @@ CL-USER> (setf (config-var 'py4cl2:pycmd) "python")
 Complementary to `config-var` are `save-config` and `load-config`. The latter is called on startup, the config-file exists. `(setf config-var)` calls the former unless it is `pycmd`, as well as asks the python process to load the config, from the config file. (The exception for `pycmd` exists so as to let the users set up project-local environments.)
 
 
-# Examples and Documentation
+## Examples and Documentation
 
 ```lisp
 CL-USER> (use-package :py4cl2)
 ```
 
-## Python Processes
+### Python Processes
 
 It all starts with a python process (actually, more than one as well - this use hasn't been documented here.).
 
-### `pycmd`
+#### pycmd
 
 ```lisp
 CL-USER> (config-var 'pycmd)
@@ -151,13 +141,13 @@ CL-USER> (config-var 'pycmd)
 
 Also see [config-var](#config--config-var).
 
-### `pyversion-info`
+#### pyversion-info
 ```lisp
 CL-USER> (pyversion-info)
 (3 7 3 "final" 0)
 ```
 
-### `pyinterrupt`
+#### pyinterrupt
 `(pyinterrupt &optional process)`
 
 A simple `C-c C-c` only interrupts the lisp process from slime - the python process keeps running. `(pyinterrupt)` can be used in these cases to send a SIGINT (2) to the python process.
@@ -179,20 +169,20 @@ Therefore, you may want to have `(pyinterrupt)` called on the reception of SIGIN
 
 However, I have been unable to get the code to work (by adding to `do-after-load` with as well as without SLIME. Further, people may not like a library to fiddle with their environments - so it might be better to leave it up to the user to set it.
 
-### py-cd
+#### py-cd
 `(py-cd path)`
 
 Equivalent of `slime-cd`, since python is a separate process.
 
-### Other useful functions
+#### Other useful functions
 
-#### `pystart`
-#### `pystop`
-#### `python-alive-p`
-#### `python-start-if-not-alive`
+##### pystart
+##### pystop
+##### python-alive-p
+##### python-start-if-not-alive
 
 
-## Doing arbitrary things in python
+### Doing arbitrary things in python
 
 Unlike lisp, python (and most other languages) make a distinction between *statements* and *expressions*: see [Quora](https://www.quora.com/Whats-the-difference-between-a-statement-and-an-expression-in-Python-Why-is-print-%E2%80%98hi%E2%80%99-a-statement-while-other-functions-are-expressions) or [stackoverflow](https://stackoverflow.com/questions/4728073/what-is-the-difference-between-an-expression-and-a-statement-in-python).
 
@@ -200,12 +190,12 @@ A general rule of thumb from there is: if you can print it, or assign it to a va
 
 Both `pyeval` and `pyexec` take any type of arguments. The `arg` is `pythonize`d if the `arg` is not a `string`, or it is a `string` that can be read into a `real`.
 
-### `raw-pyeval`
+#### raw-pyeval
 `(raw-pyeval &rest strings)`
 
 Concatenates the strings and sends them to the python process for `eval`uation. The concatenation should be a valid python expression. Returns the result of evaluating the expression.
 
-### `raw-pyexec`
+#### raw-pyexec
 `(raw-pyexec &rest strings)`
 
 Concatenates the strings and sends them to the python process for `exec`uation. The concatenation should be a valid python statement. Returns nil.
@@ -231,7 +221,7 @@ THe workaround in this case is to `import` inside the `def`.
 
 Often times, the two commands above would be tedious - since you'd need to convert objects into their string representations every time. To avoid this hassle, there are the following useful functions.
 
-### `pyeval`
+#### pyeval
 `(pyeval &rest args)`
 
 For python expressions 
@@ -261,7 +251,7 @@ CL-USER> (pyeval "hello")
 
 See also [Doing arbitrary things in python](#doing-arbitrary-things-in-python).
 
-### `pyexec`
+#### pyexec
 `(pyexec &rest args)`
 
 For python statements
@@ -279,13 +269,13 @@ In fact, in accordance with an internal function `pythonizep`. (See [pyeval](#py
 
 See also [Doing arbitrary things in python](#doing-arbitrary-things-in-python) to learn about `pyeval` and `pyexec`.
 
-## Defining python functions and modules
+### Defining python functions and modules
 
 Rather, we define functions that call python functions.
 
 Names are lispified by converting underscores hyphens, and converting CamelCase to camel-case. Also see [Name Mapping](#name-mapping). 
 
-### `defpyfun`
+#### defpyfun
 ```lisp
 (defpyfun fun-name &optional pymodule-name &key 
   (as fun-name) (lisp-fun-name (lispify-name as))
@@ -300,7 +290,7 @@ CL-USER> (defpyfun "Input" "keras.layers" :lisp-fun-name "INP")
 INP
 
 CL-USER> (inp :shape '(1 2))
-#S(PY4CL2::PYTHON-OBJECT
+##S(PY4CL2::PYTHON-OBJECT
    :TYPE "<class 'tensorflow.python.framework.ops.Tensor'>"
    :HANDLE 1849)
 ```
@@ -309,7 +299,7 @@ CL-USER> (inp :shape '(1 2))
 
 Refer `(describe 'defpyfun)`.
 
-### `defpymodule`
+#### defpymodule
 ```lisp
 (defpymodule pymodule-name &optional import-submodules &key 
   (lisp-package (lispify-name (or as pymodule-name)))
@@ -339,17 +329,17 @@ Note that unlike Common Lisp, python has a single namespace. Therefore, currentl
 to call a callable (in Python) object, but not defined as a function in Common Lisp,
 you'd need to use something like [pycall].
 
-### `defpyfuns`
+#### defpyfuns
 
 (Undocumented here.)
 
-## `pyerror`
+### pyerror
 
 (Undocumented here.)
 
-## Using functions and methods
+### Using functions and methods
 
-### `pycall`
+#### pycall
 `(pycall fun-name &rest args)`
 
 Equivalent to the lisp `(funcall function &rest arguments)`. Call a python (or lisp! See [generators and lambdas](#generators-and-lambdas)) function.
@@ -364,7 +354,7 @@ CL-USER> (py4cl2:pycall #'+ 2 3 1)
 
 Note that `fun-name` can be a name (see [Name Mapping]), a function, or a [callable] python-object. See the example in [defpymodule](#defpymodule).
 
-### `pymethod`
+#### pymethod
 `(pymethod obj method-name &rest args)`
 
 `pymethod` always pythonizes; `method-name` is [name mapped to Python names][Name Mapping].
@@ -395,7 +385,7 @@ NIL
 
 See [pymethod-list](#pymethod-list).
 
-### `pyslot-value`
+#### pyslot-value
 `(pyslot-value object slot-name)`
 
 ```lisp
@@ -407,7 +397,7 @@ See [pyslot-list](#pyslot-list)
 
 Also see [Name Mapping].
 
-### `export-function`
+#### export-function
 `(export-funtion function python-name)`
 
 Lisp functions can be made available to python code using `export-function`:
@@ -420,15 +410,15 @@ Lisp functions can be made available to python code using `export-function`:
 (py4cl:python-eval "romberg(gaussian, 0.0, 1.0)") ; => 0.4213504
 ```
 
-### `pyhelp`
+#### pyhelp
 `(pyhelp python-object)`
 
 Calls python's `help` function on `python-object`. (NOTE: some descriptions, especially
 for modules, are too big to be transferred in a reasonable time.)
 
-## Generators and Lambdas
+### Generators and Lambdas
 
-### `pygenerator`
+#### pygenerator
 `(pygenerator function stop-value)`
 
 ```lisp
@@ -439,7 +429,7 @@ CL-USER> (pyeval "[x for x in " (pygenerator #'foo 3) "]")
 #(1 2)
 ```
 
-### lambdas
+#### lambdas
 
 Lisp functions are `pythonize`d to `LispCallbackObject`s. As the name suggests, python can call LispCallbackObjects (and therefore, lisp functions), just like it is any other python callable (which it is!).
 
@@ -452,12 +442,12 @@ CL-USER> (pycall (lambda (string) (concatenate 'string string " - from Lisp"))
 "hello - from Lisp"
 ```
 
-## Slot and Method Lists
+### Slot and Method Lists
 
 Currently, all the python objects are grouped under the class `python-object`. The list of methods 
 and slots associated with these objects can be obtained using the following two functions.
 
-### `pyslot-list`
+#### pyslot-list
 `(pyslot-list python-object &key as-vector)`
 
 ```lisp
@@ -481,7 +471,7 @@ NIL
 
 Optionally, see [pyslot-value](#pyslot-value)
 
-### `pymethod-list`
+#### pymethod-list
 `(pymethod-list python-object &key as-vector)`
 
 ```lisp
@@ -507,7 +497,7 @@ CL-USER> (pymethod-list (model))
 ```
 Optionally, see [pymethod](#pymethod).
 
-## `chain(*)`
+### chain(*)
 `(chain &rest chain)`
 
 This is inspired by the `chain` in parenscript, discussed in [this issue].
@@ -588,7 +578,7 @@ CL-USER> (let ((array (np:zeros '(2 2))))
 #2A((0.0 0.0) (0.0 0.0))
 ```
 
-## `with-remote-objects(*)`
+### with-remote-objects(*)
 `(with-remote-objects &body body)
 
 If a sequence of python functions and methods are being used to manipulate data,
@@ -641,7 +631,7 @@ Besides this, see [Setting up](#setting-up) for using ram-disk and `numpy-file-f
 combine lisp and python functions.
 .
 
-## `python-getattr`
+### python-getattr
 `(python-getattr object slot-name)`
 
 Lisp structs and class objects can be passed to python, put into data structures and
@@ -709,7 +699,7 @@ Inheritance then works as usual with CLOS methods:
     (chain* object 'other))) ;=> (42 3)
 ```
 
-# Testing 
+## Testing 
 
 Tests use [clunit](https://github.com/tgutu/clunit), and run on [Travis](https://travis-ci.org/) using [cl-travis](https://github.com/luismbo/cl-travis). Most development
 is done under Arch linux with SBCL and Python3. To run the tests
@@ -727,7 +717,7 @@ or
 
 
 
-# Type Mapping and Pythonize
+## Type Mapping and Pythonize
 
 Data is passed between python and lisp as text. The python function
 `lispify` converts values to a form which can be read by the lisp
@@ -783,7 +773,7 @@ manipulate the object, and when it is garbage collected the python
 object is also deleted (using the [trivial-garbage](https://common-lisp.net/project/trivial-garbage/) 
 package).
 
-# Name Mapping
+## Name Mapping
 
 The arguments passed to `pycall` are parsed as follows: the lisp keywords are converted to their python equivalents. This only entails downcasing the symbol-name of the keywords and replacing hyphens with underscores. If the symbol-name contained capital letters, then, if all the letters are capitals, the symbol-name is downcased; else it stays as it is
 
@@ -817,17 +807,32 @@ The format of the calling expression does depend on the signature of the functio
 
 
 
-# What remains?
+## What remains?
 
-See [TODO].
+Feel free to create an [Issue on Github](https://github.com/digikar99/py4cl2/issues).
 
-# Also check out
+### Future Work
 
-## [The Common Lisp Cookbook](http://lispcookbook.github.io/cl-cookbook/)
+In no order of priority:
 
----
+- adding/documenting proper multithreaded support
+- finding equivalent of inspect._empty in python2 (unable to google)
+- importing python classes, and methods, may be, as subclasses 
+  of 'python-object; to be able to use make-instance and slot-value 
+  might require knowledge of MOP, to make python-object at the same level
+  as standard-object
+- should return value of defpyfun matter - so as to indicate success or failure?
+  failure is anyways indicated by errors
+- ability to define customized arg-lists, documentation, and calling methods
+  for functions: this can serve as a community project to cover up some 
+  naming and arg-list idiosyncrasies
+- cleaning up documentation while defining functions - many python functions 
+  have documentation intended for use directly in md/rst files
 
-This template was taken from [The Common Lisp Cookbook][tCLC].
+
+## Also check out
+
+### [The Common Lisp Cookbook](http://lispcookbook.github.io/cl-cookbook/)
 
 [tCLC]: https://github.com/LispCookbook/cl-cookbook
 [pyeval]: #expressions-pyeval-rest-args

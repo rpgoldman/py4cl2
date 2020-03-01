@@ -1,0 +1,13 @@
+site_name: py4cl2
+theme:
+    name: readthedocs
+    collapse_by_default: false
+    highlightjs: true
+    hljs_languages:
+        - lisp
+repo_url: https://github.com/digikar99/py4cl2
+include_search_page: true
+nav:
+    - index.md
+plugins:
+    - search
