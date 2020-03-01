@@ -64,12 +64,6 @@
     <li class="toctree-l3"><a class="reference internal" href="#dependencies">Dependencies</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#installation_1">Installation</a>
-        <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#using-ultralisp">Using ultralisp</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#from-git-recommended">From git (recommended)</a>
-    </li>
-        </ul>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#tests">Tests</a>
     </li>
@@ -281,14 +275,12 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 </ul>
 <p>(other packages should be available in a standard python distribution - tested with CPython.)</p>
 <h3 id="installation_1">Installation</h3>
-<h4 id="using-ultralisp">Using ultralisp</h4>
-<h4 id="from-git-recommended">From git (recommended)</h4>
 <p>Download the (latest) release from the <a href="https://github.com/digikar99/py4cl2/releases">Releases</a> and untar/unzip into <code>~/quicklisp/local-projects/</code> or any other
 location where it can be discovered by <code>quicklisp</code>:</p>
 <pre><code class="sh">wget -qO- https://github.com/digikar99/py4cl2/archive/v2.2.0.tar.gz | tar xvz - -C ~/quicklisp/local-projects
 </code></pre>
 
-<p>Load into  with</p>
+<p>Load into REPL with</p>
 <pre><code class="lisp">(ql:quickload :py4cl2)
 </code></pre>
 
@@ -934,5 +926,5 @@ T
 
 <!--
 MkDocs version : 1.1
-Build Date UTC : 2020-03-01 03:38:41
+Build Date UTC : 2020-03-01 04:30:56
 -->
