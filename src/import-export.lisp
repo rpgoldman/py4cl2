@@ -289,6 +289,7 @@ Arguments:
 (defvar *is-submodule* nil
   "Used for coordinating import statements from defpymodule while calling recursively")
 
+;;; packages in python are collection of modules; module is a single python file
 (defun defpysubmodules (pymodule-name lisp-package continue-ignoring-errors)
   (let ((submodules
          (pyeval "[(modname, ispkg) for importer, modname, ispkg in "
@@ -298,9 +299,9 @@ Arguments:
     (iter (for (submodule has-submodules) in-vector submodules)
           (for submodule-fullname = (concatenate 'string
                                                  pymodule-name "." submodule))
-          (when (or has-submodules
-                    (ignore-errors (pyeval "type(" submodule-fullname
-                                           ") == type(pkgutils)")))
+          (when (and (char/= #\_ (aref submodule 0)) ; avoid private modules / packages
+                     (ignore-errors (pyeval "type(" submodule-fullname
+                                            ") == type(pkgutil)")))
             (collect (let ((*is-submodule* t))
                        (macroexpand-1
                         `(defpymodule ,submodule-fullname
