@@ -497,9 +497,10 @@ class testclass:
   (pystop)
   ;; package is imported as np even after stopping
   (assert-equalp #(5 7 9) (np:add '(1 2 3) '(4 5 6)))
-  ;; the following tests a bugfix in defpysubmodules that
-  ;; was previously importing only packages
-  (assert-equalp (np.linalg.linalg:eye :n 2) #2A((1.0 0.0) (0.0 1.0))))
+  ;; The following tests a bugfix in defpysubmodules that
+  ;; was previously importing only packages.
+  ;; Note also that some symbols are present in pip numpy not in travis apt numpy.
+  (assert-equalp (np.linalg.linalg:zeros 2) #(0.0 0.0)))
 
 ;; more extensive tests for defpyfun and defpymodule are required
 (define-pyfun-with-test defpyfun
