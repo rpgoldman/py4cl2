@@ -300,6 +300,10 @@ Arguments:
           (for submodule-fullname = (concatenate 'string
                                                  pymodule-name "." submodule))
           (when (and (char/= #\_ (aref submodule 0)) ; avoid private modules / packages
+                     ;; pkgutil is of type module
+                     ;; import matplotlib does not import matplotlib.pyplot
+                     ;; https://stackoverflow.com/questions/14812342/matplotlib-has-no-attribute-pyplot
+                     ;; We maintain these semantics.
                      (ignore-errors (pyeval "type(" submodule-fullname
                                             ") == type(pkgutil)")))
             (collect (let ((*is-submodule* t))
