@@ -1,5 +1,6 @@
 (py4cl2:defpymodule "math")
-(py4cl2:defpymodule "numpy" t :lisp-package "NP")
+(py4cl2:defpymodule "numpy" nil :lisp-package "NP")
+(py4cl2:defpymodule "numpy.random" t)
 
 (defpackage :py4cl2-tests
   (:use :cl :clunit :py4cl2 :iterate)
@@ -491,16 +492,21 @@ class testclass:
 
 (deftest numpy-import-as-np (import-export)
   ;; also check whether "all" options as expected
-  (defpymodule "numpy" t :lisp-package "NP")
+  (defpymodule "numpy" nil :lisp-package "NP")
   ;; np. formats are accessible
   (assert-true (pyeval 'np.float32))
   (pystop)
   ;; package is imported as np even after stopping
-  (assert-equalp #(5 7 9) (np:add '(1 2 3) '(4 5 6)))
-  ;; The following tests a bugfix in defpysubmodules that
-  ;; was previously importing only packages.
+  (assert-equalp #(5 7 9) (np:add '(1 2 3) '(4 5 6))))
+
+(deftest numpy-random-import (import-export)  
+  (defpymodule "numpy.random" t)
+  ;; The following tests two bugfixes
+  ;; 1. defpysubmodules was previously importing only packages.
+  ;; 2. package-import-string was not good for submodules like matplotlib.pyplot
   ;; Note also that some symbols are present in pip numpy not in travis apt numpy.
-  (assert-equalp (np.linalg.linalg:zeros 2) #(0.0 0.0)))
+  ;; py4cl2-tests should not even compile in the case of these bugs.
+  (assert-true (numpy.random.mtrand:random 2)))
 
 ;; more extensive tests for defpyfun and defpymodule are required
 (define-pyfun-with-test defpyfun
