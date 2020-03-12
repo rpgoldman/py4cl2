@@ -506,7 +506,7 @@ class testclass:
   ;; 2. package-import-string was not good for submodules like matplotlib.pyplot
   ;; Note also that some symbols are present in pip numpy not in travis apt numpy.
   ;; py4cl2-tests should not even compile in the case of these bugs.
-  (assert-true (numpy.random.mtrand:random 2)))
+  (assert-true (numpy.random.mtrand:rand 2)))
 
 ;; more extensive tests for defpyfun and defpymodule are required
 (define-pyfun-with-test defpyfun
