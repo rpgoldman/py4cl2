@@ -225,6 +225,8 @@ def _py4cl_non_callable(ele):
 
 (defvar *called-from-defpymodule* nil
   "Internal variable used for coordinating between DEFPYMODULE and DEFPYFUN.")
+(defvar *defpymodule-silent-p* nil
+  "DEFPYMODULE avoids printing progress if this is T.")
 (defvar-doc *function-reload-string*
     "String pyexec-ed at the start of a DEFPYFUN when SAFETY is T.")
 (defvar-doc *lisp-package-supplied-p*
@@ -342,7 +344,8 @@ Arguments:
                        &key
                          (lisp-package (lispify-name pymodule-name) lisp-package-supplied-p)
                          (reload t) (safety t)
-                         (continue-ignoring-errors t))
+                         (continue-ignoring-errors t)
+                         (silent *defpymodule-silent-p*))
   "Import a python module (and its submodules) lisp-package Lisp package(s). 
 Example:
   (py4cl:defpymodule \"math\" :lisp-package \"M\")
@@ -355,7 +358,8 @@ Arguments:
     submodules
   LISP-PACKAGE: lisp package, in which to intern (and export) the callables
   RELOAD: whether to redefine and reimport
-  SAFETY: value of safety to pass to defpyfun; see defpyfun"
+  SAFETY: value of safety to pass to defpyfun; see defpyfun
+  SILENT: prints \"status\" lines when NIL"
   (check-type pymodule-name string) ; is there a way to (declaim (macrotype ...?
   ;; (check-type as (or nil string)) ;; this doesn't work!
   (check-type lisp-package string)
@@ -372,10 +376,14 @@ Arguments:
   (pyexec "import pkgutil")
   
   ;; fn-names  All callables whose names don't start with "_"
-  (let ((*lisp-package-supplied-p* lisp-package-supplied-p))
+  (let ((*lisp-package-supplied-p* lisp-package-supplied-p)
+        (*defpymodule-silent-p* silent))
     (multiple-value-bind (package-import-string package-in-python)
         (pymodule-import-string pymodule-name lisp-package)
       (pyexec package-import-string)
+      (unless silent (format t "Defining ~D for accessing python package ~D...~%"
+                             lisp-package
+                             package-in-python))
       (handler-bind ((pyerror (lambda (e)
                                 (if continue-ignoring-errors
                                     (invoke-restart 'continue-ignoring-errors)

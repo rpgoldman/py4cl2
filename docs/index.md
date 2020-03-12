@@ -174,12 +174,13 @@ However, I have been unable to get the code to work (by adding to `do-after-load
 
 Equivalent of `slime-cd`, since python is a separate process.
 
-#### Other useful functions
+#### Other useful functions and variables
 
 ##### pystart
 ##### pystop
 ##### python-alive-p
 ##### python-start-if-not-alive
+##### \*defpymodule-silent-p\*
 
 
 ### Doing arbitrary things in python
@@ -280,7 +281,7 @@ Names are lispified by converting underscores hyphens, and converting CamelCase 
 (defpyfun fun-name &optional pymodule-name &key 
   (as fun-name) (lisp-fun-name (lispify-name as))
   (lisp-package *package*)
-  (safety t)
+  (safety t))
 ```
 `lisp-fun-name` is the name of the symbol that would be `fboundp`ed to the function [that calls the python function].
 
@@ -303,7 +304,8 @@ Refer `(describe 'defpyfun)`.
 ```lisp
 (defpymodule pymodule-name &optional import-submodules &key 
   (lisp-package (lispify-name (or as pymodule-name)))
-  (reload t) (safety t) (continue-ignoring-errors t))
+  (reload t) (safety t) (continue-ignoring-errors t)
+  (silent *defpymodule-silent-p*))
 ```
 
 `lisp-package` is the name of the symbol that the package would be bound to.
@@ -311,15 +313,29 @@ Refer `(describe 'defpyfun)`.
 Example Usage:
 ```lisp
 CL-USER> (defpymodule "keras.layers" t :lisp-package "KL")
+Defining KL for accessing python package kl...
+Defining KL.ADVANCED-ACTIVATIONS for accessing python package kl.advanced_activations...
+Defining KL.CONVOLUTIONAL for accessing python package kl.convolutional...
+Defining KL.CONVOLUTIONAL-RECURRENT for accessing python package kl.convolutional_recurrent...
+Defining KL.CORE for accessing python package kl.core...
+Defining KL.CUDNN-RECURRENT for accessing python package kl.cudnn_recurrent...
+Defining KL.EMBEDDINGS for accessing python package kl.embeddings...
+Defining KL.LOCAL for accessing python package kl.local...
+Defining KL.MERGE for accessing python package kl.merge...
+Defining KL.NOISE for accessing python package kl.noise...
+Defining KL.NORMALIZATION for accessing python package kl.normalization...
+Defining KL.POOLING for accessing python package kl.pooling...
+Defining KL.RECURRENT for accessing python package kl.recurrent...
+Defining KL.WRAPPERS for accessing python package kl.wrappers...
 T
 
-CL-USER> (kl:input :shape '(1 2))
+CL-USER> (kl:input/1 :shape '(1 2))
 #S(PY4CL2::PYTHON-OBJECT
    :TYPE "<class 'tensorflow.python.framework.ops.Tensor'>"
    :HANDLE 816)
    
 CL-USER> (pycall (kl.advanced-activations:softmax/class :input-shape '(1 2))
-                 (kl:input :shape '(1 2)))
+                 (kl:input/1 :shape '(1 2)))
 #S(PY4CL2::PYTHON-OBJECT
    :TYPE "<class 'tensorflow.python.framework.ops.Tensor'>"
    :HANDLE 144)
@@ -347,7 +363,7 @@ Equivalent to the lisp `(funcall function &rest arguments)`. Call a python (or l
 ```lisp
 CL-USER> (py4cl2:pycall "print" "hello")
 ;; hello
-NIL
+"None"
 CL-USER> (py4cl2:pycall #'+ 2 3 1)
 6
 ```
@@ -380,7 +396,7 @@ Total params: 652,352
 Trainable params: 652,352
 Non-trainable params: 0
 __________________________________________________________________________________________________
-NIL
+"None"
 ```
 
 See [pymethod-list](#pymethod-list).
@@ -466,7 +482,7 @@ CL-USER> (pyslot-list (model))
  "uses_learning_phase" "weights")
 
 CL-USER> (pyeval (model) ".inputs")
-NIL
+"None"
 ```
 
 Optionally, see [pyslot-value](#pyslot-value)
@@ -550,7 +566,6 @@ CL-USER> (chain (aref #2A((1 2 3) (4 5 6))  1 (slice 0 2)))
 CL-USER> (pyexec "class TestClass:
       def doThing(self, value = 42):
         return value")
-NIL
 CL-USER> (chain ("TestClass") ("doThing" :value 31))
 31
 ```
@@ -728,7 +743,7 @@ reader; the lisp function `pythonize` outputs strings which can be
 ```
 | Lisp type | Python type           |
 |-----------+-----------------------|
-| NIL       | None                  |
+| NIL       | False                 |
 | integer   | int                   |
 | ratio     | fraction.Fractions    |
 | real      | float                 |
@@ -781,13 +796,12 @@ The arguments passed to `pycall` are parsed as follows: the lisp keywords are co
 CL-USER> (pyexec "
 def foo(A, b):
   return True")
-NIL
 CL-USER> (pycall 'foo :*A* 4 :b 3)
-NIL
-CL-USER> (foo :a 4 :b 3)
+T
+CL-USER> (pycall 'foo :a 4 :b 3)
 ; Evaluation aborted on #<PYERROR {100E2AF473}>.
 ;; unexpected keyword argument 'a'
-CL-USER> (foo 4 3)
+CL-USER> (pycall 'foo 4 3)
 T
 ```
 Lispfication of python names is done by `defpyfun`, in import-export.lisp. Both `CamelCase` and `joint_words` are converted to `camel-case` and `joint-words`; the actual names of the arguments are substituted:
@@ -795,7 +809,7 @@ Lispfication of python names is done by `defpyfun`, in import-export.lisp. Both 
 ```lisp
 CL-USER> (macroexpand-1 '(defpyfun "foo"))
 (DEFUN FOO (&KEY (A 'NIL) (B 'NIL))
-  "Python function"
+  "None"
   NIL
   (PYTHON-START-IF-NOT-ALIVE)
   (RAW-PYEVAL "foo" "(" "A" "=" (PY4CL2::PYTHONIZE A) "," "b" "="

@@ -32,7 +32,8 @@
    #:pymethod-list 
    #:pyslot-list 
    #:defpyfun  
-   #:defpymodule 
+   #:defpymodule
+   #:*defpymodule-silent-p*
    #:defpyfuns
    #:export-function)
   (:export ; lisp-classes

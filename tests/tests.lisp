@@ -1,6 +1,6 @@
-(py4cl2:defpymodule "math")
-(py4cl2:defpymodule "numpy" nil :lisp-package "NP")
-(py4cl2:defpymodule "numpy.random" t)
+(py4cl2:defpymodule "math" nil :silent t)
+(py4cl2:defpymodule "numpy" nil :lisp-package "NP" :silent t)
+(py4cl2:defpymodule "numpy.random" t :silent t)
 
 (defpackage :py4cl2-tests
   (:use :cl :clunit :py4cl2 :iterate)
@@ -492,7 +492,7 @@ class testclass:
 
 (deftest numpy-import-as-np (import-export)
   ;; also check whether "all" options as expected
-  (defpymodule "numpy" nil :lisp-package "NP")
+  (defpymodule "numpy" nil :lisp-package "NP" :silent t)
   ;; np. formats are accessible
   (assert-true (pyeval 'np.float32))
   (pystop)
@@ -500,7 +500,7 @@ class testclass:
   (assert-equalp #(5 7 9) (np:add '(1 2 3) '(4 5 6))))
 
 (deftest numpy-random-import (import-export)  
-  (defpymodule "numpy.random" t)
+  (defpymodule "numpy.random" t :silent t)
   ;; The following tests two bugfixes
   ;; 1. defpysubmodules was previously importing only packages.
   ;; 2. package-import-string was not good for submodules like matplotlib.pyplot
