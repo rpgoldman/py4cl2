@@ -20,11 +20,10 @@ See https://askubuntu.com/questions/1118109/how-do-i-tell-if-a-command-is-runnin
 (defvar *py4cl-tests* nil)
 
 (defvar *python-code*
-  (let ((filename (namestring (merge-pathnames #p"py4cl.py"
-                                               py4cl2/config:*base-directory*))))
-    (with-output-to-string (*standard-output*)
-      (iter (for line in-file filename using #'read-line)
-            (write-line line)))))
+  (with-output-to-string (*standard-output*)
+    (iter (for line in-file (asdf:component-pathname
+                             (asdf:find-component :py4cl2 "python-code")) using #'read-line)
+          (write-line line))))
 
 (defun pystart (&optional (command (config-var 'pycmd)))
   "Start a new python subprocess
@@ -46,11 +45,14 @@ By default this is is set to *PYTHON-COMMAND*
                       "EOF"
                       (string #\newline)
                       ") "
-                      (namestring py4cl2/config:*base-directory*)
+                      (directory-namestring
+                       (asdf:component-pathname
+                        (asdf:find-component
+                         :py4cl2 "python-code")))
                       "'")
-            :input :stream
-            :output :stream
-            :error-output :stream))
+         :input :stream
+         :output :stream
+         :error-output :stream))
   (unless *py4cl-tests*
     (setq *python-output-thread*
           (bt:make-thread

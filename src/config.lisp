@@ -35,7 +35,9 @@ Enter full file path for storage (default /tmp/_numpy_pickle.npy): "
 
 (defun save-config ()
   (let ((config-path (concatenate 'string
-                                  (directory-namestring py4cl2/config:*base-directory*)
+                                  (directory-namestring (asdf:component-pathname
+                                                         (asdf:find-component
+                                                          :py4cl2 "python-code")))
                                   ".config")))
     
     (with-open-file (f config-path :direction :output :if-exists :supersede
@@ -45,7 +47,9 @@ Enter full file path for storage (default /tmp/_numpy_pickle.npy): "
 
 (defun load-config ()
   (let ((config-path (concatenate 'string
-                                  (directory-namestring py4cl2/config:*base-directory*)
+                                  (directory-namestring (asdf:component-pathname
+                                                         (asdf:find-component
+                                                          :py4cl2 "python-code")))
                                   ".config"))
         (cl-json:*json-symbols-package* *package*))
     (setq *config* (with-open-file (f config-path)

@@ -3,7 +3,10 @@
 
 (in-package :py4cl2)
 (let ((config-path (concatenate 'string
-                                (directory-namestring py4cl2/config:*base-directory*)
+                                (directory-namestring
+                                 (asdf:component-pathname
+                                  (asdf:find-component
+                                   :py4cl2 "python-code")))
                                 ".config"))
       (cl-json:*json-symbols-package* *package*))
   (when (uiop:file-exists-p config-path)
