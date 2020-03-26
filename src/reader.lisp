@@ -38,7 +38,7 @@ except:
         (for filename =
              (concatenate 'string
                           (config-var 'numpy-pickle-location)
-                          "." (write-to-string *numpy-pickle-index*)))
+                          ".to." (write-to-string *numpy-pickle-index*)))
         (uiop:delete-file-if-exists filename)
         (decf *numpy-pickle-index*)))
 

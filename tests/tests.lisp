@@ -786,14 +786,17 @@ a = Test()")
 (deftest transfer-multiple-arrays (pickle)
   (when (and (py4cl2:config-var 'py4cl2:numpy-pickle-location)
              (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound))
-    (let ((dimensions `((,(py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound))
-                        (,(* 5 (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound))))))
-      (assert-equalp dimensions
-                     (mapcar #'array-dimensions 
-                             (py4cl2:pyeval
-                              (list (make-array (first dimensions) :element-type 'single-float)
-                                    (make-array (second dimensions) :element-type 'single-float))))
-                     "No bound or location for pickling."))))
+    (let ((lower-bound (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound)))
+      (let ((dimensions `((,lower-bound)
+                          (,(* 5 lower-bound)))))
+        ;; test transfer to python and back
+        (assert-equalp dimensions
+            (mapcar #'array-dimensions 
+                    (py4cl2:pyeval
+                     (list (make-array (first dimensions)
+                                       :element-type 'single-float)
+                           (make-array (second dimensions)
+                                       :element-type 'single-float)))))))))
 
 (deftest transfer-without-pickle (pickle)
   (unless (and (py4cl2:config-var 'py4cl2:numpy-pickle-location)

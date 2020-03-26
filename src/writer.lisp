@@ -70,14 +70,14 @@ which is interpreted correctly by python (3.7.2)."
 (defmethod pythonize ((obj array))
   (when (and (config-var 'numpy-pickle-lower-bound)
              (config-var 'numpy-pickle-location)
-             (> (array-total-size obj)
-                (config-var 'numpy-pickle-lower-bound)))
+             (>= (array-total-size obj)
+                 (config-var 'numpy-pickle-lower-bound)))
     (let ((filename (concatenate 'string
                                  (config-var 'numpy-pickle-location)
-                                 "." (write-to-string (incf *numpy-pickle-index*)))))
+                                 ".to." (write-to-string (incf *numpy-pickle-index*)))))
       (numpy-file-format:store-array obj filename)
       (return-from pythonize
-        (concatenate 'string "_py4cl_load_pickled_ndarray_and_delete('"
+        (concatenate 'string "_py4cl_load_pickled_ndarray('"
                      filename"')"))))
   
   ;; Handle case of empty array
