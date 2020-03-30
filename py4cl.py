@@ -27,6 +27,9 @@ def load_config():
         with open(config_file) as conf:
             global config
             config = json.load(conf)
+            for k in config:
+                if config[k] == None:
+                    config[k] = False
             try:
                 eval_globals["_py4cl_config"] = config
             except:
@@ -159,7 +162,7 @@ lispifiers = {
     int        : str,
     float      : str,
     complex    : lambda x: "#C(" + lispify(x.real) + " " + lispify(x.imag) + ")",
-    list       : lambda x: "#(" + " ".join(lispify(elt) for elt in x) + ")",
+    list       : lambda x: "#()" if x == [] else ("#.(numcl:asarray #(" + " ".join(lispify(elt) for elt in x) + "))" if config["useNumclArrays"] else "#(" + " ".join(lispify(elt) for elt in x) + ")"),
     tuple      : lambda x: "\"()\"" if len(x)==0 else "(" + " ".join(lispify(elt) for elt in x) + ")",
     # Note: With dict -> hash table, use :test equal so that string keys work as expected
     dict       : lambda x: "#.(let ((table (make-hash-table :test (quote equal)))) " + " ".join("(setf (gethash {} table) {})".format(lispify(key), lispify(value)) for key, value in x.items()) + " table)",
@@ -195,7 +198,7 @@ try:
         """Convert a NumPy array to a string which can be read by lisp
         Example:
         array([[1, 2],     => "#2A((1 2) (3 4))"
-              [3, 4]])
+               [3, 4]])
         """
         global NUMPY_PICKLE_INDEX
         if "numpyPickleLowerBound" in config and \
@@ -206,8 +209,12 @@ try:
             NUMPY_PICKLE_INDEX += 1
             with open(numpy_pickle_location, "wb") as f:
                 numpy.save(f, obj, allow_pickle = True)
-            return ("#.(numpy-file-format:load-array \""
-                    + numpy_pickle_location + "\")")
+            if config["useNumclArrays"]:
+                return ("#.(numcl:asarray (numpy-file-format:load-array \""
+                        + numpy_pickle_location + "\"))")
+            else:
+                return ("#.(numpy-file-format:load-array \""
+                          + numpy_pickle_location + "\")")
         if obj.ndim == 0:
             # Convert to scalar then lispify
             return lispify(numpy.asscalar(obj))
@@ -218,7 +225,10 @@ try:
                 return "("+" ".join([lispify(i) for i in obj])+")" 
             return "(" + " ".join([nested(obj[i,...]) for i in range(obj.shape[0])]) + ")"
 
-        return "#{:d}A".format(obj.ndim) + nested(obj)
+        if config["useNumclArrays"]:
+            return "#.(numcl:asarray #{:d}A".format(obj.ndim) + nested(obj) + ")"
+        else:
+            return "#{:d}A".format(obj.ndim) + nested(obj)
 
     # Register the handler to convert Python -> Lisp strings
     lispifiers[numpy.ndarray] = lispify_ndarray

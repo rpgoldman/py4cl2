@@ -23,6 +23,7 @@
 (defsuite objects (py4cl))
 (defsuite numpy-ufunc (py4cl))
 (defsuite py4cl-config (py4cl))
+(defsuite numcl-arrays (py4cl))
 
 (py4cl2:pystart)
 (defvar *pyversion* (py4cl2:pyversion-info))
@@ -31,7 +32,8 @@
 
 (defun run (&optional interactive? result-for)
   "Run all the tests for py4cl2."
-  (run-suite 'py4cl :use-debugger interactive?))
+  (with-numcl-arrays nil
+    (run-suite 'py4cl :use-debugger interactive?)))
 
 ;; ======================== PROCESS-BASIC =====================================
 
@@ -840,30 +842,32 @@ class Foo():
     time.sleep(5)
     return")
           (assert-equalp "hello"
-              (let* ((rv nil)
-                     (mon-thread (bt:make-thread
-                                  (lambda ()
-                                    (setq rv
-                                          (with-python-output (py4cl2:pycall "Foo().foo")))))))
-                (sleep 1)
-                (py4cl2:pyinterrupt)
-                (bt:join-thread mon-thread)
-                rv))
+                         (let* ((rv nil)
+                                (mon-thread (bt:make-thread
+                                             (lambda ()
+                                               (setq rv
+                                                     (with-python-output (py4cl2:pycall "Foo().foo")))))))
+                           (sleep 1)
+                           (py4cl2:pyinterrupt)
+                           (bt:join-thread mon-thread)
+                           rv))
           (assert-equalp "hello"
-              (let* ((rv nil)
-                     (mon-thread (bt:make-thread
-                                  (lambda ()
-                                    (setq rv
-                                          (with-python-output
-                                            (py4cl2:pymethod (py4cl2:pycall "Foo") 'foo)))))))
-                (sleep 1)
-                (py4cl2:pyinterrupt)
-                (bt:join-thread mon-thread)
-                rv)))
+                         (let* ((rv nil)
+                                (mon-thread (bt:make-thread
+                                             (lambda ()
+                                               (setq rv
+                                                     (with-python-output
+                                                       (py4cl2:pymethod (py4cl2:pycall "Foo") 'foo)))))))
+                           (sleep 1)
+                           (py4cl2:pyinterrupt)
+                           (bt:join-thread mon-thread)
+                           rv)))
 
-    ;; Check if no "residue" left
+        ;; Check if no "residue" left
 
-  (assert-equalp 5 (py4cl2:pyeval 5)))
+        (assert-equalp 5 (py4cl2:pyeval 5)))
+
+;; ==================== PY4CL-CONFIG ======================================
 
 (deftest config-change (py4cl-config)
   (let ((original-config (copy-tree *config*)))
@@ -880,3 +884,13 @@ class Foo():
       (unintern 'py4cl2::non-existent :py4cl2)
       (setq py4cl2:*config* original-config)
       (py4cl2:save-config))))
+
+;; ==================== NUMCL-ARRAYS ======================================
+
+(deftest use-numcl-arrays (numcl-arrays)
+  (with-numcl-arrays t
+    (assert-true (numcl:numcl-array-p (pyeval #(1 2 3))))
+    (assert-true (numcl:numcl-array-p (pyeval #2A((1 2 3) (4 5 6))))))
+  (with-numcl-arrays nil
+    (assert-false (numcl:numcl-array-p (pyeval #(1 2 3))))
+    (assert-false (numcl:numcl-array-p (pyeval #2A((1 2 3) (4 5 6)))))))

@@ -5,14 +5,15 @@ Report the issues at https://github.com/digikar99/py4cl2/issues
 (More) Documentation is available at https://digikar99.github.io/py4cl2/"
   :author "Ben Dudson <benjamin.dudson@york.ac.uk> (Original author), Shubhamkar Ayare <shubhamayare@yahoo.co.in> (Fork Contributor)"
   :license "MIT"
-  :version "2.2.2" ; py4cl is assumed to be version 1
+  :version "2.2.2"                  ; py4cl is assumed to be version 1
   :depends-on ("trivial-garbage"
                "iterate"
                "cl-json"
                "bordeaux-threads"
                "parse-number"
                "uiop"
-               "numpy-file-format")
+               "numpy-file-format"
+               "numcl")
   :pathname #P"src/"
   :serial t
   :components ((:static-file "python-code" :pathname #P"../py4cl.py")

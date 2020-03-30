@@ -25,11 +25,15 @@ Enter full file path for storage (default /tmp/_numpy_pickle.npy): "
         (numpy-pickle-lower-bound
          (parse-integer
           (take-input "Enter lower bound for using pickling (default 100000): "
-                      "100000"))))
+                      "100000")))
+        (use-numcl-arrays
+         (let ((*read-eval* nil))
+           (read-from-string (take-input "Use numcl arrays [t/nil] (default nil): " "nil")))))
     (setq  *config* ;; case conversion to and from symbols is handled by cl-json
            `((pycmd . ,pycmd)
              (numpy-pickle-location . ,numpy-pickle-location)
-             (numpy-pickle-lower-bound . ,numpy-pickle-lower-bound)))
+             (numpy-pickle-lower-bound . ,numpy-pickle-lower-bound)
+             (use-numcl-arrays . ,use-numcl-arrays)))
     ;; to avoid development overhead, we will not bring these variables "out"
     (save-config)))
 
@@ -67,3 +71,15 @@ Enter full file path for storage (default /tmp/_numpy_pickle.npy): "
 (defun py-cd (path)
   (pyexec "import os")
   (pycall "os.chdir" path))
+
+(defmacro with-numcl-arrays (t/nil &body body)
+  (let ((original-value (gensym))
+        (body-value (gensym)))
+    `(let ((,original-value (config-var 'use-numcl-arrays))
+           ,body-value)
+       (with-output-to-string (*standard-output*)
+         (setf (config-var 'use-numcl-arrays) ,t/nil))
+       (setq ,body-value (progn ,@body))
+       (with-output-to-string (*standard-output*)
+         (setf (config-var 'use-numcl-arrays) ,original-value))
+       ,body-value)))
