@@ -112,7 +112,7 @@ These values can also be accessed using `*config*` and `config-var`:
 CL-USER> py4cl2:*config*
 ((PY4CL2:PYCMD . "/home/user/miniconda3/bin/python")
  (PY4CL2:NUMPY-PICKLE-LOCATION . "/home/user/ram-disk/_numpy_pickle.npy")
- (PY4CL2:NUMPY-PICKLE-LOWER-BOUND . 100000))
+ (PY4CL2:NUMPY-PICKLE-LOWER-BOUND . 100000) (USE-NUMCL-ARRAYS . T))
 CL-USER> (py4cl2:config-var 'py4cl2:numpy-pickle-location)
 "/home/user/ram-disk/_numpy_pickle.npy"
 CL-USER> (setf (config-var 'py4cl2:pycmd) "python")
@@ -130,7 +130,7 @@ CL-USER> (use-package :py4cl2)
 
 ### Python Processes
 
-It all starts with a python process (actually, more than one as well - this use hasn't been documented here.).
+It all starts with a python process (actually, more than one as well - however, this use hasn't been documented here.).
 
 #### pycmd
 
@@ -348,6 +348,17 @@ you'd need to use something like [pycall].
 #### defpyfuns
 
 (Undocumented here.)
+
+### Interfacing with numcl arrays
+
+#### use-numcl-arrays
+
+When `(config-var 'use-numcl-arrays)` is `T`, arrays are converted to `numcl:numcl-array` type. This can be beneficial for doing array manipulation efficiently inside common lisp itself. However, this does introduce overhead, while casting to `numcl:numcl-array` while passing arrays around. This setting is global.
+
+#### with-numcl-arrays
+`(with-numcl-arrays t/nil &body body)`
+
+While `(config-var 'use-numcl-arrays)` is useful as a global configuration variable, this macro can be used to set the value of the `(config-var 'use-numcl-arrays)` locally for the execution of `body`.
 
 ### pyerror
 
