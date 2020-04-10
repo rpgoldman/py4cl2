@@ -115,6 +115,14 @@
     </li>
         </ul>
     </li>
+    <li class="toctree-l3"><a class="reference internal" href="#interfacing-with-numcl-arrays">Interfacing with numcl arrays</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#use-numcl-arrays">use-numcl-arrays</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#with-numcl-arrays">with-numcl-arrays</a>
+    </li>
+        </ul>
+    </li>
     <li class="toctree-l3"><a class="reference internal" href="#pyerror">pyerror</a>
     </li>
     <li class="toctree-l3"><a class="reference internal" href="#using-functions-and-methods">Using functions and methods</a>
@@ -212,7 +220,7 @@
             <div class="section">
               
                 <h1 id="py4cl2">py4cl2</h1>
-<p>[Last update: v2.2.1]</p>
+<p>[Last update: v2.2.2]</p>
 <h2 id="introduction">Introduction</h2>
 <p><a href="https://github.com/bendudson/py4cl">py4cl</a> is a package by Ben Dudson, aimed at making python libraries availble in Common Lisp,
 using streams to communicate with a separate python process - the approach taken by <a href="https://github.com/marcoheisig/cl4py">cl4py</a>. This is
@@ -304,7 +312,7 @@ Using a ram-disk is recommended for this purpose. (<a href="https://unix.stackex
 <pre><code class="lisp">CL-USER&gt; py4cl2:*config*
 ((PY4CL2:PYCMD . &quot;/home/user/miniconda3/bin/python&quot;)
  (PY4CL2:NUMPY-PICKLE-LOCATION . &quot;/home/user/ram-disk/_numpy_pickle.npy&quot;)
- (PY4CL2:NUMPY-PICKLE-LOWER-BOUND . 100000))
+ (PY4CL2:NUMPY-PICKLE-LOWER-BOUND . 100000) (USE-NUMCL-ARRAYS . T))
 CL-USER&gt; (py4cl2:config-var 'py4cl2:numpy-pickle-location)
 &quot;/home/user/ram-disk/_numpy_pickle.npy&quot;
 CL-USER&gt; (setf (config-var 'py4cl2:pycmd) &quot;python&quot;)
@@ -317,7 +325,7 @@ CL-USER&gt; (setf (config-var 'py4cl2:pycmd) &quot;python&quot;)
 </code></pre>
 
 <h3 id="python-processes">Python Processes</h3>
-<p>It all starts with a python process (actually, more than one as well - this use hasn't been documented here.).</p>
+<p>It all starts with a python process (actually, more than one as well - however, this use hasn't been documented here.).</p>
 <h4 id="pycmd">pycmd</h4>
 <pre><code class="lisp">CL-USER&gt; (config-var 'pycmd)
 &quot;python&quot;
@@ -486,6 +494,12 @@ to call a callable (in Python) object, but not defined as a function in Common L
 you'd need to use something like <a href="#pycall">pycall</a>.</p>
 <h4 id="defpyfuns">defpyfuns</h4>
 <p>(Undocumented here.)</p>
+<h3 id="interfacing-with-numcl-arrays">Interfacing with numcl arrays</h3>
+<h4 id="use-numcl-arrays">use-numcl-arrays</h4>
+<p>When <code>(config-var 'use-numcl-arrays)</code> is <code>T</code>, arrays are converted to <code>numcl:numcl-array</code> type. This can be beneficial for doing array manipulation efficiently inside common lisp itself. However, this does introduce overhead, while casting to <code>numcl:numcl-array</code> while passing arrays around. This setting is global.</p>
+<h4 id="with-numcl-arrays">with-numcl-arrays</h4>
+<p><code>(with-numcl-arrays t/nil &amp;body body)</code></p>
+<p>While <code>(config-var 'use-numcl-arrays)</code> is useful as a global configuration variable, this macro can be used to set the value of the <code>(config-var 'use-numcl-arrays)</code> locally for the execution of <code>body</code>.</p>
 <h3 id="pyerror">pyerror</h3>
 <p>(Undocumented here.)</p>
 <h3 id="using-functions-and-methods">Using functions and methods</h3>
@@ -940,5 +954,5 @@ T
 
 <!--
 MkDocs version : 1.1
-Build Date UTC : 2020-03-12 18:12:45
+Build Date UTC : 2020-04-10 15:37:18
 -->
