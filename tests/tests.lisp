@@ -47,6 +47,10 @@
   (assert-false (py4cl2:python-alive-p))
   (py4cl2:pystop))
 
+(deftest start-gone-wrong (process-basic)
+  (assert-condition py4cl2:python-process-startup-error
+      (py4cl2:pystart "python -c \"quit()\"")))
+
 ;; ======================== CALLPYTHON-RAW =====================================
 
 (deftest raw-autostart (callpython-raw)

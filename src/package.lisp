@@ -5,6 +5,7 @@
   (:use #:cl #:iterate)
   (:shadowing-import-from #:iterate #:as #:for)
   (:export ; python-process
+   #:python-process-startup-error
    #:pystart
    #:with-python-output
    #:pystop

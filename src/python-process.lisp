@@ -25,6 +25,11 @@ See https://askubuntu.com/questions/1118109/how-do-i-tell-if-a-command-is-runnin
                              (asdf:find-component :py4cl2 "python-code")) using #'read-line)
           (write-line line))))
 
+(define-condition python-process-startup-error (error)
+  ((command :initarg :command :reader command))
+  (:report (lambda (condition stream)
+             (format stream "Unable to start python process \"~a\"" (command condition)))))
+
 (defun pystart (&optional (command (config-var 'pycmd)))
   "Start a new python subprocess
 This sets the global variable *python* to the process phandle,
@@ -32,27 +37,32 @@ in addition to returning it.
 COMMAND is a string with the python executable to launch e.g. \"python\"
 By default this is is set to *PYTHON-COMMAND*
 "
-  (setq *python*
-        (uiop:launch-program
-         (concatenate 'string
-                      "bash -c '"
-                      command        ; Run python executable
-                      " -u "
-                      " <(cat <<\"EOF\""
-                      (string #\newline)
-                      *python-code*
-                      (string #\newline)
-                      "EOF"
-                      (string #\newline)
-                      ") "
-                      (directory-namestring
-                       (asdf:component-pathname
-                        (asdf:find-component
-                         :py4cl2 "python-code")))
-                      "'")
-         :input :stream
-         :output :stream
-         :error-output :stream))
+  (assert (progn
+            (setq *python*
+                  (uiop:launch-program
+                   (concatenate 'string
+                                "bash -c '"
+                                command    ; Run python executable
+                                " -u "
+                                " <(cat <<\"EOF\""
+                                (string #\newline)
+                                *python-code*
+                                (string #\newline)
+                                "EOF"
+                                (string #\newline)
+                                ") "
+                                (directory-namestring
+                                 (asdf:component-pathname
+                                  (asdf:find-component
+                                   :py4cl2 "python-code")))
+                                "'")
+                   :input :stream
+                   :output :stream
+                   :error-output :stream))
+            (sleep 0.1)
+            (python-alive-p))
+          (command)
+          'python-process-startup-error :command command)
   (unless *py4cl-tests*
     (setq *python-output-thread*
           (bt:make-thread
@@ -99,9 +109,7 @@ Optionally pass the process object returned by PYTHON-START"
   "If no python process is running, tries to start it.
 If still not alive, raises a condition."
   (unless (python-alive-p)
-    (pystart))
-  (unless (python-alive-p)
-    (error "Could not start python process")))
+    (pystart)))
 
 ;; Function defined in writer.lisp, which clears an object store
 (declaim (ftype (function () t) clear-lisp-objects))
