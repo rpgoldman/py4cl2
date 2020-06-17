@@ -381,7 +381,7 @@ Arguments:
     (multiple-value-bind (package-import-string package-in-python)
         (pymodule-import-string pymodule-name lisp-package)
       (pyexec package-import-string)
-      (unless silent (format t "Defining ~D for accessing python package ~D...~%"
+      (unless silent (format t "~&Defining ~D for accessing python package ~D...~%"
                              lisp-package
                              package-in-python))
       (handler-bind ((pyerror (lambda (e)

@@ -1,7 +1,12 @@
 (in-package :py4cl2)
 
-(defvar *config* () "Used for storing configuration at a centralized location.")
+(defvar *config* () "Configuration variable used to store configuration values for PY4CL2.
+This variable should be manipulated using CONFIG-VAR and (SETF CONFIG-VAR).")
 ;; Refer initialize function to note which variables are included under *config*
+
+(alexandria:define-constant +py4cl2-config-path+
+    (namestring (asdf:component-pathname (asdf:find-component "py4cl2" ".config")))
+  :test 'equal)
 
 (defun take-input (prompt default)
   (format t prompt)
@@ -15,7 +20,7 @@ and numpy pickle file and lower bounds."
   (let ((pycmd (take-input "Provide the python binary to use (default python): "
                            "python"))
         (numpy-pickle-location
-         (take-input "~%PY4CL uses pickled files to transfer large arrays between lisp
+         (take-input "~%PY4CL2 uses pickled files to transfer large arrays between lisp
  and python efficiently. These are expected to have sizes exceeding 100MB 
  (this depends on the value of *NUMPY-PICKLE-LOWER-BOUND*). Therefore, choose an 
  appropriate location (*NUMPY-PICKLE-LOCATION*) for storing these arrays on disk.
@@ -38,6 +43,7 @@ Enter full file path for storage (default /tmp/_numpy_pickle.npy): "
     (save-config)))
 
 (defun save-config ()
+  #.(format nil "Save to ~D from *CONFIG*" +py4cl2-config-path+)
   (let ((config-path (concatenate 'string
                                   (directory-namestring (asdf:component-pathname
                                                          (asdf:find-component
@@ -50,17 +56,28 @@ Enter full file path for storage (default /tmp/_numpy_pickle.npy): "
     (format t "Configuration is saved to ~D.~%" config-path)))
 
 (defun load-config ()
-  (let ((config-path (concatenate 'string
-                                  (directory-namestring (asdf:component-pathname
-                                                         (asdf:find-component
-                                                          :py4cl2 "python-code")))
-                                  ".config"))
+  #.(format nil "Load to *CONFIG* from ~D" +py4cl2-config-path+)
+  (let ((config-path +py4cl2-config-path+)
         (cl-json:*json-symbols-package* *package*))
     (setq *config* (with-open-file (f config-path)
                      (cl-json:decode-json f)))))
 
-(defun config-var (var) (cdr (assoc var *config*)))
+(defun config-var (var)
+  "Returns the value associated with VAR in *CONFIG*.
+Configuration variables include (all in PY4CL2 package):
+
+  - PYCMD: Path to the python binary to be used
+  - NUMPY-PICKLE-LOCATION: PY4CL2 uses pickled files to transfer large arrays between lisp
+ and python efficiently. These can have sizes exceeding 100MB. It is recommended that this
+ be set to path on a ram-disk. See [this](https://unix.stackexchange.com/questions/66329/creating-a-ram-disk-on-linux) for 
+instructions on creating a ram-disk on linux-based systems.
+  - NUMPY-PICKLE-LOWER-BOUND: The minimum size of the array for which PY4CL2 should use pickled files.
+  - USE-NUMCL-ARRAYS: NUMCL uses displaced arrays. If this variable is T, arrays returned by
+python process are passed through NUMCL:ASARRAY before returning them to the user."
+  (cdr (assoc var *config*)))
+
 (defun (setf config-var) (new-value var)
+  "Sets the value of VAR to NEW-VALUE in *CONFIG*. For all but PYCMD, the values are saved to a configuration-file for persistence whenever they are changed. To persist PYCMD, call SAVE-CONFIG."
   (if (assoc var *config*)
       (setf (cdr (assoc var *config*)) new-value)
       (push (cons var new-value) *config*))  

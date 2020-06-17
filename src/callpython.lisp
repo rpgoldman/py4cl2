@@ -105,6 +105,7 @@ For instance,
     sys.stdout.write('hello')
   foo()
 will result in 'sys' name not defined PYERROR."
+  (python-start-if-not-alive)
   (apply #'raw-py #\x strings)
   (values))
 
@@ -128,12 +129,14 @@ will result in 'sys' name not defined PYERROR."
 Eg.
   > (let ((a 5)) (pyeval a \"*\" a)) 
   25"
+  (python-start-if-not-alive)
   (delete-freed-python-objects) ; delete before pythonizing
   (delete-numpy-pickle-arrays)
   (apply #'raw-pyeval (mapcar #'pythonize-if-needed args)))
 
 (defun pyexec (&rest args)
   "Calls python exec on args; PYTHONIZEs arg if it satisfies PYTHONIZEP."
+  (python-start-if-not-alive)
   (delete-freed-python-objects) ; delete before pythonizing
   (delete-numpy-pickle-arrays)
   (apply #'raw-pyexec (mapcar #'pythonize-if-needed args)))
@@ -148,6 +151,7 @@ Example:
     (setf (pyeval \"a\") 2)  ; python \"a=2\"
 Can be useful for modifying a value directly in python.
 "
+  (python-start-if-not-alive)
   (apply #'pyexec (append args (list "=" value))) ; would nconc be better?
   value)
 
