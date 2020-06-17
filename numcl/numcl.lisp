@@ -1,8 +1,12 @@
 (in-package :py4cl2)
 
-(alexandria:define-constant +py4cl2+numcl-config-path+
-    (namestring (asdf:component-pathname (asdf:find-component "py4cl2+numcl" ".config")))
-  :test 'equal)
+#.(progn
+    (alexandria:define-constant +py4cl2+numcl-config-path+
+        (namestring (asdf:component-pathname (asdf:find-component "py4cl2+numcl" ".config")))
+      :test 'equal)
+    `(alexandria:define-constant +py4cl2+numcl-config-path+
+         (namestring (asdf:component-pathname (asdf:find-component "py4cl2+numcl" ".config")))
+       :test 'equal))
 
 (defun initialize ()
   "Intended to be called first upon installation. Sets up default python command,

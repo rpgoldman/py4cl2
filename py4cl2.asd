@@ -27,7 +27,21 @@
                (:file "import-export")
                (:file "do-after-load")
                (:static-file ".config" :pathname #P"../.py4cl2.config"))
-  :in-order-to ((test-op (test-op "py4cl2-tests"))))
+  :in-order-to ((test-op (test-op "py4cl2/tests"))))
+
+(asdf:defsystem "py4cl2/tests"
+  :serial t
+  :description "Unit tests for the py4cl library."
+  :author "Ben Dudson <benjamin.dudson@york.ac.uk>"
+  :license "MIT"
+  :depends-on ("py4cl2"
+               "py4cl2+numcl"
+               "clunit"
+               "trivial-garbage"
+               "trivial-arguments")
+  :pathname #P"tests/"
+  :components ((:file "tests"))
+  :perform (test-op (o c) (symbol-call :py4cl2-tests :run)))
 
 (asdf:defsystem "py4cl2+numcl"
   :serial t
@@ -39,5 +53,4 @@
   :pathname #P"numcl/"
   :serial t
   :components ((:file "numcl")
-               (:static-file ".config" :pathname #P"../.py4cl2+numcl.config"))
-  :in-order-to ((test-op (test-op "py4cl2-tests"))))
+               (:static-file ".config" :pathname #P"../.py4cl2+numcl.config")))

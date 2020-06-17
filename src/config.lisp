@@ -4,9 +4,13 @@
 This variable should be manipulated using CONFIG-VAR and (SETF CONFIG-VAR).")
 ;; Refer initialize function to note which variables are included under *config*
 
-(alexandria:define-constant +py4cl2-config-path+
-    (namestring (asdf:component-pathname (asdf:find-component "py4cl2" ".config")))
-  :test 'equal)
+#.(progn
+    (alexandria:define-constant +py4cl2-config-path+
+        (namestring (asdf:component-pathname (asdf:find-component "py4cl2" ".config")))
+      :test 'equal)
+    `(alexandria:define-constant +py4cl2-config-path+
+         (namestring (asdf:component-pathname (asdf:find-component "py4cl2" ".config")))
+       :test 'equal))
 
 (defun take-input (prompt default)
   (format t prompt)

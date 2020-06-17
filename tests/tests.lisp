@@ -2,10 +2,10 @@
 (py4cl2:defpymodule "numpy" nil :lisp-package "NP" :silent t)
 (py4cl2:defpymodule "numpy.random" t :silent t)
 
-(defpackage :py4cl2-tests
+(defpackage :py4cl2/tests
   (:use :cl :clunit :py4cl2 :iterate)
   (:export :run))
-(in-package :py4cl2-tests)
+(in-package :py4cl2/tests)
 
 #.(when (find-package :named-readtables)
     `(,(find-symbol "IN-READTABLE" :named-readtables) :common-lisp))
@@ -554,11 +554,11 @@ class testclass:
     ((defpyfun "noArgFunc")
      (defpyfun "restArgs")
      (defpyfun "kwRestArgs"))
-  (assert-equal (swank-backend:arglist #'no-arg-func) nil)
+  (assert-equal (trivial-arguments:arglist #'no-arg-func) nil)
   (assert-equal '(&rest py4cl2::args)
-      (swank-backend:arglist #'rest-args))
+      (trivial-arguments:arglist #'rest-args))
   (assert-equal '(&rest kwargs &key (a 'nil) (b 'nil) &allow-other-keys)
-      (swank-backend:arglist #'kw-rest-args)))
+      (trivial-arguments:arglist #'kw-rest-args)))
 
 (deftest defpymodule-math (import-export)
   (assert-equalp (cos 45) (math:cos 45)))
