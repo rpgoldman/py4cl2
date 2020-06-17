@@ -12,6 +12,8 @@
    #:python-alive-p
    #:python-start-if-not-alive
    #:pyinterrupt)
+  (:export ; writer
+   #:pythonize)
   (:export ; callpython
    #:pyerror
    #:raw-pyeval

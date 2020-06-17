@@ -30,15 +30,11 @@ Enter full file path for storage (default /tmp/_numpy_pickle.npy): "
         (numpy-pickle-lower-bound
          (parse-integer
           (take-input "Enter lower bound for using pickling (default 100000): "
-                      "100000")))
-        (use-numcl-arrays
-         (let ((*read-eval* nil))
-           (read-from-string (take-input "Use numcl arrays [t/nil] (default nil): " "nil")))))
+                      "100000"))))
     (setq  *config* ;; case conversion to and from symbols is handled by cl-json
            `((pycmd . ,pycmd)
              (numpy-pickle-location . ,numpy-pickle-location)
-             (numpy-pickle-lower-bound . ,numpy-pickle-lower-bound)
-             (use-numcl-arrays . ,use-numcl-arrays)))
+             (numpy-pickle-lower-bound . ,numpy-pickle-lower-bound)))
     ;; to avoid development overhead, we will not bring these variables "out"
     (save-config)))
 
@@ -71,9 +67,7 @@ Configuration variables include (all in PY4CL2 package):
  and python efficiently. These can have sizes exceeding 100MB. It is recommended that this
  be set to path on a ram-disk. See [this](https://unix.stackexchange.com/questions/66329/creating-a-ram-disk-on-linux) for 
 instructions on creating a ram-disk on linux-based systems.
-  - NUMPY-PICKLE-LOWER-BOUND: The minimum size of the array for which PY4CL2 should use pickled files.
-  - USE-NUMCL-ARRAYS: NUMCL uses displaced arrays. If this variable is T, arrays returned by
-python process are passed through NUMCL:ASARRAY before returning them to the user."
+  - NUMPY-PICKLE-LOWER-BOUND: The minimum size of the array for which PY4CL2 should use pickled files."
   (cdr (assoc var *config*)))
 
 (defun (setf config-var) (new-value var)
@@ -90,13 +84,4 @@ python process are passed through NUMCL:ASARRAY before returning them to the use
   (pycall "os.chdir" path))
 
 (defmacro with-numcl-arrays (t/nil &body body)
-  (let ((original-value (gensym))
-        (body-value (gensym)))
-    `(let ((,original-value (config-var 'use-numcl-arrays))
-           ,body-value)
-       (with-output-to-string (*standard-output*)
-         (setf (config-var 'use-numcl-arrays) ,t/nil))
-       (setq ,body-value (progn ,@body))
-       (with-output-to-string (*standard-output*)
-         (setf (config-var 'use-numcl-arrays) ,original-value))
-       ,body-value)))
+  "This MACRO is a stub at the moment. Please load PY4CL2+NUMCL system to define this macro.")

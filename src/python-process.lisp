@@ -22,7 +22,8 @@ See https://askubuntu.com/questions/1118109/how-do-i-tell-if-a-command-is-runnin
 (defvar *python-code*
   (with-output-to-string (*standard-output*)
     (iter (for line in-file (asdf:component-pathname
-                             (asdf:find-component :py4cl2 "python-code")) using #'read-line)
+                             (asdf:find-component :py4cl2 "python-code"))
+               using #'read-line)
           (write-line line))))
 
 (define-condition python-process-startup-error (error)

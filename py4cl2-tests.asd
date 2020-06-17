@@ -4,6 +4,7 @@
   :author "Ben Dudson <benjamin.dudson@york.ac.uk>"
   :license "MIT"
   :depends-on ("py4cl2"
+               "py4cl2+numcl"
                "clunit"
                "trivial-garbage"
                "swank")

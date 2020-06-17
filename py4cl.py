@@ -21,8 +21,9 @@ sys.stdout = sys.stderr
 
 eval_globals = {}
 config = {}
+eval_globals["_py4cl_config_file_name"] = ".py4cl2.config"
 def load_config():
-    config_file = sys.argv[1] + ".config"
+    config_file = sys.argv[1] + eval_globals["_py4cl_config_file_name"]
     if os.path.exists(config_file):
         with open(config_file) as conf:
             global config
@@ -35,7 +36,7 @@ def load_config():
             except:
                 pass
     else:
-        print(".config file not found!")
+        print(eval_globals["_py4cl_config_file_name"], "file not found!")
         eval_globals["_py4cl_config"] = {}
 load_config()
         
@@ -410,6 +411,8 @@ except:
 
 async_results = {}  # Store for function results. Might be Exception
 async_handle = itertools.count(0) # Running counter
+
+### NUMCL EXTENSION CODE should replace this comment ###
 
 # Main loop
 message_dispatch_loop()
