@@ -1,6 +1,4 @@
-language: lisp
 dist: xenial
-sudo: required
 
 git:
   depth: 3
@@ -27,37 +25,36 @@ matrix:
     #- env: LISP=ccl
 
 install:
-  - git clone -b release https://github.com/roswell/roswell.git
-  - cd roswell
-  - sh bootstrap
-  - ./configure
-  - make && sudo make install
-  - ros install $LISP-bin
-  - cd ~/
-  - ls
-  #- curl -L https://github.com/roswell/roswell/raw/master/scripts/install-for-ci.sh | sh
-    
+  - LISP_IMAGE=sbcl-2.0.5.core
+  - if [ "$LISP" = "sbcl" ]; then wget https://gitlab.com/digikar99/lisp-images/-/raw/master/$LISP_IMAGE; fi
+  - chmod +x $LISP_IMAGE
+  - pwd
+  - ls -l
+
 script:
   # numcl from 2020-06-10 does not load in SBCL 2.0.5
   # (config-var pycmd) is set from .config file, in do-after-load.lisp
-  - ros -e "(in-package :cl-user)
-            (push (uiop:getcwd) ql:*local-project-directories*)
-            (ql:uninstall-dist \"quicklisp\")
-            (ql-dist:install-dist \"http://beta.quicklisp.org/dist/quicklisp/2020-04-27/distinfo.txt\" :prompt nil) 
-            (ql:quickload \"py4cl2/tests\")
-            (let ((report (py4cl2/tests:run)))
-              (when (or (plusp (slot-value report 'clunit::failed))
-                        (plusp (slot-value report 'clunit::errors)))
-                (princ report)
-                (uiop:quit 1)))
-            \#-ecl
-            (progn
-              (ql:quickload \"py4cl2+numcl/tests\")
-              (let ((report (py4cl2/tests:run)))
-                (when (or (plusp (slot-value report 'clunit::failed))
-                          (plusp (slot-value report 'clunit::errors)))
-                  (princ report)
-                  (uiop:quit 1))))"
- 
+  - ./$LISP_IMAGE --eval \
+           "(progn
+              (in-package :cl-user)
+              (push (uiop:getcwd) ql:*local-project-directories*)
+              (ql:quickload \"py4cl2\")
+              (ql:quickload \"py4cl2/tests\"))" \
+     --eval "(progn
+               (let ((report (py4cl2/tests:run)))
+                 (when (or (plusp (slot-value report 'clunit::failed))
+                           (plusp (slot-value report 'clunit::errors)))
+                   (princ report)
+                   (uiop:quit 1)))
+               (unless (member :ecl *features*)
+                 (ql:quickload \"py4cl2+numcl/tests\")
+                 (let ((report (py4cl2/tests:run)))
+                   (when (or (plusp (slot-value report 'clunit::failed))
+                             (plusp (slot-value report 'clunit::errors)))
+                     (princ report)
+                     (uiop:quit 1))))
+               (format t \"ALL TESTS RAN SUCCESSFULLY!\")
+               (uiop:quit 0))"
+    
 notifications:
   email: false
