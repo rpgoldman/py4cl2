@@ -32,8 +32,7 @@
 
 (defun run (&optional interactive? result-for)
   "Run all the tests for py4cl2."
-  (with-numcl-arrays nil
-    (run-suite 'py4cl :use-debugger interactive?)))
+  (run-suite 'py4cl :use-debugger interactive?))
 
 ;; ======================== PROCESS-BASIC =====================================
 
@@ -890,11 +889,10 @@ class Foo():
       (py4cl2:save-config))))
 
 ;; ==================== NUMCL-ARRAYS ======================================
-
+;; This is to check the "ineffectiveness" of the value of use-numcl-arrays
+;; in the config file.
+#-ecl
 (deftest use-numcl-arrays (numcl-arrays)
-  (with-numcl-arrays t
-    (assert-true (numcl:numcl-array-p (pyeval #(1 2 3))))
-    (assert-true (numcl:numcl-array-p (pyeval #2A((1 2 3) (4 5 6))))))
-  (with-numcl-arrays nil
-    (assert-false (numcl:numcl-array-p (pyeval #(1 2 3))))
-    (assert-false (numcl:numcl-array-p (pyeval #2A((1 2 3) (4 5 6)))))))
+  (assert-true (config-var 'use-numcl-arrays))
+  (assert-false (numcl:numcl-array-p (pyeval #(1 2 3))))
+  (assert-false (numcl:numcl-array-p (pyeval #2A((1 2 3) (4 5 6))))))

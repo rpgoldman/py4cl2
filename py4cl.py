@@ -21,7 +21,7 @@ sys.stdout = sys.stderr
 
 eval_globals = {}
 config = {}
-eval_globals["_py4cl_config_file_name"] = ".py4cl2.config"
+eval_globals["_py4cl_config_file_name"] = ".config"
 def load_config():
     config_file = sys.argv[1] + eval_globals["_py4cl_config_file_name"]
     if os.path.exists(config_file):
@@ -39,6 +39,12 @@ def load_config():
         print(eval_globals["_py4cl_config_file_name"], "file not found!")
         eval_globals["_py4cl_config"] = {}
 load_config()
+# We do this so that we are guaranteed to not use numcl arrays
+# if py4cl2+numcl system is not loaded. That system would replace
+# the appropriate comment towards the end of this file so that
+# the value in config file is used, rather than the always false
+# we are using below.
+eval_globals["_py4cl_config"]["useNumclArrays"] = False
         
 class Symbol(object):
     """
