@@ -27,25 +27,37 @@ matrix:
     #- env: LISP=ccl
 
 install:
-  - curl https://raw.githubusercontent.com/sionescu/cl-travis/master/install.sh | bash  
+  - git clone -b release https://github.com/roswell/roswell.git
+  - cd roswell
+  - sh bootstrap
+  - ./configure
+  - make && sudo make install
+  - ros install $LISP-bin
+  - cd ~/
+  - ls
+  #- curl -L https://github.com/roswell/roswell/raw/master/scripts/install-for-ci.sh | sh
     
 script:
-  - cl -e "(in-package :cl-user)
-           (ql:uninstall-dist \"quicklisp\")
-           (ql-dist:install-dist \"http://beta.quicklisp.org/dist/quicklisp/2020-04-27/distinfo.txt\" :prompt nil) ; numcl from 2020-06-10 does not load in SBCL 2.0.5
-           (ql:quickload \"py4cl2/tests\")
-           ;; (config-var pycmd) is set from .config file, in do-after-load.lisp
-           (let ((report (py4cl2/tests:run)))
-             (when (or (plusp (slot-value report 'clunit::failed))
-                       (plusp (slot-value report 'clunit::errors)))
-               (princ report)
-               (uiop:quit 1))
-           (ql:quickload \"py4cl2+numcl/tests\")
-           (let ((report (py4cl2/tests:run)))
-             (when (or (plusp (slot-value report 'clunit::failed))
-                       (plusp (slot-value report 'clunit::errors)))
-               (princ report)
-               (uiop:quit 1)))"
-
+  # numcl from 2020-06-10 does not load in SBCL 2.0.5
+  # (config-var pycmd) is set from .config file, in do-after-load.lisp
+  - ros -e "(in-package :cl-user)
+            (push (uiop:getcwd) ql:*local-project-directories*)
+            (ql:uninstall-dist \"quicklisp\")
+            (ql-dist:install-dist \"http://beta.quicklisp.org/dist/quicklisp/2020-04-27/distinfo.txt\" :prompt nil) 
+            (ql:quickload \"py4cl2/tests\")
+            (let ((report (py4cl2/tests:run)))
+              (when (or (plusp (slot-value report 'clunit::failed))
+                        (plusp (slot-value report 'clunit::errors)))
+                (princ report)
+                (uiop:quit 1)))
+            \#-ecl
+            (progn
+              (ql:quickload \"py4cl2+numcl/tests\")
+              (let ((report (py4cl2/tests:run)))
+                (when (or (plusp (slot-value report 'clunit::failed))
+                          (plusp (slot-value report 'clunit::errors)))
+                  (princ report)
+                  (uiop:quit 1))))"
+ 
 notifications:
   email: false
