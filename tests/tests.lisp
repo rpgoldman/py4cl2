@@ -12,7 +12,7 @@
 
 (defsuite py4cl ())
 ;; Unable to test interrupt on CCL: see (deftest interrupt
-#-ccl (defsuite process-interrupt (py4cl))
+#-(or :ccl :ecl) (defsuite process-interrupt (py4cl))
 (defsuite callpython-raw (py4cl))
 (defsuite callpython-utility (py4cl))
 (defsuite callpython-chain (py4cl))
@@ -22,8 +22,8 @@
 (defsuite process-basic (py4cl))
 (defsuite objects (py4cl))
 (defsuite numpy-ufunc (py4cl))
-(defsuite py4cl-config (py4cl))
-(defsuite numcl-arrays (py4cl))
+#-ccl (defsuite py4cl-config (py4cl))
+#-ecl (defsuite numcl-arrays (py4cl))
 
 (py4cl2:pystart)
 (defvar *pyversion* (py4cl2:pyversion-info))
@@ -65,9 +65,11 @@
   (assert-equalp "hello" (py4cl2:raw-pyeval "'hello'"))
   (assert-equalp "world" (py4cl2:raw-pyeval "'world'"))
   (py4cl2:pyexec "import sys")
+  #-(or :travis :ccl :ecl)
   (assert-equalp "hello world"
       (with-python-output 
         (py4cl2:raw-pyexec "sys.stdout.write(\"hello world\")")))
+  #-(or :travis :ccl :ecl)
   (assert-equalp "testing"
       (with-python-output 
         (py4cl2:raw-pyexec "sys.stdout.write(\"testing\")"))))
@@ -75,6 +77,7 @@
 ;; If locks and synchronization are not implemented properly, this
 ;; would likely fail; in fact, SBCL itself seems to stop
 ;; SBCL can also stop inspite of it being implemented correctly.
+#-ccl
 (deftest with-python-output-stress-test (callpython-raw)
   (iter (repeat 10000) (with-python-output (pyexec "print('hello')"))))
 
@@ -256,8 +259,10 @@ world"))
   (let ((py4cl2::*py4cl-tests* t))
     (py4cl2:pystop)
     (py4cl2:pyexec "import sys")
+    #-(or :travis :ccl :ecl)
     (assert-equalp "hello world"
         (with-python-output (py4cl2:pycall "sys.stdout.write" "hello world")))
+    #-(or :travis :ccl :ecl)
     (assert-equalp "testing"
         (with-python-output (py4cl2:pycall "sys.stdout.write" "testing")))))
 
@@ -307,6 +312,7 @@ world"))
     (py4cl2:pystop)
     (assert-equalp "5" (py4cl2:pycall 'str 5))
     (py4cl2:pyexec "import sys")
+    #-(or :travis :ccl :ecl)
     (assert-equalp "hello world"
         (with-python-output (py4cl2:pycall 'sys.stdout.write "hello world")))))
 
@@ -541,10 +547,10 @@ class testclass:
   (pycall "allNulls")
   (assert-true (all-nulls))
   (assert-true (equalp '(#() "()" nil "None") (all-nulls-return-all)))
-  (assert-true (equalp '(5 5 5 5) (all-nulls-return-all :a 5 :b 5 :c 5 :d 5)))
-  (assert-true (equalp '("hello" "hello" "hello" "hello")
-                       (all-nulls-return-all :a "hello" :b "hello"
-                                             :c "hello" :d "hello"))))
+  (assert-true (equalp '(5 6 7 8) (all-nulls-return-all :a 5 :b 6 :c 7 :d 8)))
+  (assert-true (equalp '("hello" "world" "good" "bye")
+                       (all-nulls-return-all :a "hello" :b "world"
+                                             :c "good" :d "bye"))))
 
 (define-pyfun-with-test defpyfun-args
     ((pyexec "def noArgFunc(): return True")
@@ -553,11 +559,19 @@ class testclass:
     ((defpyfun "noArgFunc")
      (defpyfun "restArgs")
      (defpyfun "kwRestArgs"))
-  (assert-equal (trivial-arguments:arglist #'no-arg-func) nil)
-  (assert-equal '(&rest py4cl2::args)
-      (trivial-arguments:arglist #'rest-args))
-  (assert-equal '(&rest kwargs &key (a 'nil) (b 'nil) &allow-other-keys)
-      (trivial-arguments:arglist #'kw-rest-args)))
+  (assert-true (eq (if (member :ecl *features*)
+                       :unknown nil)
+                   (trivial-arguments:arglist #'no-arg-func)))
+  (assert-true
+      (equalp (trivial-arguments:arglist (lambda (&rest py4cl2::args) ()))
+              (trivial-arguments:arglist #'rest-args)))
+  (assert-true
+      (equalp (print
+               (trivial-arguments:arglist
+                #.(if (member :ecl *features*) ; TODO: generalize this
+                      `(lambda (&rest kwargs &key (b 'nil) (a 'nil) &allow-other-keys) ())
+                      `(lambda (&rest kwargs &key (a 'nil) (b 'nil) &allow-other-keys) ()))))
+              (print (trivial-arguments:arglist #'kw-rest-args)))))
 
 (deftest defpymodule-math (import-export)
   (assert-equalp (cos 45) (math:cos 45)))
@@ -651,38 +665,39 @@ class testclass:
 
 (deftest python-objects (objects)
   ;; Define a simple python class containing a value
+  (py4cl2:pystop)
   (py4cl2:pyexec
-"class Test:
+   "class Test:
   pass
 
 a = Test()
 a.value = 42")
 
   ;; Check that the variable has been defined
-  (assert-equalp 42
-                 (py4cl2:pyeval "a.value"))
+  (assert-true (= 42
+                  (py4cl2:pyeval "a.value")))
 
   ;; Implementation detail: No objects stored in python dict
-  (assert-equalp 0
-                 (py4cl2:pyeval "len(_py4cl_objects)"))
+  (assert-true (= 0
+                  (py4cl2:pyeval "len(_py4cl_objects)")))
   
   ;; Evaluate and return a python object
   (let ((var (py4cl2:pyeval "a")))
     ;; Implementation detail: Type of returned object
     (assert-equalp 'PY4CL2::PYTHON-OBJECT
-                   (type-of var))
+        (type-of var))
     
     ;; Implementation detail: Object is stored in a dictionary
     (assert-equalp 1
-                   (py4cl2:pyeval "len(_py4cl_objects)"))
+        (py4cl2:pyeval "len(_py4cl_objects)"))
 
     ;; Can pass to eval to use dot accessor
     (assert-equalp 42
-                   (py4cl2:pyeval var ".value"))
+        (py4cl2:pyeval var ".value"))
 
     ;; Can pass as argument to function
     (assert-equal 84
-                  (py4cl2:pycall "lambda x : x.value * 2" var)))
+        (py4cl2:pycall "lambda x : x.value * 2" var)))
   
   ;; Trigger a garbage collection so that VAR is finalized.
   ;; This should also delete the object in python
@@ -690,9 +705,10 @@ a.value = 42")
 
   ;; Implementation detail: dict object store should be empty
   ;; Note: This is dependent on the CL implementation. Trivial-garbage
-  ;; doesn't seem to support ccl
-  #-clozure (assert-equalp 0
-                (py4cl2::pyeval "len(_py4cl_objects)")))
+  ;; doesn't seem to support ccl or ecl. TODO: What are the implications?
+  #-(or :ccl :ecl)
+  (assert-equalp 0
+      (py4cl2:pyeval "len(_py4cl_objects)")))
 
 (deftest python-del-objects (objects)
     ;; Check that finalizing objects doesn't start python
@@ -788,7 +804,9 @@ a = Test()")
 
 ;; ============================== PICKLE =======================================
 
+#-ecl
 (deftest transfer-multiple-arrays (pickle)
+  (py4cl2:pystop)
   (when (and (py4cl2:config-var 'py4cl2:numpy-pickle-location)
              (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound))
     (let ((lower-bound (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound)))
@@ -805,14 +823,15 @@ a = Test()")
 
 (deftest transfer-without-pickle (pickle)
   (unless (and (py4cl2:config-var 'py4cl2:numpy-pickle-location)
-             (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound))
+               (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound))
     (assert-equalp '(100000)
-                   (array-dimensions
-                    (py4cl2:pyeval (make-array 100000 :element-type 'single-float)))
+        (array-dimensions
+         (py4cl2:pyeval (make-array 100000 :element-type 'single-float)))
       "Pickle bound and location is present.")))
 
 ;; ========================= NUMPY-UFUNC =======================================
 
+(py4cl2:pystop)
 (py4cl2:pyexec "
 try:
   import numpy
@@ -824,7 +843,7 @@ except ImportError:
   (deftest numpy-ufunc-abs (numpy-ufunc)
     (assert-equalp #(1 2 3) (numabs #(-1 2 -3))))
   (py4cl2:defpyfun "add" "numpy" :lisp-fun-name "NUMADD")
-  (deftest numpy-ufunc-abs (numpy-ufunc)
+  (deftest numpy-ufunc-add (numpy-ufunc)
     (assert-equalp #(4 5 6) (numadd #(1 2 3) 3))))
 
 ;; ==================== PROCESS-INTERRUPT ======================================
@@ -832,10 +851,11 @@ except ImportError:
 ;; Unable to test on CCL:
 ;; Stream #<BASIC-CHARACTER-OUTPUT-STREAM UTF-8 (PIPE/36) #x3020019EE9AD> is private to #<PROCESS repl-thread(12) [Sleep] #x302000AC72FD>
 
-#-ccl (deftest interrupt (process-interrupt)
-        (let ((py4cl2::*py4cl-tests* t))
-          (py4cl2:pystop)
-          (py4cl2:pyexec "
+#-(or :ccl :ecl)
+(deftest interrupt (process-interrupt)
+  (let ((py4cl2::*py4cl-tests* t))
+    (py4cl2:pystop)
+    (py4cl2:pyexec "
 class Foo():
   def foo(self):
     import time
@@ -844,34 +864,35 @@ class Foo():
     sys.stdout.flush()
     time.sleep(5)
     return")
-          (assert-equalp "hello"
-                         (let* ((rv nil)
-                                (mon-thread (bt:make-thread
-                                             (lambda ()
-                                               (setq rv
-                                                     (with-python-output (py4cl2:pycall "Foo().foo")))))))
-                           (sleep 1)
-                           (py4cl2:pyinterrupt)
-                           (bt:join-thread mon-thread)
-                           rv))
-          (assert-equalp "hello"
-                         (let* ((rv nil)
-                                (mon-thread (bt:make-thread
-                                             (lambda ()
-                                               (setq rv
-                                                     (with-python-output
-                                                       (py4cl2:pymethod (py4cl2:pycall "Foo") 'foo)))))))
-                           (sleep 1)
-                           (py4cl2:pyinterrupt)
-                           (bt:join-thread mon-thread)
-                           rv)))
+    (assert-equalp "hello"
+        (let* ((rv nil)
+               (mon-thread (bt:make-thread
+                            (lambda ()
+                              (setq rv
+                                    (with-python-output (py4cl2:pycall "Foo().foo")))))))
+          (sleep 1)
+          (py4cl2:pyinterrupt)
+          (bt:join-thread mon-thread)
+          rv))
+    (assert-equalp "hello"
+        (let* ((rv nil)
+               (mon-thread (bt:make-thread
+                            (lambda ()
+                              (setq rv
+                                    (with-python-output
+                                      (py4cl2:pymethod (py4cl2:pycall "Foo") 'foo)))))))
+          (sleep 1)
+          (py4cl2:pyinterrupt)
+          (bt:join-thread mon-thread)
+          rv)))
 
-        ;; Check if no "residue" left
+  ;; Check if no "residue" left
 
-        (assert-equalp 5 (py4cl2:pyeval 5)))
+  (assert-equalp 5 (py4cl2:pyeval 5)))
 
 ;; ==================== PY4CL-CONFIG ======================================
 
+#-(or ccl ecl)
 (deftest config-change (py4cl-config)
   (let ((original-config (copy-tree *config*)))
     (with-python-output

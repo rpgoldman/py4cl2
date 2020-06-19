@@ -1,3 +1,4 @@
+language: common-lisp
 dist: xenial
 
 git:
@@ -5,12 +6,10 @@ git:
 
 env:
   matrix:
-    #- LISP=abcl
-    #- LISP=allegro
-    - LISP=sbcl
-    #- LISP=ccl
+    - LISP=sbcl-bin
+    - LISP=ccl-bin
+    - LISP=ecl
     #- LISP=clisp
-    #- LISP=ecl
     #- LISP=cmucl
 
 addons:
@@ -19,36 +18,39 @@ addons:
     - python-numpy
     - python3-numpy
 
-matrix:
-  allow_failures:
-    #- env: LISP=clisp
-    #- env: LISP=ccl
-
 install:
-  #- We are using an older version because numcl did not load with the updated SBCL 2.0.4
-  - curl https://raw.githubusercontent.com/sionescu/cl-travis/115e943bad5dd11bb77dc7bafde7187cbe64e47b/install.sh | bash
-  - wget https://github.com/numcl/numcl/archive/v0.1.0.tar.gz -O numcl.tar.gz
-  - tar -xvzf numcl.tar.gz
+  - git clone -b release https://github.com/roswell/roswell.git
+  - cd roswell
+  - sh bootstrap
+  - ./configure
+  - make && sudo make install
+  - ros install $LISP
+  - cd ~/
+  - ls -l
+  - nproc
+  - pwd
 
 script:
+  # numcl from 2020-06-10 does not load in SBCL 2.0.5
   # (config-var pycmd) is set from .config file, in do-after-load.lisp
-  - sbcl --version
-  - cl -e "(ql-dist:install-dist \"http://beta.quicklisp.org/dist/quicklisp/2020-03-25/distinfo.txt\" :prompt nil :replace t)
-           (ql:quickload \"py4cl2/tests\")
-           (let ((report (py4cl2/tests:run)))
-             (when (or (plusp (slot-value report 'clunit::failed))
-                       (plusp (slot-value report 'clunit::errors)))
-               (princ report)
-               (uiop:quit 1)))
-           (unless (member :ecl *features*)
-             (ql:quickload \"py4cl2+numcl/tests\")
-             (let ((report (py4cl2/tests:run)))
-               (when (or (plusp (slot-value report 'clunit::failed))
-                         (plusp (slot-value report 'clunit::errors)))
-                 (princ report)
-                 (uiop:quit 1))))
-           (format t \"ALL TESTS RAN SUCCESSFULLY!\")
-           (uiop:quit 0)"
+  - ros dynamic-space-size=8000 -e "(in-package :cl-user)
+            (push :travis *features*)
+            (push (uiop:getcwd) ql:*local-project-directories*)
+            (ql:quickload \"py4cl2/tests\")
+            (let ((report (py4cl2/tests:run)))
+              (when (or (plusp (slot-value report 'clunit::failed))
+                        (plusp (slot-value report 'clunit::errors)))
+                (princ report)
+                (uiop:quit 1)))
+            (unless (member :ecl *features*)
+              (ql:quickload \"py4cl2+numcl/tests\")
+              (let ((report (py4cl2/tests:run)))
+                (when (or (plusp (slot-value report 'clunit::failed))
+                          (plusp (slot-value report 'clunit::errors)))
+                  (princ report)
+                  (uiop:quit 1))))
+            (format t \"!!ALL TESTS RAN SUCCESSFULLY!!\")
+            (uiop:quit 0)"
     
 notifications:
   email: false
