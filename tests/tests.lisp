@@ -41,6 +41,7 @@
   (py4cl2:pystop))
 
 (deftest start-gone-wrong (process-basic)
+  (pystop)
   (assert-condition py4cl2:python-process-startup-error
       (py4cl2:pystart "python -c \"quit()\"")))
 

@@ -38,32 +38,36 @@ in addition to returning it.
 COMMAND is a string with the python executable to launch e.g. \"python\"
 By default this is is set to *PYTHON-COMMAND*
 "
-  (assert (progn
-            (setq *python*
-                  (uiop:launch-program
-                   (concatenate 'string
-                                "bash -c '"
-                                command    ; Run python executable
-                                " -u "
-                                " <(cat <<\"EOF\""
-                                (string #\newline)
-                                *python-code*
-                                (string #\newline)
-                                "EOF"
-                                (string #\newline)
-                                ") "
-                                (directory-namestring
-                                 (asdf:component-pathname
-                                  (asdf:find-component
-                                   :py4cl2 "python-code")))
-                                "'")
-                   :input :stream
-                   :output :stream
-                   :error-output :stream))
-            (sleep 0.1)
-            (python-alive-p))
-          (command)
-          'python-process-startup-error :command command)
+  (loop :until (python-alive-p)
+     :do (setq *python*
+               (uiop:launch-program
+                (concatenate 'string
+                             "bash -c '"
+                             command        ; Run python executable
+                             " -u "
+                             " <(cat <<\"EOF\""
+                             (string #\newline)
+                             *python-code*
+                             (string #\newline)
+                             "EOF"
+                             (string #\newline)
+                             ") "
+                             (directory-namestring
+                              (asdf:component-pathname
+                               (asdf:find-component
+                                :py4cl2 "python-code")))
+                             "'")
+                :input :stream
+                :output :stream
+                :error-output :stream))
+       (sleep 0.1)
+       (unless (python-alive-p)
+         (cerror "Provide another path (setf (config-var 'pycmd) ...)"
+                 'python-process-startup-error :command command)
+         (format t "~&Provide the path to python binary to use (eg python): ")
+         (let ((cmd (read-line)))
+           (setf (config-var 'pycmd) cmd)
+           (setf command cmd))))
   (unless *py4cl-tests*
     (setq *python-output-thread*
           (bt:make-thread

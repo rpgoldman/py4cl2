@@ -21,7 +21,7 @@ This variable should be manipulated using CONFIG-VAR and (SETF CONFIG-VAR).")
 (defun initialize ()
   "Intended to be called first upon installation. Sets up default python command,
 and numpy pickle file and lower bounds."
-  (let ((pycmd (take-input "Provide the python binary to use (default python): "
+  (let ((pycmd (take-input "Provide the path to python binary to use (default python): "
                            "python"))
         (numpy-pickle-location
          (take-input "~%PY4CL2 uses pickled files to transfer large arrays between lisp
@@ -85,7 +85,10 @@ instructions on creating a ram-disk on linux-based systems.
       (setf (cdr (assoc var *config*)) new-value)
       (push (cons var new-value) *config*))  
   ;; say, the user wants the python process to be project local
-  (unless (eq var 'pycmd) (save-config))
+  (if (eq var 'pycmd)
+      (format t "~&Call (SAVE-CONFIG) if you'd like to persist this value for PYCMD.
+You will need to (PYSTOP) and (PYSTART) to use the new binary.~%")
+      (save-config))
   (when (python-alive-p) (pycall "_py4cl_load_config")))
 
 (defun py-cd (path)
