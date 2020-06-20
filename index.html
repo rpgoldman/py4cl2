@@ -220,7 +220,7 @@
             <div class="section">
               
                 <h1 id="py4cl2">py4cl2</h1>
-<p>[Last update: v2.2.2]</p>
+<p>[Last update: v2.3.0]</p>
 <h2 id="introduction">Introduction</h2>
 <p><a href="https://github.com/bendudson/py4cl">py4cl</a> is a package by Ben Dudson, aimed at making python libraries availble in Common Lisp,
 using streams to communicate with a separate python process - the approach taken by <a href="https://github.com/marcoheisig/cl4py">cl4py</a>. This is
@@ -234,33 +234,84 @@ but has the same goal. </p>
 This shouldn't be a bottleneck if you're planning to run "long" processes in python. (For example, deep learning :). )</li>
 <li>Virtual environments: <a href="#pycmd"><code>pycmd</code></a> (<code>*python-command*</code> in <code>py4cl</code>): Choose which python binary to use. Works with miniconda.</li>
 <li>Multiple python processes (not documented here) - parallel execution?</li>
-<li>Tested on SBCL, CCL, ABCL, and ECL (as mentioned in the <a href="https://github.com/bendudson/py4cl">original README</a>) does not have <code>uiop:launch-program</code>; known issues for full support with ABCL include </li>
+<li>Tested on SBCL, CCL, ABCL, and ECL </li>
 <li>No support for inheriting python classes - should require MOP</li>
-<li>Embeddable into lisp-image - the code from py4cl.py is copied into <em>python-code</em> and heredocs are used</li>
+<li>Embeddable into lisp-image - the code from py4cl.py is copied into <code>*python-code*</code> and heredocs are used. (Maintainer note: This requires not using single-quote character <code>'</code> in py4cl.py.</li>
 </ul>
 <div><img src="readme_slime.png" width="80%" style="margin:auto; display:block;"/></div>
 
 <!-- ![slime-demo-image](readme_slime.png) -->
 
+<p><br/></p>
 <h3 id="changes-over-py4cl">Changes over py4cl</h3>
 <ul>
-<li>Changes: several (but not all) names have been shorted from <code>python-</code> to <code>py</code>; <code>remote-objects</code> have been changed to <code>with-remote-object(s)</code>. Personal preference for these names stems from:</li>
+<li>Changes: several (but not all) names have been shorted from <code>python-</code> to <code>py</code>; <code>remote-objects</code> have been changed to <code>with-remote-object(s)</code>. Personal preference for these names stems from:<ul>
 <li><code>defpyfun/module</code> reminds of the equivalent in <code>burgled-batteries</code> and <code>cffi</code></li>
 <li><code>py</code>names are shorter</li>
 <li><code>with-remote</code> seems more appropriate</li>
 <li><code>chain</code> and <code>chain*</code> with more "uniformity"</li>
 <li>semantics of <code>nil</code>: see <a href="#type-mapping-and-pythonize">Type Mapping and Pythonize</a></li>
-<li>Arguments are imported; submodules can be imported with an option to [defpymodule]. However, this is only possible for python3. Argument ordering can be wrong with ABCL.</li>
-<li>Incomplete support on ABCL (known issues include argument-list-ordering, interrupts); untested on ECL; only tested on SBCL and ECL.</li>
-<li>Improvements in large array transfer speed, using numpy-file-format (see <a href="#initialize">initialize</a>; though this does not beat <code>remote-objects</code>, in existence since <code>py4cl</code>, </li>
+<li>Arguments are imported; submodules can be imported with an option to [defpymodule]. However, this is only possible for python3. </li>
+</ul>
+</li>
+<li>Improvements in large array transfer speed, using numpy-file-format (see <a href="#initialize">initialize</a>; this does not beat <code>remote-objects</code>, in existence since <code>py4cl</code>; this can be beneficial while offloading the work to python process. </li>
 <li>Interrupt the python process using <a href="#pyinterrupt">(pyinterrupt)</a></li>
-<li><code>defpymodule</code> (previously <code>import-module</code>) is works "as-expected" with asdf / <code>defpackage</code>.</li>
+<li><code>defpymodule</code> (previously <code>import-module</code>) works "as-expected" with asdf / <code>defpackage</code>.</li>
 <li>
-<p>use <code>(with-python-output &amp;body body)</code> to capture python output; previously <code>(with-output-to-stream (*standard-output*) &amp;body body)</code> could have worked.</p>
+<p>use <code>(with-python-output &amp;body body)</code> to capture python output; in py4cl, <code>(with-output-to-stream (*standard-output*) &amp;body body)</code> could have worked. The separate macro was necessitated due to asyncronous printing in py4cl2.</p>
 </li>
 <li>
-<p>See <a href="https://github.com/digikar99/py4cl/blob/master/TODO.org">TODO</a>.</p>
+<p>Argument ordering can be wrong with ABCL, CCL or  ECL. I've not used it extensively at anywhere other than SBCL. Basic tests concerning argument orders do work on ABCL and ECL; since, in most cases, you are good with keyword args. Early adopters are welcome :D!</p>
 </li>
+</ul>
+<table>
+<tr>
+<th>Feature / Implemnetation</th>
+<th>SBCL</th>
+<th>CCL</th>
+<th>ECL</th>
+<th>ABCL</th>
+</tr>
+<tr>
+<td>Basic Functionality</td>
+<td>✓</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
+<td>Interrupt</td>
+<td>✓</td>
+<td>✓</td>
+<td>✗</td>
+<td>✗</td>
+</tr>
+<tr>
+<tr>
+<td>with-python-output</td>
+<td>✓</td>
+<td>✗</td>
+<td>✗</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Fast Large Array Transfer</td>
+<td>✓</td>
+<td>✓</td>
+<td>✗</td>
+<td>✗</td>
+</tr>
+<tr>
+<td>numcl</td>
+<td>✓</td>
+<td>✓</td>
+<td>✗</td>
+<td>✗</td>
+</tr>
+</table>
+
+<ul>
+<li>See <a href="https://github.com/digikar99/py4cl/blob/master/TODO.org">TODO</a>.</li>
 </ul>
 <h2 id="installation">Installation</h2>
 <h3 id="dependencies">Dependencies</h3>
@@ -273,19 +324,17 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 <li>cl-json</li>
 <li>parse-number</li>
 <li>uiop (some implementations have an older version of uiop; support for <code>launch-program</code> is needed for asynchronous processes)</li>
-<li><a href="https://github.com/marcoheisig/numpy-file-format">numpy-file-format</a> *</li>
+<li>numpy-file-format</li>
 </ul>
-<p>* possibly not available on quicklisp (may be see <a href="https://stackoverflow.com/questions/8441224/how-to-install-new-packages-for-common-lisp-without-asdf-install">How to install new packages for common lisp without asdf-install
-</a>; in essence, download the github-repo to somewhere asdf can find.)</p>
 <p>On python side:</p>
 <ul>
-<li>numpy (optional)</li>
+<li>numpy (recommended for arrays)</li>
 </ul>
 <p>(other packages should be available in a standard python distribution - tested with CPython.)</p>
 <h3 id="installation_1">Installation</h3>
 <p>Download the (latest) release from the <a href="https://github.com/digikar99/py4cl2/releases">Releases</a> and untar/unzip into <code>~/quicklisp/local-projects/</code> or any other
 location where it can be discovered by <code>quicklisp</code>:</p>
-<pre><code class="sh">wget -qO- https://github.com/digikar99/py4cl2/archive/v2.2.0.tar.gz | tar xvz - -C ~/quicklisp/local-projects
+<pre><code class="sh">wget -qO- https://github.com/digikar99/py4cl2/archive/v2.3.0.tar.gz | tar xvz - -C ~/quicklisp/local-projects
 </code></pre>
 
 <p>Load into REPL with</p>
@@ -893,7 +942,7 @@ T
 <p>In no order of priority:</p>
 <ul>
 <li>adding/documenting proper multithreaded support</li>
-<li>finding equivalent of inspect._empty in python2 (unable to google)</li>
+<li>[ABANDON since python2 has reached end-of-life] finding equivalent of inspect._empty in python2 (unable to google)</li>
 <li>importing python classes, and methods, may be, as subclasses 
   of 'python-object; to be able to use make-instance and slot-value 
   might require knowledge of MOP, to make python-object at the same level
@@ -954,5 +1003,5 @@ T
 
 <!--
 MkDocs version : 1.1
-Build Date UTC : 2020-04-10 15:37:18
+Build Date UTC : 2020-06-20 09:43:25
 -->
