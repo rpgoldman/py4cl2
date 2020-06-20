@@ -35,11 +35,12 @@
   :author "Ben Dudson <benjamin.dudson@york.ac.uk>"
   :license "MIT"
   :depends-on ("py4cl2"
-               #-ecl
+               #-(or :ecl :abcl)
                "numcl"                 
                "clunit"
                "trivial-garbage"
                "trivial-arguments")
   :pathname #P"tests/"
-  :components ((:file "tests"))
+  :components ((:file "package")
+               (:file "tests"))
   :perform (test-op (o c) (symbol-call :py4cl2/tests :run)))

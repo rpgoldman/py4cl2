@@ -276,18 +276,20 @@ Arguments:
          (fun-symbol (intern lisp-fun-name lisp-package)))
     (destructuring-bind (parameter-list pass-list)
         (get-arg-list fullname (find-package lisp-package))
-      `(defun ,fun-symbol (,@parameter-list)
-         ,(or fun-doc "Python function")
-         ,(first pass-list)
-         ,(when safety
-            (if (builtin-p pymodule-name)
-                `(python-start-if-not-alive)
-                (if *called-from-defpymodule*
-                    `(pyexec ,*function-reload-string*)
-                    `(pyexec ,(function-reload-string :pymodule-name pymodule-name
-                                                      :fun-name fun-name
-                                                      :as as)))))
-         ,(second pass-list)))))
+      `(progn
+         (defun ,fun-symbol (,@parameter-list)
+           ,(or fun-doc "Python function")
+           ,(first pass-list)
+           ,(when safety
+              (if (builtin-p pymodule-name)
+                  `(python-start-if-not-alive)
+                  (if *called-from-defpymodule*
+                      `(pyexec ,*function-reload-string*)
+                      `(pyexec ,(function-reload-string :pymodule-name pymodule-name
+                                                        :fun-name fun-name
+                                                        :as as)))))
+           ,(second pass-list))
+         ,(if *called-from-defpymodule* `(export ',fun-symbol ,lisp-package))))))
 
 (defvar *is-submodule* nil
   "Used for coordinating import statements from defpymodule while calling recursively")
@@ -394,7 +396,7 @@ Arguments:
                                       ", callable) if name[0] != '_')"))
                    ;; Get the package name by passing through reader, rather than using STRING-UPCASE
                    ;; so that the result reflects changes to the readtable
-                   ;; Note that the package doesn't use CL to avoid shadowing
+                   ;; Note that the package doesn't use CL to avoid shadowing.
                    (exporting-package
                     (or (find-package lisp-package) (make-package lisp-package :use '())))
                    (fun-symbols (mapcar (lambda (pyfun-name)
@@ -408,6 +410,13 @@ Arguments:
                                                  (string= "()" fun-names))
                                             (setq fun-names ())
                                             fun-names))))
+              ;; In order to create a DEFUN form, we need FUN-SYMBOL
+              ;; inside the LISP-PACKAGE package at compiler time.
+              ;; However, the effects of MAKE-PACKAGE form followed by DEFPACKAGE
+              ;; seem to be implementation dependent. Things work in SBCL, CCL and ECL.
+              ;; But ABCL refuses to replace the existing package defined by MAKE-PACKAGE.
+              ;; Therefore, we need an explicit EXPORT statement in DEFPYFUN. And we also
+              ;; do away with DEFPACKAGE deeming it redundant.
               `(progn
                  (defpackage ,lisp-package
                    (:use)
@@ -426,7 +435,8 @@ Arguments:
                                                              :fun-name fun-name)))
                                (macroexpand-1 `(defpyfun
                                                    ,fun-name ,package-in-python
-                                                 :lisp-package ,exporting-package
+                                                 :lisp-package
+                                                 ,exporting-package
                                                  :lisp-fun-name ,(format nil "~A" fun-symbol)
                                                  :safety ,safety)))))
                  t))

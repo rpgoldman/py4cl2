@@ -1,10 +1,3 @@
-(py4cl2:defpymodule "math" nil :silent t)
-(py4cl2:defpymodule "numpy" nil :lisp-package "NP" :silent t)
-(py4cl2:defpymodule "numpy.random" t :silent t)
-
-(defpackage :py4cl2/tests
-  (:use :cl :clunit :py4cl2 :iterate)
-  (:export :run))
 (in-package :py4cl2/tests)
 
 #.(when (find-package :named-readtables)
@@ -22,8 +15,8 @@
 (defsuite process-basic (py4cl))
 (defsuite objects (py4cl))
 (defsuite numpy-ufunc (py4cl))
-#-ccl (defsuite py4cl-config (py4cl))
-#-ecl (defsuite numcl-arrays (py4cl))
+(defsuite py4cl-config (py4cl))
+#-(or :ecl :abcl) (defsuite numcl-arrays (py4cl))
 
 (py4cl2:pystart)
 (defvar *pyversion* (py4cl2:pyversion-info))
@@ -32,6 +25,7 @@
 
 (defun run (&optional interactive? result-for)
   "Run all the tests for py4cl2."
+  (declare (ignore result-for))
   (run-suite 'py4cl :use-debugger interactive?))
 
 ;; ======================== PROCESS-BASIC =====================================
@@ -805,7 +799,7 @@ a = Test()")
 
 ;; ============================== PICKLE =======================================
 
-#-ecl
+#-(or :ecl :abcl)
 (deftest transfer-multiple-arrays (pickle)
   (py4cl2:pystop)
   (when (and (py4cl2:config-var 'py4cl2:numpy-pickle-location)
@@ -818,41 +812,36 @@ a = Test()")
             (mapcar #'array-dimensions 
                     (py4cl2:pyeval
                      (list (make-array (first dimensions)
-                                       :element-type 'single-float)
+                                       :element-type 'single-float
+                                       :initial-element 0.0)
                            (make-array (second dimensions)
-                                       :element-type 'single-float)))))))))
+                                       :element-type 'single-float
+                                       :initial-element 0.0)))))))))
 
 (deftest transfer-without-pickle (pickle)
   (unless (and (py4cl2:config-var 'py4cl2:numpy-pickle-location)
                (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound))
     (assert-equalp '(100000)
         (array-dimensions
-         (py4cl2:pyeval (make-array 100000 :element-type 'single-float)))
+         (py4cl2:pyeval (make-array 100000 :element-type 'single-float
+                                    :initial-element 0.0)))
       "Pickle bound and location is present.")))
 
 ;; ========================= NUMPY-UFUNC =======================================
 
-(py4cl2:pystop)
-(py4cl2:pyexec "
-try:
-  import numpy
-  found = True
-except ImportError:
-  found = False")
-(when (py4cl2:pyeval "found")
-  (py4cl2:defpyfun "abs" "numpy" :lisp-fun-name "NUMABS")
-  (deftest numpy-ufunc-abs (numpy-ufunc)
-    (assert-equalp #(1 2 3) (numabs #(-1 2 -3))))
-  (py4cl2:defpyfun "add" "numpy" :lisp-fun-name "NUMADD")
-  (deftest numpy-ufunc-add (numpy-ufunc)
-    (assert-equalp #(4 5 6) (numadd #(1 2 3) 3))))
+(py4cl2:defpyfun "abs" "numpy" :lisp-fun-name "NUMABS")
+(deftest numpy-ufunc-abs (numpy-ufunc)
+  (assert-equalp #(1 2 3) (numabs #(-1 2 -3))))
+(py4cl2:defpyfun "add" "numpy" :lisp-fun-name "NUMADD")
+(deftest numpy-ufunc-add (numpy-ufunc)
+  (assert-equalp #(4 5 6) (numadd #(1 2 3) 3)))
 
 ;; ==================== PROCESS-INTERRUPT ======================================
 
 ;; Unable to test on CCL:
 ;; Stream #<BASIC-CHARACTER-OUTPUT-STREAM UTF-8 (PIPE/36) #x3020019EE9AD> is private to #<PROCESS repl-thread(12) [Sleep] #x302000AC72FD>
 
-#-(or :ccl :ecl)
+#-(or :ccl :ecl :abcl)
 (deftest interrupt (process-interrupt)
   (let ((py4cl2::*py4cl-tests* t))
     (py4cl2:pystop)
@@ -893,10 +882,9 @@ class Foo():
 
 ;; ==================== PY4CL-CONFIG ======================================
 
-#-(or ccl ecl)
 (deftest config-change (py4cl-config)
   (let ((original-config (copy-tree *config*)))
-    (with-python-output
+    (with-output-to-string (*standard-output*)
       (setf (py4cl2:config-var 'py4cl2:numpy-pickle-location) "tmp")
       (setf (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound) 10000)
       (setf (py4cl2:config-var (intern "NON-EXISTENT" :py4cl2)) "non-existent")
@@ -913,7 +901,7 @@ class Foo():
 ;; ==================== NUMCL-ARRAYS ======================================
 ;; This is to check the "ineffectiveness" of the value of use-numcl-arrays
 ;; in the config file.
-#-ecl
+#-(or :ecl :abcl)
 (deftest use-numcl-arrays (numcl-arrays)
   (assert-true (config-var 'use-numcl-arrays))
   (assert-false (numcl:numcl-array-p (pyeval #(1 2 3))))

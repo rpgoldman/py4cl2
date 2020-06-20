@@ -21,7 +21,8 @@
                "trivial-arguments")
   :pathname #P"tests/"
   :serial t
-  :components ((:file "tests")
+  :components ((:file "package")
+               (:file "tests")
                (:file "numcl"))
   :perform (test-op (o c) (symbol-call :py4cl2/tests :run)))
 
