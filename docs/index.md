@@ -1,6 +1,6 @@
 # py4cl2
 
-[Last update: v2.2.2]
+[Last update: v2.3.0]
 
 ## Introduction
 
@@ -20,26 +20,75 @@ Please report the issues on github: [py4cl2](https://github.com/digikar99/py4cl2
 This shouldn't be a bottleneck if you're planning to run "long" processes in python. (For example, deep learning :). )
 - Virtual environments: [`pycmd`](#pycmd) (`*python-command*` in `py4cl`): Choose which python binary to use. Works with miniconda.
 - Multiple python processes (not documented here) - parallel execution?
-- Tested on SBCL, CCL, ABCL, and ECL (as mentioned in the [original README][bendudson/py4cl]) does not have `uiop:launch-program`; known issues for full support with ABCL include 
+- Tested on SBCL, CCL, ABCL, and ECL 
 - No support for inheriting python classes - should require MOP
-- Embeddable into lisp-image - the code from py4cl.py is copied into *python-code* and heredocs are used
+- Embeddable into lisp-image - the code from py4cl.py is copied into `*python-code*` and heredocs are used. (Maintainer note: This requires not using single-quote character `'` in py4cl.py.
 
 <div><img src="readme_slime.png" width="80%" style="margin:auto; display:block;"/></div>
 <!-- ![slime-demo-image](readme_slime.png) -->
 
+<br/>
+
 ### Changes over py4cl
 - Changes: several (but not all) names have been shorted from `python-` to `py`; `remote-objects` have been changed to `with-remote-object(s)`. Personal preference for these names stems from:
-  - `defpyfun/module` reminds of the equivalent in `burgled-batteries` and `cffi`
-  - `py`names are shorter
-  - `with-remote` seems more appropriate
-  - `chain` and `chain*` with more "uniformity"
-  - semantics of `nil`: see [Type Mapping and Pythonize](#type-mapping-and-pythonize)
-- Arguments are imported; submodules can be imported with an option to [defpymodule]. However, this is only possible for python3. Argument ordering can be wrong with ABCL.
-- Incomplete support on ABCL (known issues include argument-list-ordering, interrupts); untested on ECL; only tested on SBCL and ECL.
-- Improvements in large array transfer speed, using numpy-file-format (see [initialize](#initialize); though this does not beat `remote-objects`, in existence since `py4cl`, 
+    - `defpyfun/module` reminds of the equivalent in `burgled-batteries` and `cffi`
+    - `py`names are shorter
+    - `with-remote` seems more appropriate
+    - `chain` and `chain*` with more "uniformity"
+    - semantics of `nil`: see [Type Mapping and Pythonize](#type-mapping-and-pythonize)
+    - Arguments are imported; submodules can be imported with an option to [defpymodule]. However, this is only possible for python3. 
+- Improvements in large array transfer speed, using numpy-file-format (see [initialize](#initialize); this does not beat `remote-objects`, in existence since `py4cl`; this can be beneficial while offloading the work to python process. 
 - Interrupt the python process using [(pyinterrupt)](#pyinterrupt)
-- `defpymodule` (previously `import-module`) is works "as-expected" with asdf / `defpackage`.
-- use `(with-python-output &body body)` to capture python output; previously `(with-output-to-stream (*standard-output*) &body body)` could have worked.
+- `defpymodule` (previously `import-module`) works "as-expected" with asdf / `defpackage`.
+- use `(with-python-output &body body)` to capture python output; in py4cl, `(with-output-to-stream (*standard-output*) &body body)` could have worked. The separate macro was necessitated due to asyncronous printing in py4cl2.
+
+- Argument ordering can be wrong with ABCL, CCL or  ECL. I've not used it extensively at anywhere other than SBCL. Basic tests concerning argument orders do work on ABCL and ECL; since, in most cases, you are good with keyword args. Early adopters are welcome :D!
+
+<table>
+<tr>
+<th>Feature / Implemnetation</th>
+<th>SBCL</th>
+<th>CCL</th>
+<th>ECL</th>
+<th>ABCL</th>
+</tr>
+<tr>
+<td>Basic Functionality</td>
+<td>✓</td>
+<td>?</td>
+<td>?</td>
+<td>?</td>
+</tr>
+<tr>
+<td>Interrupt</td>
+<td>✓</td>
+<td>✓</td>
+<td>✗</td>
+<td>✗</td>
+</tr>
+<tr>
+<tr>
+<td>with-python-output</td>
+<td>✓</td>
+<td>✗</td>
+<td>✗</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Fast Large Array Transfer</td>
+<td>✓</td>
+<td>✓</td>
+<td>✗</td>
+<td>✗</td>
+</tr>
+<tr>
+<td>numcl</td>
+<td>✓</td>
+<td>✓</td>
+<td>✗</td>
+<td>✗</td>
+</tr>
+</table>
 
 - See [TODO].
 
@@ -57,14 +106,11 @@ On the CL side:
 - cl-json
 - parse-number
 - uiop (some implementations have an older version of uiop; support for `launch-program` is needed for asynchronous processes)
-- [numpy-file-format](https://github.com/marcoheisig/numpy-file-format) *
-
-\* possibly not available on quicklisp (may be see [How to install new packages for common lisp without asdf-install
-](https://stackoverflow.com/questions/8441224/how-to-install-new-packages-for-common-lisp-without-asdf-install); in essence, download the github-repo to somewhere asdf can find.)
+- numpy-file-format
 
 On python side:
 
-- numpy (optional)
+- numpy (recommended for arrays)
 
 (other packages should be available in a standard python distribution - tested with CPython.)
 
@@ -74,7 +120,7 @@ Download the (latest) release from the [Releases](https://github.com/digikar99/p
 location where it can be discovered by `quicklisp`:
 
 ```sh
-wget -qO- https://github.com/digikar99/py4cl2/archive/v2.2.0.tar.gz | tar xvz - -C ~/quicklisp/local-projects
+wget -qO- https://github.com/digikar99/py4cl2/archive/v2.3.0.tar.gz | tar xvz - -C ~/quicklisp/local-projects
 ```
 
 Load into REPL with
@@ -841,7 +887,7 @@ Feel free to create an [Issue on Github](https://github.com/digikar99/py4cl2/iss
 In no order of priority:
 
 - adding/documenting proper multithreaded support
-- finding equivalent of inspect._empty in python2 (unable to google)
+- [ABANDON since python2 has reached end-of-life] finding equivalent of inspect._empty in python2 (unable to google)
 - importing python classes, and methods, may be, as subclasses 
   of 'python-object; to be able to use make-instance and slot-value 
   might require knowledge of MOP, to make python-object at the same level

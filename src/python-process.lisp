@@ -132,16 +132,8 @@ If still not alive, raises a condition."
              *python-process-busy-p*)
     (uiop:run-program
      (concatenate 'string "/bin/kill -SIGINT -"
-		  (write-to-string (uiop:process-info-pid process-info)))
+                  (write-to-string (uiop:process-info-pid process-info)))
      :force-shell t)
     (setq *python-process-busy-p* nil)
     ;; something to do with running in separate threads! "deftest interrupt"
     (unless *py4cl-tests* (dispatch-messages process-info))))
-
-(defun pyversion-info ()
-  "Return a list, using the result of python's sys.version_info."
-  (python-start-if-not-alive)
-  (let ((stream (uiop:process-info-input *python*)))
-    (write-char #\v stream)
-    (force-output stream))
-  (dispatch-messages *python*))

@@ -114,7 +114,7 @@
         
         (iter (initially (when return-with-default-return
                            (return-from get-arg-list default-return)))
-              (for (key val) in-hashtable sig-dict)
+              (for val in (alexandria:hash-table-values sig-dict))
               (for name = (pyeval val ".name")) ; this will not contain * or **
               (for default = (pyeval val ".default"))
               (for name-str = (pyeval "str(" val ")"))
@@ -197,7 +197,7 @@ def _py4cl_non_callable(ele):
                                  ((pyeval "inspect.isclass(" pyfullname ")") 'class)
                                  (t t)))
             (lisp-fun-name (lispify-name pyfun-name)))
-        (intern (ecase callable-type
+        (intern (case callable-type
                   (class (concatenate 'string lisp-fun-name "/CLASS"))
                   (function (if (upper-case-p (char pyfun-name 0))
                                 (concatenate 'string lisp-fun-name "/1")
