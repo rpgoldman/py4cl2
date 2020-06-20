@@ -566,12 +566,13 @@ class testclass:
       (equalp (trivial-arguments:arglist (lambda (&rest py4cl2::args) ()))
               (trivial-arguments:arglist #'rest-args)))
   (assert-true
-      (equalp (print
-               (trivial-arguments:arglist
-                #.(if (member :ecl *features*) ; TODO: generalize this
-                      `(lambda (&rest kwargs &key (b 'nil) (a 'nil) &allow-other-keys) ())
-                      `(lambda (&rest kwargs &key (a 'nil) (b 'nil) &allow-other-keys) ()))))
-              (print (trivial-arguments:arglist #'kw-rest-args)))))
+      ;; TODO: generalize this
+      (or (equalp (trivial-arguments:arglist
+                   (lambda (&rest kwargs &key (b 'nil) (a 'nil) &allow-other-keys) ()))
+                  (trivial-arguments:arglist #'kw-rest-args))
+          (equalp (trivial-arguments:arglist
+                   (lambda (&rest kwargs &key (a 'nil) (b 'nil) &allow-other-keys) ()))
+                  (trivial-arguments:arglist #'kw-rest-args)))))
 
 (deftest defpymodule-math (import-export)
   (assert-equalp (cos 45) (math:cos 45)))
