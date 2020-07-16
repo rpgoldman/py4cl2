@@ -43,6 +43,8 @@
    #:python-getattr)
   (:export ; config 
    #:*config*
+	 #:*array-type*
+	 #:*arrayfiers*
    #:initialize
    #:save-config
    #:load-config
@@ -50,6 +52,4 @@
    #:pycmd
    #:numpy-pickle-location
    #:numpy-pickle-lower-bound
-   #:use-numcl-arrays
-   #:with-numcl-arrays
    #:py-cd))

@@ -16,7 +16,7 @@
 (defsuite objects (py4cl))
 (defsuite numpy-ufunc (py4cl))
 (defsuite py4cl-config (py4cl))
-#-(or :ecl :abcl) (defsuite numcl-arrays (py4cl))
+#-(or :ecl :abcl) (defsuite array-type (py4cl))
 
 (py4cl2:pystart)
 (defvar *pyversion* (py4cl2:pyversion-info))
@@ -26,7 +26,8 @@
 (defun run (&optional interactive? result-for)
   "Run all the tests for py4cl2."
   (declare (ignore result-for))
-  (run-suite 'py4cl :use-debugger interactive?))
+  (let ((*array-type* :cl))
+    (run-suite 'py4cl :use-debugger interactive?)))
 
 ;; ======================== PROCESS-BASIC =====================================
 
@@ -899,11 +900,15 @@ class Foo():
       (setq py4cl2:*config* original-config)
       (py4cl2:save-config))))
 
-;; ==================== NUMCL-ARRAYS ======================================
-;; This is to check the "ineffectiveness" of the value of use-numcl-arrays
-;; in the config file.
+;; ==================== ARRAY-TYPE ======================================
 #-(or :ecl :abcl)
-(deftest use-numcl-arrays (numcl-arrays)
-  (assert-true (config-var 'use-numcl-arrays))
-  (assert-false (numcl:numcl-array-p (pyeval #(1 2 3))))
-  (assert-false (numcl:numcl-array-p (pyeval #2A((1 2 3) (4 5 6))))))
+(deftest numcl-array (array-type)
+  (destructuring-bind (a b) (pyeval "(" #(1 2 3) ", " #2A((1 2 3) (4 5 6)) ")")
+    (assert-false (numcl:numcl-array-p a))
+    (assert-false (numcl:numcl-array-p b)))
+  (let ((*array-type* :numcl)
+        (*arrayfiers* (append (list :numcl #'numcl:asarray)
+                              *arrayfiers*)))
+    (destructuring-bind (a b) (pyeval "(" #(1 2 3) ", " #2A((1 2 3) (4 5 6)) ")")
+      (assert-true (numcl:numcl-array-p a))
+      (assert-true (numcl:numcl-array-p b)))))

@@ -5,6 +5,8 @@
 #
 # Should work with python 2.7 or python 3
 
+# Do NOT use single quote in this file.
+
 from __future__ import print_function
 
 import sys
@@ -39,12 +41,6 @@ def load_config():
         print(eval_globals["_py4cl_config_file_name"], "file not found!")
         eval_globals["_py4cl_config"] = {}
 load_config()
-# We do this so that we are guaranteed to not use numcl arrays
-# if py4cl2+numcl system is not loaded. That system would replace
-# the appropriate comment towards the end of this file so that
-# the value in config file is used, rather than the always false
-# we are using below.
-eval_globals["_py4cl_config"]["useNumclArrays"] = False
         
 class Symbol(object):
     """
@@ -169,10 +165,10 @@ lispifiers = {
     int        : str,
     float      : str,
     complex    : lambda x: "#C(" + lispify(x.real) + " " + lispify(x.imag) + ")",
-    list       : lambda x: "#()" if x == [] else ("#.(numcl:asarray #(" + " ".join(lispify(elt) for elt in x) + "))" if config["useNumclArrays"] else "#(" + " ".join(lispify(elt) for elt in x) + ")"),
+    list       : lambda x: "#.(cl:funcall (getf py4cl2:*arrayfiers* py4cl2:*array-type*) #(" + " ".join(lispify(elt) for elt in x) + "))",
     tuple      : lambda x: "\"()\"" if len(x)==0 else "(" + " ".join(lispify(elt) for elt in x) + ")",
     # Note: With dict -> hash table, use :test equal so that string keys work as expected
-    dict       : lambda x: "#.(let ((table (make-hash-table :test (quote equal)))) " + " ".join("(setf (gethash {} table) {})".format(lispify(key), lispify(value)) for key, value in x.items()) + " table)",
+    dict       : lambda x: "#.(let ((table (make-hash-table :test (quote cl:equal)))) " + " ".join("(setf (gethash {} table) {})".format(lispify(key), lispify(value)) for key, value in x.items()) + " table)",
     str        : lambda x: "\"" + x.replace("\\", "\\\\").replace("\"", "\\\"")  + "\"",
     type       : lambda x: python_to_lisp_type[x],
     Symbol     : str,
@@ -216,12 +212,9 @@ try:
             NUMPY_PICKLE_INDEX += 1
             with open(numpy_pickle_location, "wb") as f:
                 numpy.save(f, obj, allow_pickle = True)
-            if config["useNumclArrays"]:
-                return ("#.(numcl:asarray (numpy-file-format:load-array \""
-                        + numpy_pickle_location + "\"))")
-            else:
-                return ("#.(numpy-file-format:load-array \""
-                          + numpy_pickle_location + "\")")
+
+            array = "(numpy-file-format:load-array \"" + numpy_pickle_location + "\")"
+            return "#.(cl:funcall (getf py4cl2:*arrayfiers* py4cl2:*array-type*) {0})".format(array)
         if obj.ndim == 0:
             # Convert to scalar then lispify
             return lispify(numpy.asscalar(obj))
@@ -232,10 +225,8 @@ try:
                 return "("+" ".join([lispify(i) for i in obj])+")" 
             return "(" + " ".join([nested(obj[i,...]) for i in range(obj.shape[0])]) + ")"
 
-        if config["useNumclArrays"]:
-            return "#.(numcl:asarray #{:d}A".format(obj.ndim) + nested(obj) + ")"
-        else:
-            return "#{:d}A".format(obj.ndim) + nested(obj)
+        array = "#{:d}A".format(obj.ndim) + nested(obj)
+        return "#.(cl:funcall (getf py4cl2:*arrayfiers* py4cl2:*array-type*) {0})".format(array)
 
     # Register the handler to convert Python -> Lisp strings
     lispifiers[numpy.ndarray] = lispify_ndarray
@@ -417,8 +408,6 @@ except:
 
 async_results = {}  # Store for function results. Might be Exception
 async_handle = itertools.count(0) # Running counter
-
-### NUMCL EXTENSION CODE should replace this comment ###
 
 # Main loop
 message_dispatch_loop()

@@ -4,6 +4,13 @@
 This variable should be manipulated using CONFIG-VAR and (SETF CONFIG-VAR).")
 ;; Refer initialize function to note which variables are included under *config*
 
+(defvar *array-type* :cl)
+
+(defvar *arrayfiers* (list :cl #'identity)
+  "(GETF *ARRAYFIERS* *ARRAY-TYPE*) should return a single argument function that converts the ARRAY into the required type.")
+
+(setf (documentation '*array-type* 'variable) (documentation '*arrayfiers* 'variable))
+
 #.(progn
     (alexandria:define-constant +py4cl2-config-path+
         (namestring (asdf:component-pathname (asdf:find-component "py4cl2" ".config")))
@@ -94,7 +101,3 @@ You will need to (PYSTOP) and (PYSTART) to use the new binary.~%")
 (defun py-cd (path)
   (pyexec "import os")
   (pycall "os.chdir" path))
-
-(defmacro with-numcl-arrays (t/nil &body body)
-  (declare (ignore t/nil body))
-  (error "This MACRO is a stub at the moment. Please load PY4CL2+NUMCL system to define this macro."))
