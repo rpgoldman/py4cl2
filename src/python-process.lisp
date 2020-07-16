@@ -20,16 +20,18 @@ See https://askubuntu.com/questions/1118109/how-do-i-tell-if-a-command-is-runnin
 (defvar *py4cl-tests* nil)
 
 (defvar *python-code*
-  (with-output-to-string (*standard-output*)
-    (iter (for line in-file (asdf:component-pathname
-                             (asdf:find-component :py4cl2 "python-code"))
-               using #'read-line)
-          (write-line line))))
+  (alexandria:read-file-into-string
+   (asdf:component-pathname
+    (asdf:find-component :py4cl2 "python-code"))))
+
+(defvar *python-startup-error*) ; couldn't put this inside the :REPORT!
 
 (define-condition python-process-startup-error (error)
   ((command :initarg :command :reader command))
   (:report (lambda (condition stream)
-             (format stream "Unable to start python process \"~a\"" (command condition)))))
+             (format stream "Unable to start python process \"~a\"~%~% Error: ~%~%~a"
+                     (command condition)
+                     *python-startup-error*))))
 
 (defun pystart (&optional (command (config-var 'pycmd)))
   "Start a new python subprocess
@@ -62,8 +64,10 @@ By default this is is set to *PYTHON-COMMAND*
                 :error-output :stream))
        (sleep 0.1)
        (unless (python-alive-p)
-         (cerror "Provide another path (setf (config-var 'pycmd) ...)"
-                 'python-process-startup-error :command command)
+         (let ((*python-startup-error* (alexandria:read-stream-content-into-string
+                                        (uiop:process-info-error-output *python*))))
+           (cerror "Provide another path (setf (config-var 'pycmd) ...)"
+                   'python-process-startup-error :command command))
          (format t "~&Provide the path to python binary to use (eg python): ")
          (let ((cmd (read-line)))
            (setf (config-var 'pycmd) cmd)
