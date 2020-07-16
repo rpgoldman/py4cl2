@@ -54,13 +54,6 @@ script:
                         (plusp (slot-value report 'clunit::errors)))
                 (princ report)
                 (uiop:quit 1)))
-            (unless (or (member :ecl *features*) (member :abcl *features*))
-              (ql:quickload \"py4cl2+numcl/tests\")
-              (let ((report (py4cl2/tests:run)))
-                (when (or (plusp (slot-value report 'clunit::failed))
-                          (plusp (slot-value report 'clunit::errors)))
-                  (princ report)
-                  (uiop:quit 1))))
             (format t \"!!ALL TESTS RAN SUCCESSFULLY!!\")
             (uiop:quit 0)"
     
