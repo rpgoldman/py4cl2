@@ -50,9 +50,9 @@ script:
             (push (uiop:getcwd) ql:*local-project-directories*)
             (ql:quickload \"py4cl2/tests\")
             (let ((report (py4cl2/tests:run)))
+              (princ report)
               (when (or (plusp (slot-value report 'clunit::failed))
                         (plusp (slot-value report 'clunit::errors)))
-                (princ report)
                 (uiop:quit 1)))
             (format t \"!!ALL TESTS RAN SUCCESSFULLY!!\")
             (uiop:quit 0)"

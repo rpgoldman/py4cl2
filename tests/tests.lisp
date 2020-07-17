@@ -5,7 +5,7 @@
 
 (defsuite py4cl ())
 ;; Unable to test interrupt on CCL: see (deftest interrupt
-#-(or :ccl :ecl) (defsuite process-interrupt (py4cl))
+(defsuite process-interrupt (py4cl))
 (defsuite callpython-raw (py4cl))
 (defsuite callpython-utility (py4cl))
 (defsuite callpython-chain (py4cl))
@@ -17,12 +17,17 @@
 (defsuite numpy-ufunc (py4cl))
 (defsuite py4cl-config (py4cl))
 (defsuite array-element-type (py4cl))
-#-(or :ecl :abcl) (defsuite array-type (py4cl))
+(defsuite array-type (py4cl))
 
 (py4cl2:pystart)
 (defvar *pyversion* (py4cl2:pyversion-info))
 ;; so that calling this does not mess up other tests: autostarts in particular
 (py4cl2:pystop)
+
+(defmacro skip-on (skip-features assert-form)
+  `(if (intersection ',skip-features *features*)
+       (clunit::skip-test-case)
+       ,assert-form))
 
 (defun run (&optional interactive? result-for)
   "Run all the tests for py4cl2."
@@ -62,21 +67,21 @@
   (assert-equalp "hello" (py4cl2:raw-pyeval "'hello'"))
   (assert-equalp "world" (py4cl2:raw-pyeval "'world'"))
   (py4cl2:pyexec "import sys")
-  #-(or :travis :ccl :ecl)
-  (assert-equalp "hello world"
-      (with-python-output 
-        (py4cl2:raw-pyexec "sys.stdout.write(\"hello world\")")))
-  #-(or :travis :ccl :ecl)
-  (assert-equalp "testing"
-      (with-python-output 
-        (py4cl2:raw-pyexec "sys.stdout.write(\"testing\")"))))
+  (skip-on (:ccl :travis :ecl)
+           (assert-equalp "hello world"
+               (with-python-output
+                 (py4cl2:raw-pyexec "sys.stdout.write(\"hello world\")"))))
+  (skip-on (:travis :ccl :ecl)
+           (assert-equalp "testing"
+               (with-python-output
+                 (py4cl2:raw-pyexec "sys.stdout.write(\"testing\")")))))
 
 ;; If locks and synchronization are not implemented properly, this
 ;; would likely fail; in fact, SBCL itself seems to stop
 ;; SBCL can also stop inspite of it being implemented correctly.
-#-ccl
 (deftest with-python-output-stress-test (callpython-raw)
-  (iter (repeat 10000) (with-python-output (pyexec "print('hello')"))))
+  (skip-on (:ccl)
+           (iter (repeat 10000) (with-python-output (pyexec "print('hello')")))))
 
 (deftest eval-integer (callpython-raw)
   (let ((result (py4cl2:raw-pyeval "1 + 2 * 3")))
@@ -256,12 +261,12 @@ world"))
   (let ((py4cl2::*py4cl-tests* t))
     (py4cl2:pystop)
     (py4cl2:pyexec "import sys")
-    #-(or :travis :ccl :ecl)
-    (assert-equalp "hello world"
-        (with-python-output (py4cl2:pycall "sys.stdout.write" "hello world")))
-    #-(or :travis :ccl :ecl)
-    (assert-equalp "testing"
-        (with-python-output (py4cl2:pycall "sys.stdout.write" "testing")))))
+    (skip-on (:travis :ccl :ecl)
+             (assert-equalp "hello world"
+                 (with-python-output (py4cl2:pycall "sys.stdout.write" "hello world"))))
+    (skip-on (:travis :ccl :ecl)
+             (assert-equalp "testing"
+                 (with-python-output (py4cl2:pycall "sys.stdout.write" "testing"))))))
 
 (deftest pycall-one-arg-int (callpython-utility)
   (assert-equalp 42
@@ -309,9 +314,9 @@ world"))
     (py4cl2:pystop)
     (assert-equalp "5" (py4cl2:pycall 'str 5))
     (py4cl2:pyexec "import sys")
-    #-(or :travis :ccl :ecl)
-    (assert-equalp "hello world"
-        (with-python-output (py4cl2:pycall 'sys.stdout.write "hello world")))))
+    (skip-on (:travis :ccl :ecl)
+             (assert-equalp "hello world"
+                 (with-python-output (py4cl2:pycall 'sys.stdout.write "hello world"))))))
 
 
 (deftest pycall-hash-table-empty (callpython-utility)
@@ -704,9 +709,9 @@ a.value = 42")
   ;; Implementation detail: dict object store should be empty
   ;; Note: This is dependent on the CL implementation. Trivial-garbage
   ;; doesn't seem to support ccl or ecl. TODO: What are the implications?
-  #-(or :ccl :ecl)
-  (assert-equalp 0
-      (py4cl2:pyeval "len(_py4cl_objects)")))
+  (skip-on (:ccl :ecl)
+           (assert-equalp 0
+               (py4cl2:pyeval "len(_py4cl_objects)"))))
 
 (deftest python-del-objects (objects)
     ;; Check that finalizing objects doesn't start python
@@ -802,7 +807,6 @@ a = Test()")
 
 ;; ============================== PICKLE =======================================
 
-#-(or :ecl :abcl)
 (deftest transfer-multiple-arrays (pickle)
   (py4cl2:pystop)
   (when (and (py4cl2:config-var 'py4cl2:numpy-pickle-location)
@@ -811,15 +815,16 @@ a = Test()")
       (let ((dimensions `((,lower-bound)
                           (,(* 5 lower-bound)))))
         ;; test transfer to python and back
-        (assert-equalp dimensions
-            (mapcar #'array-dimensions 
-                    (py4cl2:pyeval
-                     (list (make-array (first dimensions)
-                                       :element-type 'single-float
-                                       :initial-element 0.0)
-                           (make-array (second dimensions)
-                                       :element-type 'single-float
-                                       :initial-element 0.0)))))))))
+        (skip-on  (:ecl :abcl)
+                  (assert-equalp dimensions
+                      (mapcar #'array-dimensions
+                              (py4cl2:pyeval
+                               (list (make-array (first dimensions)
+                                                 :element-type 'single-float
+                                                 :initial-element 0.0)
+                                     (make-array (second dimensions)
+                                                 :element-type 'single-float
+                                                 :initial-element 0.0))))))))))
 
 (deftest transfer-without-pickle (pickle)
   (unless (and (py4cl2:config-var 'py4cl2:numpy-pickle-location)
@@ -843,8 +848,6 @@ a = Test()")
 
 ;; Unable to test on CCL:
 ;; Stream #<BASIC-CHARACTER-OUTPUT-STREAM UTF-8 (PIPE/36) #x3020019EE9AD> is private to #<PROCESS repl-thread(12) [Sleep] #x302000AC72FD>
-
-#-(or :ccl :ecl :abcl)
 (deftest interrupt (process-interrupt)
   (let ((py4cl2::*py4cl-tests* t))
     (py4cl2:pystop)
@@ -857,27 +860,31 @@ class Foo():
     sys.stdout.flush()
     time.sleep(5)
     return")
-    (assert-equalp "hello"
-        (let* ((rv nil)
-               (mon-thread (bt:make-thread
-                            (lambda ()
-                              (setq rv
-                                    (with-python-output (py4cl2:pycall "Foo().foo")))))))
-          (sleep 1)
-          (py4cl2:pyinterrupt)
-          (bt:join-thread mon-thread)
-          rv))
-    (assert-equalp "hello"
-        (let* ((rv nil)
-               (mon-thread (bt:make-thread
-                            (lambda ()
-                              (setq rv
-                                    (with-python-output
-                                      (py4cl2:pymethod (py4cl2:pycall "Foo") 'foo)))))))
-          (sleep 1)
-          (py4cl2:pyinterrupt)
-          (bt:join-thread mon-thread)
-          rv)))
+    (skip-on (:ccl :ecl :abcl)
+             (assert-equalp "hello"
+                 (let* ((rv nil)
+                        (mon-thread (bt:make-thread
+                                     (lambda ()
+                                       (setq rv
+                                             (with-python-output
+                                               (py4cl2:pycall "Foo().foo")))))))
+                   (sleep 1)
+                   (py4cl2:pyinterrupt)
+                   (bt:join-thread mon-thread)
+                   rv)))
+    (skip-on (:ccl :ecl :abcl)
+             (assert-equalp "hello"
+                 (let* ((rv nil)
+                        (mon-thread (bt:make-thread
+                                     (lambda ()
+                                       (setq rv
+                                             (with-python-output
+                                               (py4cl2:pymethod
+                                                (py4cl2:pycall "Foo") 'foo)))))))
+                   (sleep 1)
+                   (py4cl2:pyinterrupt)
+                   (bt:join-thread mon-thread)
+                   rv))))
 
   ;; Check if no "residue" left
 
@@ -902,6 +909,8 @@ class Foo():
       (py4cl2:save-config))))
 
 ;; ==================== ARRAY-TYPE ======================================
+
+;; NUMCL does not load on ECL and ABCL
 #-(or :ecl :abcl)
 (deftest numcl-array (array-type)
   ;; Doesn't really matter if they are numcl-arrays or not
