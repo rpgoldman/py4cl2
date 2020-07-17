@@ -82,7 +82,7 @@ which is interpreted correctly by python (3.7.2)."
                               ((unsigned-byte  8) . "uint8")
                               (bit . "bool")))
          (astype-string (if-let (type (cdr (assoc (array-element-type obj) cl-numpy-type-map
-                                                  :test #'equalp)))
+                                                  :test #'type=)))
                           (concatenate 'string ".astype('" type "')")
                           "")))
     (when (and (config-var 'numpy-pickle-lower-bound)

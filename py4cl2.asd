@@ -36,7 +36,8 @@
   :license "MIT"
   :depends-on ("py4cl2"
                #-(or :ecl :abcl)
-               "numcl"                 
+               "numcl"
+			   "alexandria"
                "clunit"
                "trivial-garbage"
                "trivial-arguments")

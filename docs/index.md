@@ -75,6 +75,13 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 <td>✓</td>
 </tr>
 <tr>
+<td>array-element-type preservation</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✗</td>
+</tr>
+<tr>
 <td>Fast Large Array Transfer</td>
 <td>✓</td>
 <td>✓</td>

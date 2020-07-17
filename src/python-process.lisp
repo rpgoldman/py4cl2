@@ -64,8 +64,10 @@ By default this is is set to *PYTHON-COMMAND*
                 :error-output :stream))
        (sleep 0.1)
        (unless (python-alive-p)
-         (let ((*python-startup-error* (alexandria:read-stream-content-into-string
-                                        (uiop:process-info-error-output *python*))))
+         (let ((*python-startup-error* (or (ignore-errors
+											 (read-stream-content-into-string
+											  (uiop:process-info-error-output *python*)))
+										   "Unable to fetch more error details on ECL")))
            (cerror "Provide another path (setf (config-var 'pycmd) ...)"
                    'python-process-startup-error :command command))
          (format t "~&Provide the path to python binary to use (eg python): ")
