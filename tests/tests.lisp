@@ -16,6 +16,7 @@
 (defsuite objects (py4cl))
 (defsuite numpy-ufunc (py4cl))
 (defsuite py4cl-config (py4cl))
+(defsuite array-element-type (py4cl))
 #-(or :ecl :abcl) (defsuite array-type (py4cl))
 
 (py4cl2:pystart)
@@ -903,12 +904,68 @@ class Foo():
 ;; ==================== ARRAY-TYPE ======================================
 #-(or :ecl :abcl)
 (deftest numcl-array (array-type)
-  (destructuring-bind (a b) (pyeval "(" #(1 2 3) ", " #2A((1 2 3) (4 5 6)) ")")
-    (assert-false (numcl:numcl-array-p a))
-    (assert-false (numcl:numcl-array-p b)))
+  ;; Doesn't really matter if they are numcl-arrays or not
   (let ((*array-type* :numcl)
-        (*arrayfiers* (append (list :numcl #'numcl:asarray)
-                              *arrayfiers*)))
+        (*arrayfiers* (append *arrayfiers* (list :numcl #'numcl:asarray))))
     (destructuring-bind (a b) (pyeval "(" #(1 2 3) ", " #2A((1 2 3) (4 5 6)) ")")
       (assert-true (numcl:numcl-array-p a))
       (assert-true (numcl:numcl-array-p b)))))
+
+;; ==================== ARRAY-ELEMENT-TYPE ==============================
+(deftest array-element-type (array-element-type)
+  (let ((lower-bound (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound)))
+    (flet ((pyeval-array (dimensions element-type initial-element)
+             (array-element-type
+              (pyeval (pyeval (make-array dimensions :element-type element-type
+                                          :initial-element initial-element))))))
+
+      ;; Without pickling
+      (assert-equalp 'double-float (pyeval-array 10 'double-float 0.0d0))
+      (assert-equalp 'single-float (pyeval-array 10 'single-float 0.0))
+      (assert-equalp '(signed-byte 64) (pyeval-array 10 '(signed-byte 64) 0))
+      (assert-equalp '(signed-byte 32) (pyeval-array 10 '(signed-byte 32) 0))
+      (assert-equalp '(signed-byte 16) (pyeval-array 10 '(signed-byte 16) 0))
+      (assert-equalp '(signed-byte 08) (pyeval-array 10 '(signed-byte 08) 0))
+      (assert-equalp '(unsigned-byte 64) (pyeval-array 10 '(unsigned-byte 64) 0))
+      (assert-equalp '(unsigned-byte 32) (pyeval-array 10 '(unsigned-byte 32) 0))
+      (assert-equalp '(unsigned-byte 16) (pyeval-array 10 '(unsigned-byte 16) 0))
+      (assert-equalp '(unsigned-byte 08) (pyeval-array 10 '(unsigned-byte 08) 0))
+
+      (assert-equalp 'bit (pyeval-array 10 'bit 1))
+
+      ;; Without pickling  empty arrays
+      (assert-equalp 'double-float (pyeval-array 0 'double-float 0.0d0))
+      (assert-equalp 'single-float (pyeval-array 0 'single-float 0.0))
+      (assert-equalp '(signed-byte 64) (pyeval-array 0 '(signed-byte 64) 0))
+      (assert-equalp '(signed-byte 32) (pyeval-array 0 '(signed-byte 32) 0))
+      (assert-equalp '(signed-byte 16) (pyeval-array 0 '(signed-byte 16) 0))
+      (assert-equalp '(signed-byte 08) (pyeval-array 0 '(signed-byte 08) 0))
+      (assert-equalp '(unsigned-byte 64) (pyeval-array 0 '(unsigned-byte 64) 0))
+      (assert-equalp '(unsigned-byte 32) (pyeval-array 0 '(unsigned-byte 32) 0))
+      (assert-equalp '(unsigned-byte 16) (pyeval-array 0 '(unsigned-byte 16) 0))
+      (assert-equalp '(unsigned-byte 08) (pyeval-array 0 '(unsigned-byte 08) 0))
+
+      (assert-equalp 'bit (pyeval-array 0 'bit 1))
+
+
+      ;; The below should use pickling
+      (assert-equalp 'double-float (pyeval-array (list 2 lower-bound)
+                                                 'double-float 0.0d0))
+      (assert-equalp 'single-float (pyeval-array (list 2 lower-bound)
+                                                 'single-float 0.0))
+      (assert-equalp '(signed-byte 64) (pyeval-array (list 2 lower-bound)
+                                                     '(signed-byte 64) 0))
+      (assert-equalp '(signed-byte 32) (pyeval-array (list 2 lower-bound)
+                                                     '(signed-byte 32) 0))
+      (assert-equalp '(signed-byte 16) (pyeval-array (list 2 lower-bound)
+                                                     '(signed-byte 16) 0))
+      (assert-equalp '(signed-byte 08) (pyeval-array (list 2 lower-bound)
+                                                     '(signed-byte 08) 0))
+      (assert-equalp '(unsigned-byte 64) (pyeval-array (list 2 lower-bound)
+                                                       '(unsigned-byte 64) 0))
+      (assert-equalp '(unsigned-byte 32) (pyeval-array (list 2 lower-bound)
+                                                       '(unsigned-byte 32) 0))
+      (assert-equalp '(unsigned-byte 16) (pyeval-array (list 2 lower-bound)
+                                                       '(unsigned-byte 16) 0))
+      (assert-equalp '(unsigned-byte 08) (pyeval-array (list 2 lower-bound)
+                                                       '(unsigned-byte 08) 0)))))

@@ -2,7 +2,7 @@
 ;;;; package.lisp
 
 (defpackage #:py4cl2
-  (:use #:cl #:iterate)
+  (:use #:cl #:iterate #:alexandria)
   (:shadowing-import-from #:iterate #:as #:for)
   (:export ; python-process
    #:python-process-startup-error
@@ -43,8 +43,8 @@
    #:python-getattr)
   (:export ; config 
    #:*config*
-	 #:*array-type*
-	 #:*arrayfiers*
+   #:*array-type*
+   #:*arrayfiers*
    #:initialize
    #:save-config
    #:load-config

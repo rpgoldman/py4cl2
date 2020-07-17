@@ -196,7 +196,27 @@ try:
             if os.path.exists(numpy_pickle_location):
                 os.remove(numpy_pickle_location)
             NUMPY_PICKLE_INDEX -= 1
-    
+
+    numpy_cl_type = {
+        numpy.dtype("int64"): "(cl:quote (cl:signed-byte 64))",
+        numpy.dtype("int32"): "(cl:quote (cl:signed-byte 32))",
+        numpy.dtype("int16"): "(cl:quote (cl:signed-byte 16))",
+        numpy.dtype("int8"):  "(cl:quote (cl:signed-byte 8))",
+        numpy.dtype("uint64"): "(cl:quote (cl:unsigned-byte 64))",
+        numpy.dtype("uint32"): "(cl:quote (cl:unsigned-byte 32))",
+        numpy.dtype("uint16"): "(cl:quote (cl:unsigned-byte 16))",
+        numpy.dtype("uint8"):  "(cl:quote (cl:unsigned-byte 8))",
+        numpy.dtype("bool_"): "(cl:quote cl:bit)",
+        numpy.dtype("float64"): "(cl:quote cl:double-float)",
+        numpy.dtype("float32"): "(cl:quote cl:single-float)",
+    }
+
+    def numpy_to_cl_type(numpy_type):
+        try:
+            return numpy_cl_type[numpy_type]
+        except KeyError:
+            raise Exception("Do not know how to convert " + str(numpy_type) + " to CL")
+
     def lispify_ndarray(obj):
         """Convert a NumPy array to a string which can be read by lisp
         Example:
@@ -218,22 +238,22 @@ try:
         if obj.ndim == 0:
             # Convert to scalar then lispify
             return lispify(numpy.asscalar(obj))
-        
-        def nested(obj):
-            """Turns an array into nested ((1 2) (3 4))"""
-            if obj.ndim == 1: 
-                return "("+" ".join([lispify(i) for i in obj])+")" 
-            return "(" + " ".join([nested(obj[i,...]) for i in range(obj.shape[0])]) + ")"
 
-        array = "#{:d}A".format(obj.ndim) + nested(obj)
+        array = "(cl:make-array " + str(obj.size) + " :initial-contents (cl:list " \
+            + " ".join(map(lispify, numpy.ndarray.flatten(obj))) + ") :element-type" \
+            + numpy_to_cl_type(obj.dtype) + ")"
+        array = "(cl:make-array (cl:quote " + lispify(obj.shape) + ") :element-type " \
+            + numpy_to_cl_type(obj.dtype) + " :displaced-to " + array + " :displaced-index-offset 0)"
         return "#.(cl:funcall (getf py4cl2:*arrayfiers* py4cl2:*array-type*) {0})".format(array)
 
     # Register the handler to convert Python -> Lisp strings
     lispifiers[numpy.ndarray] = lispify_ndarray
+    lispifiers[numpy.float64] = lambda x : str(x)+"d0"
+    lispifiers[numpy.bool_] = lambda x : "1" if x else "0"
 
     # Register numeric base class
     numeric_base_classes += (numpy.number,)
-except:
+except ImportError:
     pass
 
 def lispify_handle(obj):

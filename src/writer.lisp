@@ -68,38 +68,56 @@ which is interpreted correctly by python (3.7.2)."
 ;; this is incremented by pythonize and reset to 0 at the beginning of
 ;; every pyeval*/pycall from delete-numpy-pickle-arrays in reader.lisp
 (defmethod pythonize ((obj array))
-  (when (and (config-var 'numpy-pickle-lower-bound)
-             (config-var 'numpy-pickle-location)
-             (>= (array-total-size obj)
-                 (config-var 'numpy-pickle-lower-bound)))
-    (let ((filename (concatenate 'string
-                                 (config-var 'numpy-pickle-location)
-                                 ".to." (write-to-string (incf *numpy-pickle-index*)))))
-      (numpy-file-format:store-array obj filename)
-      (return-from pythonize
-        (concatenate 'string "_py4cl_load_pickled_ndarray('"
-                     filename"')"))))
-  
-  ;; Handle case of empty array
-  (if (= (array-total-size obj) 0)
-      (return-from pythonize "[]"))
-  
-  ;; First convert the array to 1D [0,1,2,3,...]
-  (let ((array1d (with-output-to-string (stream)
-                   (write-char #\[ stream)
-                   (princ (pythonize (row-major-aref obj 0)) stream)
-                   (do ((indx 1 (1+ indx)))
-                       ((>= indx (array-total-size obj)))
-                     (write-char #\, stream)
-                     (princ (pythonize (row-major-aref obj indx)) stream))
-                   (write-char #\] stream))))
-    (if (= (array-rank obj) 1)
-        ;; 1D array return as-is
-        array1d
-        ;; Multi-dimensional array. Call NumPy to resize
-        (concatenate 'string
-                     "_py4cl_numpy.resize(" array1d ", "
-                     (pythonize (array-dimensions obj)) ")"))))
+  (let* ((cl-numpy-type-map '((t . nil)
+                              (single-float . "float32")
+                              (double-float . "float64")
+                              (fixnum . "int64")
+                              ((signed-byte 64) . "int64")
+                              ((signed-byte 32) . "int32")
+                              ((signed-byte 16) . "int16")
+                              ((signed-byte  8) . "int8")
+                              ((unsigned-byte 64) . "uint64")
+                              ((unsigned-byte 32) . "uint32")
+                              ((unsigned-byte 16) . "uint16")
+                              ((unsigned-byte  8) . "uint8")
+                              (bit . "bool")))
+         (astype-string (if-let (type (cdr (assoc (array-element-type obj) cl-numpy-type-map
+                                                  :test #'equalp)))
+                          (concatenate 'string ".astype('" type "')")
+                          "")))
+    (when (and (config-var 'numpy-pickle-lower-bound)
+               (config-var 'numpy-pickle-location)
+               (>= (array-total-size obj)
+                   (config-var 'numpy-pickle-lower-bound)))
+      (let ((filename (concatenate 'string
+                                   (config-var 'numpy-pickle-location)
+                                   ".to." (write-to-string (incf *numpy-pickle-index*)))))
+        (numpy-file-format:store-array obj filename)
+        (return-from pythonize
+          (concatenate 'string "_py4cl_load_pickled_ndarray('"
+                       filename "')" astype-string))))
+
+    ;; Handle case of empty array
+    (if (= (array-total-size obj) 0)
+        (if (string/= "" astype-string)
+            (concatenate 'string
+                         "_py4cl_numpy.resize([], "
+                         (pythonize (array-dimensions obj)) ")"
+                         astype-string)
+            "[]")
+        ;; First convert the array to 1D [0,1,2,3,...]
+        (let ((array1d (with-output-to-string (stream)
+                         (write-char #\[ stream)
+                         (princ (pythonize (row-major-aref obj 0)) stream)
+                         (do ((indx 1 (1+ indx)))
+                             ((>= indx (array-total-size obj)))
+                           (write-char #\, stream)
+                           (princ (pythonize (row-major-aref obj indx)) stream))
+                         (write-char #\] stream))))
+          (return-from pythonize (concatenate 'string
+                                              "_py4cl_numpy.resize(" array1d ", "
+                                              (pythonize (array-dimensions obj)) ")"
+                                              astype-string))))))
 
 (defmethod pythonize ((obj cons))
   "Convert a list. This leaves a trailing comma so that python
