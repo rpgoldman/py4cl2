@@ -16,6 +16,8 @@ import inspect
 import json
 import os
 import signal
+# Use NumPy for multi-dimensional arrays
+import numpy
 
 return_stream = sys.stdout
 output_stream = sys.stderr
@@ -40,8 +42,9 @@ def load_config():
     else:
         print(eval_globals["_py4cl_config_file_name"], "file not found!")
         eval_globals["_py4cl_config"] = {}
+
 load_config()
-        
+
 class Symbol(object):
     """
     A wrapper around a string, representing a Lisp symbol. 
@@ -129,7 +132,6 @@ class UnknownLispObject (object):
         
         # Wait for the result
         return message_dispatch_loop()
-        
 
 # Settings
 
@@ -150,7 +152,7 @@ except:
     pass
 
 return_values = 0
-    
+
 ##################################################################
 # This code adapted from cl4py
 #
@@ -163,7 +165,7 @@ lispifiers = {
     bool       : lambda x: "T" if x else "NIL",
     type(None) : lambda x: "\"None\"",
     int        : str,
-    float      : str,
+    float      : lambda x : str(x).replace("e", "d") if str(x).find("e") != -1 else str(x)+"d0",
     complex    : lambda x: "#C(" + lispify(x.real) + " " + lispify(x.imag) + ")",
     list       : lambda x: "#.(cl:funcall (getf py4cl2:*arrayfiers* py4cl2:*array-type*) #(" + " ".join(lispify(elt) for elt in x) + "))",
     tuple      : lambda x: "\"()\"" if len(x)==0 else "(" + " ".join(lispify(elt) for elt in x) + ")",
@@ -176,85 +178,78 @@ lispifiers = {
     # there is another lispifier just below
 }
 
-# This is used to test if a value is a numeric type
-numeric_base_classes = (numbers.Number,)
 NUMPY_PICKLE_INDEX = 0 # optional increment in lispify_ndarray and reset to 0 
 
-try:
-    # Use NumPy for multi-dimensional arrays
-    import numpy
+def load_pickled_ndarray(filename):
+    arr = numpy.load(filename, allow_pickle = True)
+    return arr
 
-    def load_pickled_ndarray(filename):
-        arr = numpy.load(filename, allow_pickle = True)
-        return arr
+def delete_numpy_pickle_arrays():
+    global NUMPY_PICKLE_INDEX
+    while NUMPY_PICKLE_INDEX:
+        numpy_pickle_location = config["numpyPickleLocation"] \
+            + ".from." + str(NUMPY_PICKLE_INDEX)
+        if os.path.exists(numpy_pickle_location):
+            os.remove(numpy_pickle_location)
+        NUMPY_PICKLE_INDEX -= 1
 
-    def delete_numpy_pickle_arrays():
-        global NUMPY_PICKLE_INDEX
-        while NUMPY_PICKLE_INDEX:
-            numpy_pickle_location = config["numpyPickleLocation"] \
-                                    + ".from." + str(NUMPY_PICKLE_INDEX)
-            if os.path.exists(numpy_pickle_location):
-                os.remove(numpy_pickle_location)
-            NUMPY_PICKLE_INDEX -= 1
+numpy_cl_type = {
+    numpy.dtype("int64"): "(cl:quote (cl:signed-byte 64))",
+    numpy.dtype("int32"): "(cl:quote (cl:signed-byte 32))",
+    numpy.dtype("int16"): "(cl:quote (cl:signed-byte 16))",
+    numpy.dtype("int8"):  "(cl:quote (cl:signed-byte 8))",
+    numpy.dtype("uint64"): "(cl:quote (cl:unsigned-byte 64))",
+    numpy.dtype("uint32"): "(cl:quote (cl:unsigned-byte 32))",
+    numpy.dtype("uint16"): "(cl:quote (cl:unsigned-byte 16))",
+    numpy.dtype("uint8"):  "(cl:quote (cl:unsigned-byte 8))",
+    numpy.dtype("bool_"): "(cl:quote cl:bit)",
+    numpy.dtype("float64"): "(cl:quote cl:double-float)",
+    numpy.dtype("float32"): "(cl:quote cl:single-float)",
+}
 
-    numpy_cl_type = {
-        numpy.dtype("int64"): "(cl:quote (cl:signed-byte 64))",
-        numpy.dtype("int32"): "(cl:quote (cl:signed-byte 32))",
-        numpy.dtype("int16"): "(cl:quote (cl:signed-byte 16))",
-        numpy.dtype("int8"):  "(cl:quote (cl:signed-byte 8))",
-        numpy.dtype("uint64"): "(cl:quote (cl:unsigned-byte 64))",
-        numpy.dtype("uint32"): "(cl:quote (cl:unsigned-byte 32))",
-        numpy.dtype("uint16"): "(cl:quote (cl:unsigned-byte 16))",
-        numpy.dtype("uint8"):  "(cl:quote (cl:unsigned-byte 8))",
-        numpy.dtype("bool_"): "(cl:quote cl:bit)",
-        numpy.dtype("float64"): "(cl:quote cl:double-float)",
-        numpy.dtype("float32"): "(cl:quote cl:single-float)",
-    }
+def numpy_to_cl_type(numpy_type):
+    try:
+        return numpy_cl_type[numpy_type]
+    except KeyError:
+        raise Exception("Do not know how to convert " + str(numpy_type) + " to CL")
 
-    def numpy_to_cl_type(numpy_type):
-        try:
-            return numpy_cl_type[numpy_type]
-        except KeyError:
-            raise Exception("Do not know how to convert " + str(numpy_type) + " to CL")
+def lispify_ndarray(obj):
+    """Convert a NumPy array to a string which can be read by lisp
+    Example:
+    array([[1, 2],     => "#2A((1 2) (3 4))"
+           [3, 4]])
+    """
+    global NUMPY_PICKLE_INDEX
+    if "numpyPickleLowerBound" in config and \
+       "numpyPickleLocation" in config and \
+       obj.size >= config["numpyPickleLowerBound"]:
+        numpy_pickle_location = config["numpyPickleLocation"] \
+            + ".from." + str(NUMPY_PICKLE_INDEX)
+        NUMPY_PICKLE_INDEX += 1
+        with open(numpy_pickle_location, "wb") as f:
+            numpy.save(f, obj, allow_pickle = True)
 
-    def lispify_ndarray(obj):
-        """Convert a NumPy array to a string which can be read by lisp
-        Example:
-        array([[1, 2],     => "#2A((1 2) (3 4))"
-               [3, 4]])
-        """
-        global NUMPY_PICKLE_INDEX
-        if "numpyPickleLowerBound" in config and \
-           "numpyPickleLocation" in config and \
-           obj.size >= config["numpyPickleLowerBound"]:
-            numpy_pickle_location = config["numpyPickleLocation"] \
-                                    + ".from." + str(NUMPY_PICKLE_INDEX)
-            NUMPY_PICKLE_INDEX += 1
-            with open(numpy_pickle_location, "wb") as f:
-                numpy.save(f, obj, allow_pickle = True)
-
-            array = "(numpy-file-format:load-array \"" + numpy_pickle_location + "\")"
-            return "#.(cl:funcall (getf py4cl2:*arrayfiers* py4cl2:*array-type*) {0})".format(array)
-        if obj.ndim == 0:
-            # Convert to scalar then lispify
-            return lispify(numpy.asscalar(obj))
-
-        array = "(cl:make-array " + str(obj.size) + " :initial-contents (cl:list " \
-            + " ".join(map(lispify, numpy.ndarray.flatten(obj))) + ") :element-type" \
-            + numpy_to_cl_type(obj.dtype) + ")"
-        array = "(cl:make-array (cl:quote " + lispify(obj.shape) + ") :element-type " \
-            + numpy_to_cl_type(obj.dtype) + " :displaced-to " + array + " :displaced-index-offset 0)"
+        array = "(numpy-file-format:load-array \"" + numpy_pickle_location + "\")"
         return "#.(cl:funcall (getf py4cl2:*arrayfiers* py4cl2:*array-type*) {0})".format(array)
+    if obj.ndim == 0:
+        # Convert to scalar then lispify
+        return lispify(numpy.asscalar(obj))
 
-    # Register the handler to convert Python -> Lisp strings
-    lispifiers[numpy.ndarray] = lispify_ndarray
-    lispifiers[numpy.float64] = lambda x : str(x)+"d0"
-    lispifiers[numpy.bool_] = lambda x : "1" if x else "0"
+    array = "(cl:make-array " + str(obj.size) + " :initial-contents (cl:list " \
+        + " ".join(map(lispify, numpy.ndarray.flatten(obj))) + ") :element-type" \
+        + numpy_to_cl_type(obj.dtype) + ")"
+    array = "(cl:make-array (cl:quote " + lispify(obj.shape) + ") :element-type " \
+        + numpy_to_cl_type(obj.dtype) + " :displaced-to " + array + " :displaced-index-offset 0)"
+    return "#.(cl:funcall (getf py4cl2:*arrayfiers* py4cl2:*array-type*) {0})".format(array)
 
-    # Register numeric base class
-    numeric_base_classes += (numpy.number,)
-except ImportError:
-    pass
+# Register the handler to convert Python -> Lisp strings
+lispifiers.update({
+    numpy.ndarray: lispify_ndarray,
+    numpy.float64: lambda x : str(x).replace("e", "d") if str(x).find("e") != -1 else str(x)+"d0",
+    numpy.float32: str,
+    numpy.bool_  : lambda x : "1" if x else "0"
+    # The case for integers is handled inside lispify function. At best, you would want a way to compare / check for subtypes to avoid casing on u/int64/32/16/8.
+})
 
 def lispify_handle(obj):
     """
@@ -275,15 +270,14 @@ def lispify(obj):
         else: return lispify_handle(obj)
 
     try:
-        if isinstance(obj, Exception): return str(obj)
-        else: return lispifiers[type(obj)](obj)
-    except KeyError:
-        # Special handling for numbers. This should catch NumPy types
-        # as well as built-in numeric types
-        if isinstance(obj, numeric_base_classes):
+        if isinstance(obj, Exception):
             return str(obj)
-        
-        # Another unknown type. Return a handle to a python object
+        elif isinstance(obj, numpy.integer):
+            return str(obj)
+        else:
+            return lispifiers[type(obj)](obj)
+    except KeyError:
+        # Unknown type. Return a handle to a python object
         return lispify_handle(obj)
 
 def generator(function, stop_value):
@@ -315,7 +309,7 @@ def send_value(value):
     """
     try:
         # if type(value) == str and return_values > 0:
-            # value_str = value # to handle stringified-errors along with remote-objects
+        # value_str = value # to handle stringified-errors along with remote-objects
         # else:
         value_str = lispify(value)
     except Exception as e:
@@ -346,7 +340,7 @@ def pythonize(value): # assumes the symbol name is downcased by the lisp process
     In particular, replaces "-" with "_"
     """
     return str(value)[1:].replace("-", "_")
-        
+
 def message_dispatch_loop():
     """
     Wait for a message, dispatch on the type of message.
@@ -362,13 +356,17 @@ def message_dispatch_loop():
             output_stream.flush()
             # Read command type
             cmd_type = sys.stdin.read(1)
+            # It is possible that python would have finished sending the data to CL
+            # but CL would still not have finished processing. We will receive further
+            # instructions only after CL has finished processing, and therefore we can delete
+            # the arrays. (TODO: But how does this happen with callbacks?)
             delete_numpy_pickle_arrays()
             
             if cmd_type == "e":  # Evaluate an expression
                 expr = recv_string()
                 # if expr not in cache:
-                  # print("Adding " + expr + " to cache")
-                  # cache[expr] = eval("lambda : " + expr, eval_globals, eval_locals)
+                # print("Adding " + expr + " to cache")
+                # cache[expr] = eval("lambda : " + expr, eval_globals, eval_locals)
                 # result = cache[expr]()
                 result = eval(expr, eval_globals, eval_locals)
                 return_value(result)
@@ -395,7 +393,7 @@ def message_dispatch_loop():
 # Store for python objects which cannot be translated to Lisp objects
 python_objects = {}
 python_handle = itertools.count(0)
- 
+
 # Make callback function accessible to evaluation
 eval_globals["_py4cl_LispCallbackObject"] = LispCallbackObject
 eval_globals["_py4cl_Symbol"] = Symbol
@@ -409,7 +407,7 @@ try:
     # NumPy is used for Lisp -> Python conversion of multidimensional arrays
     eval_globals["_py4cl_numpy"] = numpy
     eval_globals["_py4cl_load_pickled_ndarray"] \
-      = load_pickled_ndarray
+        = load_pickled_ndarray
 except:
     pass
 

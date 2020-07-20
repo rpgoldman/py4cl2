@@ -16,7 +16,7 @@
 (defsuite objects (py4cl))
 (defsuite numpy-ufunc (py4cl))
 (defsuite py4cl-config (py4cl))
-(defsuite array-element-type (py4cl))
+(defsuite element-type (py4cl))
 (defsuite array-type (py4cl))
 
 (py4cl2:pystart)
@@ -282,7 +282,7 @@ world"))
 
 (deftest pycall-dotted-function (callpython-utility)
   (py4cl2:pyexec "import math")
-  (assert-equalp (sqrt 42)
+  (assert-equalp (sqrt 42d0)
       (py4cl2:pycall "math.sqrt" 42)))
 
 (deftest pycall-lambda-function (callpython-utility)
@@ -577,7 +577,7 @@ class testclass:
                   (trivial-arguments:arglist #'kw-rest-args)))))
 
 (deftest defpymodule-math (import-export)
-  (assert-equalp (cos 45) (math:cos 45)))
+  (assert-equalp (cos 45d0) (math:cos 45)))
 
 (define-pyfun-with-test defpyfun-names
     ((py4cl2:pyexec "def foo(A, b): return True")
@@ -621,7 +621,7 @@ class testclass:
 ;; Python can't eval write-to-string's output "3.141592653589793d0"
 (deftest callback-return-double (import-export)
   (py4cl2:export-function (lambda () pi) "test")
-  (assert-equalp 3.1415927
+  (assert-equalp pi
       (py4cl2:pyeval "test()")))
 
 (deftest callback-one-arg (import-export)
@@ -920,13 +920,18 @@ class Foo():
       (assert-true (numcl:numcl-array-p a))
       (assert-true (numcl:numcl-array-p b)))))
 
-;; ==================== ARRAY-ELEMENT-TYPE ==============================
-(deftest array-element-type (array-element-type)
+;; ==================== ELEMENT-TYPE ==============================
+(deftest float-type (element-type)
+  (assert-eql 1.0d5 (pyeval 1.0d5))
+  (assert-eql 1.0e5 (pyeval 1.0e5))
+  (assert-eql 1.0 (pyeval 1.0)))
+
+(deftest array-element-type (element-type)
   (let ((lower-bound (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound)))
     (flet ((pyeval-array (dimensions element-type initial-element)
              (array-element-type
               (pyeval (pyeval (make-array dimensions :element-type element-type
-                                          :initial-element initial-element))))))
+                                                     :initial-element initial-element))))))
 
       (skip-on (:abcl)
                ;; Without pickling
