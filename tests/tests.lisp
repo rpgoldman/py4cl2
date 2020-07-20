@@ -641,7 +641,7 @@ class testclass:
 ;; Python can't eval write-to-string's output "3.141592653589793d0"
 (deftest callback-return-double (import-export)
   (py4cl2:export-function (lambda () pi) "test")
-  (assert-equalp pi
+  (assert-eql #.(coerce pi 'double-float)
       (py4cl2:pyeval "test()")))
 
 (deftest callback-one-arg (import-export)
