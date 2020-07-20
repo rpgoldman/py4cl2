@@ -117,10 +117,12 @@ which is interpreted correctly by python (3.7.2)."
                            (write-char #\, stream)
                            (princ (pythonize (row-major-aref obj indx)) stream))
                          (write-char #\] stream))))
-          (return-from pythonize (concatenate 'string
-                                              "_py4cl_numpy.resize(" array1d ", "
-                                              (pythonize (array-dimensions obj)) ")"
-                                              astype-string))))))
+          (if (typep obj 'vector)
+              array1d
+              (concatenate 'string
+                           "_py4cl_numpy.resize(" array1d ", "
+                           (pythonize (array-dimensions obj)) ")"
+                           astype-string))))))
 
 (defmethod pythonize ((obj cons))
   "Convert a list. This leaves a trailing comma so that python

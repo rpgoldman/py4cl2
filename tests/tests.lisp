@@ -926,6 +926,10 @@ class Foo():
   (assert-eql 1.0e5 (pyeval 1.0e5))
   (assert-eql 1.0 (pyeval 1.0)))
 
+(deftest simple-vector (element-type)
+  (assert-equalp #("hello" "world")
+      (pyeval #("hello" "world"))))
+
 (deftest array-element-type (element-type)
   (let ((lower-bound (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound)))
     (flet ((pyeval-array (dimensions element-type initial-element)
