@@ -334,11 +334,17 @@ world"))
     (assert-equalp 2
         (py4cl2:pycall "len" table))))
 
-(deftest pymethod (callpython-utility)
+(deftest pymethod-symbol-as-fun-name (callpython-utility)
   (assert-equalp 3
       (py4cl2:pymethod '(1 2 3) '__len__))
   (assert-equalp "hello world"
       (py4cl2:pymethod "hello {0}" 'format "world")))
+
+(deftest pymethod-string-as-fun-name (callpython-utility)
+  (assert-equalp 3
+      (py4cl2:pymethod '(1 2 3) "__len__"))
+  (assert-equalp "hello world"
+      (py4cl2:pymethod "hello {0}" "format" "world")))
 
 (deftest pygenerator (callpython-utility)
   (assert-equalp "<class 'generator'>"
@@ -348,15 +354,15 @@ def foo(gen):
   return list(gen)")
   (assert-equalp #(1 2 3 4)
       (let ((gen (py4cl2:pygenerator (let ((x 0)) (lambda () (incf x)))
-                                    5)))
+                                     5)))
         (py4cl2:pycall 'foo gen)))
   (assert-equalp #(#\h #\e #\l #\l #\o) 
       (let ((gen (py4cl2:pygenerator (let ((str (make-string-input-stream "hello")))
-                                      (lambda () (read-char str nil)))
-                                    nil)))
+                                       (lambda () (read-char str nil)))
+                                     nil)))
         (py4cl2:pycall 'foo gen))))
 
-(deftest pyslot-value (callpython-utility)
+(deftest pyslot-value-symbol-as-slot (callpython-utility)
   (assert-equalp 5
       (progn
         (py4cl2:pyexec "a=5")
@@ -371,6 +377,20 @@ temp = Foo()")
       (let ((s 'b) (temp (py4cl2:pycall "Foo")))
         (list (py4cl2:pyslot-value "temp" 'a)
               (py4cl2:pyslot-value temp s)))))
+
+(deftest pyslot-value-string-as-slot (callpython-utility)
+  (assert-equalp 5
+      (progn
+        (py4cl2:pyexec "a=5")
+        (py4cl2:pyslot-value "a" "real")))
+  (py4cl2:pyexec "
+class Foo:
+  def __init__(self):
+    self.a = 5
+    self.b = 10
+temp = Foo()")
+  (assert-equalp 5
+      (py4cl2:pyslot-value "temp" "a")))
 
 ;; ========================= CALLPYTHON-CHAIN ==================================
 

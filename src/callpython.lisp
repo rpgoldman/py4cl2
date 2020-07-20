@@ -116,44 +116,44 @@ will result in 'sys' name not defined PYERROR."
 
 ;; =========================== UTILITY FUNCTIONS ===============================
 
-(defun pythonizep (value)
-  "Determines if VALUE should be pythonized."
-  (or (not (stringp value)) ; do not pythonize if
-      (realp (ignore-errors (parse-number:parse-number value)))))
+(labels ((pythonizep (value)
+           "Determines if VALUE should be pythonized."
+           (or (not (stringp value)) ; do not pythonize if
+               (realp (ignore-errors (parse-number:parse-number value)))))
+         (pythonize-if-needed (value)
+           (if (pythonizep value) (pythonize value) value)))
 
-(defun pythonize-if-needed (value)
-  (if (pythonizep value) (pythonize value) value))
-
-(defun pyeval (&rest args)
-  "Calls python eval on args; PYTHONIZEs arg if it satisfies PYTHONIZEP.
+  (defun pyeval (&rest args)
+    "Calls python eval on args; PYTHONIZEs arg if it satisfies PYTHONIZEP.
 Eg.
   > (let ((a 5)) (pyeval a \"*\" a)) 
   25"
-  (python-start-if-not-alive)
-  (delete-freed-python-objects) ; delete before pythonizing
-  (delete-numpy-pickle-arrays)
-  (apply #'raw-pyeval (mapcar #'pythonize-if-needed args)))
+    (python-start-if-not-alive)
+    (delete-freed-python-objects) ; delete before pythonizing
+    (delete-numpy-pickle-arrays)
+    (apply #'raw-pyeval (mapcar #'pythonize-if-needed args)))
 
-(defun pyexec (&rest args)
-  "Calls python exec on args; PYTHONIZEs arg if it satisfies PYTHONIZEP."
-  (python-start-if-not-alive)
-  (delete-freed-python-objects) ; delete before pythonizing
-  (delete-numpy-pickle-arrays)
-  (apply #'raw-pyexec (mapcar #'pythonize-if-needed args)))
+  (defun pyexec (&rest args)
+    "Calls python exec on args; PYTHONIZEs arg if it satisfies PYTHONIZEP."
+    (python-start-if-not-alive)
+    (delete-freed-python-objects) ; delete before pythonizing
+    (delete-numpy-pickle-arrays)
+    (apply #'raw-pyexec (mapcar #'pythonize-if-needed args)))
 
-;; One argument for the name (setf pyeval) is that it sets the "place" returned
-;; by pyeval.
-(defun (setf pyeval) (value &rest args)
-  "Set an expression to a value. Just adds \"=\" and the value
+  ;; One argument for the name (setf pyeval) is that it sets the "place" returned
+  ;; by pyeval.
+  (defun (setf pyeval) (value &rest args)
+    "Set an expression to a value. Just adds \"=\" and the value
 to the end of the expression. Note that the result is evaluated
 with exec rather than eval.
 Example:
     (setf (pyeval \"a\") 2)  ; python \"a=2\"
 Can be useful for modifying a value directly in python.
 "
-  (python-start-if-not-alive)
-  (apply #'pyexec (append args (list "=" value))) ; would nconc be better?
-  value)
+    (python-start-if-not-alive)
+    (apply #'pyexec (append args (list "=" value))) ; would nconc be better?
+    value))
+
 
 (defun %pycall-args (&rest args)
   (apply #'concatenate
@@ -169,18 +169,21 @@ Can be useful for modifying a value directly in python.
                               (collect ","))))
              ")")))
 
-(defun pycall (fun-name &rest args)
-  "Calls FUN-NAME with ARGS as arguments. Arguments can be keyword based, or 
- otherwise."
-  (raw-pyeval "("
-              (typecase fun-name
-                (string fun-name)
-                (t (pythonize fun-name)))
-              ")"
-              (apply #'%pycall-args args)))
+(flet ((pythonize-if-needed (name)
+         (if (stringp name)
+             name
+             (pythonize name))))
 
-(defun pymethod (object method &rest args)
-  "PYCALLs METHOD of OBJECT with ARGS
+  (defun pycall (fun-name &rest args)
+    "Calls FUN-NAME with ARGS as arguments. Arguments can be keyword based, or 
+ otherwise."
+    (raw-pyeval "("
+                (pythonize-if-needed fun-name)
+                ")"
+                (apply #'%pycall-args args)))
+
+  (defun pymethod (object method &rest args)
+    "PYCALLs METHOD of OBJECT with ARGS
 Examples:
   > (pymethod \"'hello {0}'\" 'format \"world\") 
   \"hello world\"
@@ -188,17 +191,19 @@ Examples:
   3
 Note: FUN-NAME is NOT PYTHONIZEd if it is a string.
 "
-  (python-start-if-not-alive)
-  (apply #'pycall
-         (concatenate 'string
-                      (pythonize object) "." (pythonize method))
-         args))
+    (python-start-if-not-alive)
+    (apply #'pycall
+           (concatenate 'string
+                        (pythonize object)
+                        "."
+                        (pythonize-if-needed method))
+           args))
+  
+  (defun pyslot-value (object slot-name)
+    (pyeval object "." (pythonize-if-needed slot-name))))
 
 (defun pygenerator (function stop-value)
   (pycall "_py4cl_generator" function stop-value))
-
-(defun pyslot-value (object slot-name)
-  (pyeval object "." (pythonize slot-name)))
 
 (defun pyversion-info ()
   "Return a list, using the result of python's sys.version_info."

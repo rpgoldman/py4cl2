@@ -138,8 +138,8 @@ Load into REPL with
 ### Tests
 
 ```lisp
-(ql:quickload :py4cl2-tests)
-(py4cl2-tests:run)
+(ql:quickload "py4cl2/tests")
+(py4cl2/tests:run)
 ```
 
 
