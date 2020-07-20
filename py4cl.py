@@ -359,6 +359,7 @@ def message_dispatch_loop():
     global return_values  # Controls whether values or handles are returned
     while True:
         try:
+            output_stream.flush()
             # Read command type
             cmd_type = sys.stdin.read(1)
             delete_numpy_pickle_arrays()
