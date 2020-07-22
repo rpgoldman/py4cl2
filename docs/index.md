@@ -809,21 +809,25 @@ reader; the lisp function `pythonize` outputs strings which can be
 
 
 ```
-| Lisp type | Python type           |
-|-----------+-----------------------|
-| NIL       | False                 |
-| integer   | int                   |
-| ratio     | fraction.Fractions    |
-| real      | float                 |
-| complex   | complex float         |
-| string    | str                   |
-| hash map  | dict                  |
-| list      | tuple                 |
-| vector    | list                  |
-| array     | NumPy array           |
-| symbol    | Symbol class          |
-| function  | function              |
+| Lisp type               | Python type           |
+|-------------------------+-----------------------|
+| NIL                     | False                 |
+| integer                 | int                   |
+| ratio                   | fraction.Fractions    |
+| real                    | float                 |
+| complex                 | complex float         |
+| string                  | str                   |
+| hash map                | dict                  |
+| list                    | tuple                 |
+| unspecialized vector    | list                  |
+| (un)specialized array   | NumPy array*          |
+| single-float            | numpy.float32         |
+| double-float            | float                 |
+| symbol                  | Symbol class          |
+| function                | function              |
 ```
+
+\*The currently supported numpy types include: `((un)signed-byte XX)` where XX can be from `(08 16 32 64)`, and arrays of `bit`s. Raise an [issue](https://github.com/digikar99/py4cl2/issues) if you want more types supported or this functionality exposed to the user.
 
 Special conversion rules include:
 
