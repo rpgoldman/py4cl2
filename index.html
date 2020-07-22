@@ -115,11 +115,9 @@
     </li>
         </ul>
     </li>
-    <li class="toctree-l3"><a class="reference internal" href="#interfacing-with-numcl-arrays">Interfacing with numcl arrays</a>
+    <li class="toctree-l3"><a class="reference internal" href="#interfacing-with-non-cl-arrays">Interfacing with non-cl arrays</a>
         <ul>
-    <li class="toctree-l4"><a class="reference internal" href="#use-numcl-arrays">use-numcl-arrays</a>
-    </li>
-    <li class="toctree-l4"><a class="reference internal" href="#with-numcl-arrays">with-numcl-arrays</a>
+    <li class="toctree-l4"><a class="reference internal" href="#arrayfiers-and-array-type">*arrayfiers* and *array-type*</a>
     </li>
         </ul>
     </li>
@@ -220,7 +218,7 @@
             <div class="section">
               
                 <h1 id="py4cl2">py4cl2</h1>
-<p>[Last update: v2.3.0]</p>
+<p>[Last update: v2.4.0]</p>
 <h2 id="introduction">Introduction</h2>
 <p><a href="https://github.com/bendudson/py4cl">py4cl</a> is a package by Ben Dudson, aimed at making python libraries availble in Common Lisp,
 using streams to communicate with a separate python process - the approach taken by <a href="https://github.com/marcoheisig/cl4py">cl4py</a>. This is
@@ -295,6 +293,13 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 <td>✓</td>
 </tr>
 <tr>
+<td>array-element-type preservation</td>
+<td>✓</td>
+<td>✓</td>
+<td>✓</td>
+<td>✗</td>
+</tr>
+<tr>
 <td>Fast Large Array Transfer</td>
 <td>✓</td>
 <td>✓</td>
@@ -342,8 +347,8 @@ location where it can be discovered by <code>quicklisp</code>:</p>
 </code></pre>
 
 <h3 id="tests">Tests</h3>
-<pre><code class="lisp">(ql:quickload :py4cl2-tests)
-(py4cl2-tests:run)
+<pre><code class="lisp">(ql:quickload &quot;py4cl2/tests&quot;)
+(py4cl2/tests:run)
 </code></pre>
 
 <h3 id="setting-up">Setting up</h3>
@@ -361,7 +366,7 @@ Using a ram-disk is recommended for this purpose. (<a href="https://unix.stackex
 <pre><code class="lisp">CL-USER&gt; py4cl2:*config*
 ((PY4CL2:PYCMD . &quot;/home/user/miniconda3/bin/python&quot;)
  (PY4CL2:NUMPY-PICKLE-LOCATION . &quot;/home/user/ram-disk/_numpy_pickle.npy&quot;)
- (PY4CL2:NUMPY-PICKLE-LOWER-BOUND . 100000) (USE-NUMCL-ARRAYS . T))
+ (PY4CL2:NUMPY-PICKLE-LOWER-BOUND . 100000))
 CL-USER&gt; (py4cl2:config-var 'py4cl2:numpy-pickle-location)
 &quot;/home/user/ram-disk/_numpy_pickle.npy&quot;
 CL-USER&gt; (setf (config-var 'py4cl2:pycmd) &quot;python&quot;)
@@ -543,12 +548,17 @@ to call a callable (in Python) object, but not defined as a function in Common L
 you'd need to use something like <a href="#pycall">pycall</a>.</p>
 <h4 id="defpyfuns">defpyfuns</h4>
 <p>(Undocumented here.)</p>
-<h3 id="interfacing-with-numcl-arrays">Interfacing with numcl arrays</h3>
-<h4 id="use-numcl-arrays">use-numcl-arrays</h4>
-<p>When <code>(config-var 'use-numcl-arrays)</code> is <code>T</code>, arrays are converted to <code>numcl:numcl-array</code> type. This can be beneficial for doing array manipulation efficiently inside common lisp itself. However, this does introduce overhead, while casting to <code>numcl:numcl-array</code> while passing arrays around. This setting is global.</p>
-<h4 id="with-numcl-arrays">with-numcl-arrays</h4>
-<p><code>(with-numcl-arrays t/nil &amp;body body)</code></p>
-<p>While <code>(config-var 'use-numcl-arrays)</code> is useful as a global configuration variable, this macro can be used to set the value of the <code>(config-var 'use-numcl-arrays)</code> locally for the execution of <code>body</code>.</p>
+<h3 id="interfacing-with-non-cl-arrays">Interfacing with non-cl arrays</h3>
+<h4 id="arrayfiers-and-array-type">*arrayfiers* and *array-type*</h4>
+<p><code>(GETF *ARRAYFIERS* *ARRAY-TYPE*)</code> should return a single argument function that converts the ARRAY into the required type. An example is given in tests:</p>
+<pre><code class="lisp">(let ((*array-type* :numcl)
+      (*arrayfiers* (append (list :numcl #'numcl:asarray)
+                            *arrayfiers*)))
+  (destructuring-bind (a b) (pyeval &quot;(&quot; #(1 2 3) &quot;, &quot; #2A((1 2 3) (4 5 6)) &quot;)&quot;)
+                      (assert-true (numcl:numcl-array-p a))
+                      (assert-true (numcl:numcl-array-p b))))
+</code></pre>
+
 <h3 id="pyerror">pyerror</h3>
 <p>(Undocumented here.)</p>
 <h3 id="using-functions-and-methods">Using functions and methods</h3>
@@ -869,22 +879,25 @@ yourself:</p>
 <code>lispify</code> converts values to a form which can be read by the lisp
 reader; the lisp function <code>pythonize</code> outputs strings which can be
 <code>eval</code>'d in python. The following type conversions are done:</p>
-<pre><code>| Lisp type | Python type           |
-|-----------+-----------------------|
-| NIL       | False                 |
-| integer   | int                   |
-| ratio     | fraction.Fractions    |
-| real      | float                 |
-| complex   | complex float         |
-| string    | str                   |
-| hash map  | dict                  |
-| list      | tuple                 |
-| vector    | list                  |
-| array     | NumPy array           |
-| symbol    | Symbol class          |
-| function  | function              |
+<pre><code>| Lisp type               | Python type           |
+|-------------------------+-----------------------|
+| NIL                     | False                 |
+| integer                 | int                   |
+| ratio                   | fraction.Fractions    |
+| real                    | float                 |
+| complex                 | complex float         |
+| string                  | str                   |
+| hash map                | dict                  |
+| list                    | tuple                 |
+| unspecialized vector    | list                  |
+| (un)specialized array   | NumPy array*          |
+| single-float            | numpy.float32         |
+| double-float            | float                 |
+| symbol                  | Symbol class          |
+| function                | function              |
 </code></pre>
 
+<p>*The currently supported numpy types include: <code>((un)signed-byte XX)</code> where XX can be from <code>(08 16 32 64)</code>, and arrays of <code>bit</code>s. Raise an <a href="https://github.com/digikar99/py4cl2/issues">issue</a> if you want more types supported or this functionality exposed to the user.</p>
 <p>Special conversion rules include:</p>
 <pre><code>nil     False
 t       True
@@ -1003,5 +1016,5 @@ T
 
 <!--
 MkDocs version : 1.1
-Build Date UTC : 2020-06-20 09:43:25
+Build Date UTC : 2020-07-22 12:25:50
 -->
