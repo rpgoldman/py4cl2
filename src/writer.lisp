@@ -117,7 +117,8 @@ which is interpreted correctly by python (3.7.2)."
                            (write-char #\, stream)
                            (princ (pythonize (row-major-aref obj indx)) stream))
                          (write-char #\] stream))))
-          (if (typep obj 'vector)
+          (if (and (= 1 (array-rank obj))
+                   (eq t (array-element-type obj)))
               array1d
               (concatenate 'string
                            "_py4cl_numpy.resize(" array1d ", "

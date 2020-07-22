@@ -953,14 +953,16 @@ class Foo():
 (deftest array-element-type (element-type)
   (let ((lower-bound (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound)))
     (flet ((pyeval-array (dimensions element-type initial-element)
-             (array-element-type
-              (pyeval (pyeval (make-array dimensions :element-type element-type
-                                                     :initial-element initial-element))))))
+             (let* ((array (pyeval (make-array dimensions :element-type element-type
+                                                          :initial-element initial-element)))
+                    (first-pass (pyeval array))
+                    (second-pass (pyeval array)))
+               (array-element-type second-pass))))
 
       (skip-on (:abcl)
                ;; Without pickling
                (assert-true
-                   (every (lambda (args) (or (apply #'alexandria:type= args) t))
+                   (every (lambda (args) (apply #'alexandria:type= args))
                           (list (list 'double-float (pyeval-array 10 'double-float 0.0d0))
                                 (list 'single-float (pyeval-array 10 'single-float 0.0))
                                 (list '(signed-byte 64) (pyeval-array 10 '(signed-byte 64) 0))
