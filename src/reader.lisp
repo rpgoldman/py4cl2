@@ -35,12 +35,12 @@ except:
 (defun delete-numpy-pickle-arrays ()
   "Delete pickled arrays, to free space."
   (iter (while (> *numpy-pickle-index* 0))
-        (for filename =
-             (concatenate 'string
-                          (config-var 'numpy-pickle-location)
-                          ".to." (write-to-string *numpy-pickle-index*)))
-        (uiop:delete-file-if-exists filename)
-        (decf *numpy-pickle-index*)))
+    (decf *numpy-pickle-index*)
+    (for filename =
+         (concatenate 'string
+                      (config-var 'numpy-pickle-location)
+                      ".to." (write-to-string *numpy-pickle-index*)))
+    (uiop:delete-file-if-exists filename)))
 
 (defun make-python-object-finalize (&key (type "") handle)
     "Make a PYTHON-OBJECT struct with a finalizer.

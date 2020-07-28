@@ -187,11 +187,11 @@ def load_pickled_ndarray(filename):
 def delete_numpy_pickle_arrays():
     global NUMPY_PICKLE_INDEX
     while NUMPY_PICKLE_INDEX:
+        NUMPY_PICKLE_INDEX -= 1
         numpy_pickle_location = config["numpyPickleLocation"] \
             + ".from." + str(NUMPY_PICKLE_INDEX)
         if os.path.exists(numpy_pickle_location):
             os.remove(numpy_pickle_location)
-        NUMPY_PICKLE_INDEX -= 1
 
 numpy_cl_type = {
     numpy.dtype("int64"): "(cl:quote (cl:signed-byte 64))",

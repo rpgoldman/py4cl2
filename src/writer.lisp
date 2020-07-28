@@ -94,7 +94,8 @@ which is interpreted correctly by python (3.7.2)."
                    (config-var 'numpy-pickle-lower-bound)))
       (let ((filename (concatenate 'string
                                    (config-var 'numpy-pickle-location)
-                                   ".to." (write-to-string (incf *numpy-pickle-index*)))))
+                                   ".to." (write-to-string *numpy-pickle-index*))))
+        (incf *numpy-pickle-index*)
         (numpy-file-format:store-array obj filename)
         (return-from pythonize
           (concatenate 'string "_py4cl_load_pickled_ndarray('"
