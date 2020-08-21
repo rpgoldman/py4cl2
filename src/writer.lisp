@@ -147,19 +147,13 @@ evals a list with a single element as a tuple
 
 (defmethod pythonize ((obj string))
   (let ((python-value (cdr (assoc obj *lisp-to-python-alist* :test 'equalp))))
-    (cond (python-value python-value)
-          ((find-if (lambda (ch) (char= #\newline ch)) obj)
-           (with-output-to-string (return-string)
-             (write-string "\"\"\"" return-string)
-             (write-string
-              (let ((escaped-string (write-to-string (coerce obj
-                                                             '(vector character))
-                                                     :escape t :readably t)))
-                (subseq escaped-string 1 (1- (length escaped-string))))
-              return-string)
-             (write-string "\"\"\"" return-string)))
-          (t (write-to-string (coerce obj '(vector character))
-                              :escape t :readably t)))))
+    (if python-value
+        python-value
+        (format nil (if (find #\newline obj)
+                  "\"\"~A\"\""
+                  "~A")
+          (write-to-string (coerce obj '(vector character))
+                           :escape t :readably t)))))
 
 (defvar *lisp-to-python-alist*
   '((t . "True")
