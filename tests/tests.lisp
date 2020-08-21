@@ -974,7 +974,8 @@ class Foo():
                                 (list '(unsigned-byte 16) (pyeval-array 10 '(unsigned-byte 16) 0))
                                 (list '(unsigned-byte 08) (pyeval-array 10 '(unsigned-byte 08) 0))
 
-                                (list 'bit (pyeval-array 10 'bit 1))))))
+                                (list 'bit (pyeval-array 10 'bit 1))
+                                (list t (pyeval-array 10 t (make-test-struct)))))))
 
       (skip-on (:abcl)
                ;; Without pickling - empty arrays
@@ -991,7 +992,8 @@ class Foo():
                                 (list '(unsigned-byte 16) (pyeval-array 0 '(unsigned-byte 16) 0))
                                 (list '(unsigned-byte 08) (pyeval-array 0 '(unsigned-byte 08) 0))
 
-                                (list 'bit (pyeval-array 0 'bit 1))))))
+                                (list 'bit (pyeval-array 0 'bit 1))
+                                (list t (pyeval-array 0 t (make-test-struct)))))))
 
 
       ;; The below should use pickling
@@ -1002,19 +1004,19 @@ class Foo():
                                                                   'double-float 0.0d0))
                                 (list 'single-float (pyeval-array (list 2 lower-bound)
                                                                   'single-float 0.0))
-                                (list '(signed-byte 64) (pyeval-array (list 2 100000)
+                                (list '(signed-byte 64) (pyeval-array (list 2 lower-bound)
                                                                       '(signed-byte 64) 0))
-                                (list '(signed-byte 32) (pyeval-array (list 2 100000)
+                                (list '(signed-byte 32) (pyeval-array (list 2 lower-bound)
                                                                       '(signed-byte 32) 0))
-                                (list '(signed-byte 16) (pyeval-array (list 2 100000)
+                                (list '(signed-byte 16) (pyeval-array (list 2 lower-bound)
                                                                       '(signed-byte 16) 0))
-                                (list '(signed-byte 08) (pyeval-array (list 2 100000)
+                                (list '(signed-byte 08) (pyeval-array (list 2 lower-bound)
                                                                       '(signed-byte 08) 0))
-                                (list '(unsigned-byte 64) (pyeval-array (list 2 100000)
+                                (list '(unsigned-byte 64) (pyeval-array (list 2 lower-bound)
                                                                         '(unsigned-byte 64) 0))
-                                (list '(unsigned-byte 32) (pyeval-array (list 2 100000)
+                                (list '(unsigned-byte 32) (pyeval-array (list 2 lower-bound)
                                                                         '(unsigned-byte 32) 0))
-                                (list '(unsigned-byte 16) (pyeval-array (list 2 100000)
+                                (list '(unsigned-byte 16) (pyeval-array (list 2 lower-bound)
                                                                         '(unsigned-byte 16) 0))
-                                (list '(unsigned-byte 08) (pyeval-array (list 2 100000)
+                                (list '(unsigned-byte 08) (pyeval-array (list 2 lower-bound)
                                                                         '(unsigned-byte 08) 0)))))))))

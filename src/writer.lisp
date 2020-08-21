@@ -88,7 +88,8 @@ which is interpreted correctly by python (3.7.2)."
                                                   :test #'type=)))
                           (concatenate 'string ".astype('" type "')")
                           "")))
-    (when (and (config-var 'numpy-pickle-lower-bound)
+    (when (and (not (eq t (array-element-type obj)))
+               (config-var 'numpy-pickle-lower-bound)
                (config-var 'numpy-pickle-location)
                (>= (array-total-size obj)
                    (config-var 'numpy-pickle-lower-bound)))
@@ -100,6 +101,10 @@ which is interpreted correctly by python (3.7.2)."
         (return-from pythonize
           (concatenate 'string "_py4cl_load_pickled_ndarray('"
                        filename "')" astype-string))))
+
+    ;; TODO: Enable passing of structs as multidimensional arrays.
+    ;; Requires __array_interface__
+    ;; Probable Required Reading: https://numpy.org/doc/stable/reference/arrays.interface.html
 
     ;; Handle case of empty array
     (if (= (array-total-size obj) 0)

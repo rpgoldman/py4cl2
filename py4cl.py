@@ -205,6 +205,7 @@ numpy_cl_type = {
     numpy.dtype("bool_"): "(cl:quote cl:bit)",
     numpy.dtype("float64"): "(cl:quote cl:double-float)",
     numpy.dtype("float32"): "(cl:quote cl:single-float)",
+	numpy.dtype("object"): "cl:t",
 }
 
 def numpy_to_cl_type(numpy_type):
@@ -236,7 +237,7 @@ def lispify_ndarray(obj):
         return lispify(numpy.asscalar(obj))
 
     array = "(cl:make-array " + str(obj.size) + " :initial-contents (cl:list " \
-        + " ".join(map(lispify, numpy.ndarray.flatten(obj))) + ") :element-type" \
+        + " ".join(map(lispify, numpy.ndarray.flatten(obj))) + ") :element-type " \
         + numpy_to_cl_type(obj.dtype) + ")"
     array = "(cl:make-array (cl:quote " + lispify(obj.shape) + ") :element-type " \
         + numpy_to_cl_type(obj.dtype) + " :displaced-to " + array + " :displaced-index-offset 0)"
