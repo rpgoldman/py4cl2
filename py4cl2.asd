@@ -37,7 +37,7 @@
   :depends-on ("py4cl2"
                #-(or :ecl :abcl)
                "numcl"
-			   "alexandria"
+               "alexandria"
                "clunit"
                "trivial-garbage"
                "trivial-arguments")
