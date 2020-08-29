@@ -22,7 +22,8 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 - Multiple python processes (not documented here) - parallel execution?
 - Tested on SBCL, CCL, ABCL, and ECL 
 - No support for inheriting python classes - should require MOP
-- Embeddable into lisp-image - the code from py4cl.py is copied into `*python-code*` and heredocs are used. (Maintainer note: This requires not using single-quote character `'` in py4cl.py.
+- Windows support is flaky and until `(pyeval "'\n'")` works, this is as good as non-existent
+- Embeddable into lisp-image - the code from py4cl.py is copied into `*python-code*` and heredocs are used. This is made to happen for unix and not for windows; until someone gets into Windows heredocs. (Maintainer note: This entails not using single-quote character `'` in py4cl.py.) Also note that this still requires the developer (= py4cl2 user) to supply the python libraries and binaries along with the lisp image.
 
 <div><img src="readme_slime.png" width="80%" style="margin:auto; display:block;"/></div>
 <!-- ![slime-demo-image](readme_slime.png) -->
