@@ -35,7 +35,7 @@ See https://askubuntu.com/questions/1118109/how-do-i-tell-if-a-command-is-runnin
 
 (defun pystart (&optional (command (config-var 'pycmd)))
   "Start a new python subprocess
-This sets the global variable *python* to the process phandle,
+This sets the global variable *python* to the process handle,
 in addition to returning it.
 COMMAND is a string with the python executable to launch e.g. \"python\"
 By default this is is set to *PYTHON-COMMAND*
@@ -43,6 +43,20 @@ By default this is is set to *PYTHON-COMMAND*
   (loop :until (python-alive-p)
         :do (setq *python*
                   (uiop:launch-program
+                   #+windows
+                   (concatenate 'string
+                                command
+                                " -u "
+                                (namestring
+                                 (asdf:component-pathname
+                                  (asdf:find-component
+                                   :py4cl2 "python-code")))
+                                " "
+                                (directory-namestring
+                                 (asdf:component-pathname
+                                  (asdf:find-component
+                                   :py4cl2 "python-code"))))
+                   #+unix
                    (concatenate 'string
                                 "bash -c '"
                                 command        ; Run python executable

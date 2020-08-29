@@ -29,9 +29,10 @@
   (setq *python-process-busy-p* t)
   (let* ((read-stream (uiop:process-info-output process))
          (write-stream (uiop:process-info-input process))
+         (message-char (read-char read-stream)) ; First character is type of message
          (return-value
           (loop
-             (case (read-char read-stream) ; First character is type of message
+             (case message-char
                (#\r (return (stream-read-value read-stream)))  ; Returned value
 
                (#\e (error 'pyerror  
@@ -70,7 +71,7 @@
                 (let ((print-string (stream-read-value read-stream)))
                   (princ print-string)))
                
-               (otherwise (error "Unhandled message type"))))))
+               (otherwise (error "Unhandled message type '~d'" message-char))))))
     (setq *python-process-busy-p* nil)
     return-value))
 

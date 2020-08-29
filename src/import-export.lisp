@@ -302,25 +302,28 @@ Arguments:
                  "pkgutil.iter_modules("
                  pymodule-name
                  ".__path__))")))
+    (when (and (stringp submodules)
+               (string= "None" submodules))
+      (setq submodules nil))
     (iter (for (submodule has-submodules) in submodules)
-          (for submodule-fullname = (concatenate 'string
-                                                 pymodule-name "." submodule))
-          (when (and (char/= #\_ (aref submodule 0)) ; avoid private modules / packages
-                     ;; pkgutil is of type module
-                     ;; import matplotlib does not import matplotlib.pyplot
-                     ;; https://stackoverflow.com/questions/14812342/matplotlib-has-no-attribute-pyplot
-                     ;; We maintain these semantics.
-                     ;; The below form errors in the case of submodules and
-                     ;; therefore returns NIL.
-                     (ignore-errors (pyeval "type(" submodule-fullname
-                                            ") == type(pkgutil)")))
-            (collect (let ((*is-submodule* t))
-                       (macroexpand-1
-                        `(defpymodule ,submodule-fullname
-                             ,has-submodules
-                           :lisp-package ,(concatenate 'string lisp-package "."
-                                                       (lispify-name submodule))
-                           :continue-ignoring-errors ,continue-ignoring-errors))))))))
+      (for submodule-fullname = (concatenate 'string
+                                             pymodule-name "." submodule))
+      (when (and (char/= #\_ (aref submodule 0)) ; avoid private modules / packages
+                 ;; pkgutil is of type module
+                 ;; import matplotlib does not import matplotlib.pyplot
+                 ;; https://stackoverflow.com/questions/14812342/matplotlib-has-no-attribute-pyplot
+                 ;; We maintain these semantics.
+                 ;; The below form errors in the case of submodules and
+                 ;; therefore returns NIL.
+                 (ignore-errors (pyeval "type(" submodule-fullname
+                                        ") == type(pkgutil)")))
+        (collect (let ((*is-submodule* t))
+                   (macroexpand-1
+                    `(defpymodule ,submodule-fullname
+                         ,has-submodules
+                         :lisp-package ,(concatenate 'string lisp-package "."
+                                                     (lispify-name submodule))
+                         :continue-ignoring-errors ,continue-ignoring-errors))))))))
 
 (declaim (ftype (function (string string) pymodule-import-string)))
 (defun pymodule-import-string (pymodule-name lisp-package)
@@ -407,7 +410,8 @@ Arguments:
                                                                    pyfun-name)
                                                       lisp-package))
                                         (if (and (stringp fun-names)
-                                                 (string= "()" fun-names))
+                                                 (or (string= "()" fun-names)
+                                                     (string= "None" fun-names)))
                                             (setq fun-names ())
                                             fun-names))))
               ;; In order to create a DEFUN form, we need FUN-SYMBOL
