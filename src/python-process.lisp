@@ -110,29 +110,31 @@ By default this is is set to *PYTHON-COMMAND*
                  (iter outer
                    (while (and *python* (python-alive-p *python*)))
                    (for char =
-                     (progn
-                       (peek-char nil py-out nil)
-                       (when *in-with-python-output*
-                         (iter (while *in-with-python-output*)
-                           (bt:wait-on-semaphore *python-output-semaphore*))
-                         (in outer (next-iteration)))
-                       (read-char py-out nil)))
+                        (progn
+                          ;; PEEK-CHAR waits for input
+                          (peek-char nil py-out nil)
+                          (when *in-with-python-output*
+                            (iter (while *in-with-python-output*)
+                              (bt:wait-on-semaphore *python-output-semaphore*))
+                            (in outer (next-iteration)))
+                          (read-char py-out nil)))
                    (when char (write-char char)))))))))
   (incf *current-python-process-id*))
 
 (defvar *python-output-semaphore* (bt:make-semaphore))
 (defvar *python-output-thread*)
-(defvar *in-with-python-output* nil)
+(defvar *in-with-python-output* nil) ; This is more of a global variable than a dynamic variable.
 
 (defmacro with-python-output (&body forms-decl)
-  `(with-output-to-string (*standard-output*)
+  `(with-output-to-string (output-stream)
      (unwind-protect (progn
                        (setq *in-with-python-output* t)
                        ,@forms-decl
+                       (sleep 0.00002)
                        (let ((py-out (uiop:process-info-error-output *python*)))
                          (iter (while (listen py-out))
                            (for char = (read-char py-out nil))
-                           (when char (write-char char)))))
+                           (when char (write-char char output-stream)))))
        (setq *in-with-python-output* nil)
        (bt:signal-semaphore *python-output-semaphore*))))
 

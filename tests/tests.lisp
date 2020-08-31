@@ -81,7 +81,8 @@
 ;; SBCL can also stop inspite of it being implemented correctly.
 (deftest with-python-output-stress-test (callpython-raw)
   (skip-on (:ccl)
-           (iter (repeat 10000) (with-python-output (pyexec "print('hello')")))))
+           (iter (repeat 10000)
+             (string= "hello" (with-python-output (pyexec "print('hello', end = '')"))))))
 
 (deftest eval-integer (callpython-raw)
   (let ((result (py4cl2:raw-pyeval "1 + 2 * 3")))
