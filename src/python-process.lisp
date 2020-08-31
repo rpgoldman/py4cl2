@@ -40,54 +40,67 @@ in addition to returning it.
 COMMAND is a string with the python executable to launch e.g. \"python\"
 By default this is is set to *PYTHON-COMMAND*
 "
-  (loop :until (python-alive-p)
-        :do (setq *python*
-                  (uiop:launch-program
-                   #+windows
-                   (concatenate 'string
-                                command
-                                " -u "
-                                (namestring
-                                 (asdf:component-pathname
-                                  (asdf:find-component
-                                   :py4cl2 "python-code")))
-                                " "
-                                (directory-namestring
-                                 (asdf:component-pathname
-                                  (asdf:find-component
-                                   :py4cl2 "python-code"))))
-                   #+unix
-                   (concatenate 'string
-                                "bash -c '"
-                                command        ; Run python executable
-                                " -u "
-                                " <(cat <<\"EOF\""
-                                (string #\newline)
-                                *python-code*
-                                (string #\newline)
-                                "EOF"
-                                (string #\newline)
-                                ") "
-                                (directory-namestring
-                                 (asdf:component-pathname
-                                  (asdf:find-component
-                                   :py4cl2 "python-code")))
-                                "'")
-                   :input :stream
-                   :output :stream
-                   :error-output :stream))
-            (sleep 0.1)
-            (unless (python-alive-p)
-              (let ((*python-startup-error* (or (ignore-errors
-                                                 (read-stream-content-into-string
-                                                  (uiop:process-info-error-output *python*)))
-                                                "Unable to fetch more error details on ECL")))
-                (cerror "Provide another path (setf (config-var 'pycmd) ...)"
-                        'python-process-startup-error :command command))
-              (format t "~&Provide the path to python binary to use (eg python): ")
-              (let ((cmd (read-line)))
-                (setf (config-var 'pycmd) cmd)
-                (setf command cmd))))
+  (flet ((bash-escape-string (string) ; TODO: Better way to do things!
+           ;; We want strings such as
+           ;; "/user/ram-disk/test (hello''/miniconda(3')/bin/"
+           ;; to be escaped correctly.
+           ;; This function only exists in the context of PYSTART
+           (with-output-to-string (*standard-output*)
+             (iter (for ch in-string string)
+               (case ch
+                 (#\' (write-string "\\'"))
+                 (#\( (write-string "\\("))
+                 (#\) (write-string "\\)"))
+                 (#\space (write-string "\\ "))
+                 (t (write-char ch)))))))
+    (loop :until (python-alive-p)
+          :do (setq *python*
+                    (uiop:launch-program
+                     #+windows
+                     (concatenate 'string
+                                  command
+                                  " -u "
+                                  (namestring
+                                   (asdf:component-pathname
+                                    (asdf:find-component
+                                     :py4cl2 "python-code")))
+                                  " "
+                                  (directory-namestring
+                                   (asdf:component-pathname
+                                    (asdf:find-component
+                                     :py4cl2 "python-code"))))
+                     #+unix
+                     (concatenate 'string
+                                  "bash -c \""
+                                  (bash-escape-string command)
+                                  "\"' <(cat <<\"EOF\""
+                                  (string #\newline)
+                                  *python-code*
+                                  (string #\newline)
+                                  "EOF"
+                                  (string #\newline)
+                                  ")'\" "
+                                  (bash-escape-string
+                                   (directory-namestring
+                                    (asdf:component-pathname
+                                     (asdf:find-component
+                                      :py4cl2 "python-code"))))
+                                  "\"")
+                     :input :stream
+                     :output :stream
+                     :error-output :stream))
+              (sleep 0.1)
+              (unless (python-alive-p)
+                (let ((*python-startup-error* (or (ignore-errors
+                                                   (read-stream-content-into-string
+                                                    (uiop:process-info-error-output *python*)))
+                                                  "Unable to fetch more error details on ECL")))
+                  (cerror "Provide another path (setf (config-var 'pycmd) ...)"
+                          'python-process-startup-error :command command))
+                (format t "~&Provide the path to python binary to use (eg python): ")
+                (let ((cmd (read-line)))
+                  (setf (config-var 'pycmd) cmd)
+                  (setf command cmd)))))
   (unless *py4cl-tests*
     (setq *python-output-thread*
           (bt:make-thread
@@ -97,13 +110,13 @@ By default this is is set to *PYTHON-COMMAND*
                  (iter outer
                    (while (and *python* (python-alive-p *python*)))
                    (for char =
-                        (progn
-                          (peek-char nil py-out nil)
-                          (when *in-with-python-output*
-                            (iter (while *in-with-python-output*)
-                              (bt:wait-on-semaphore *python-output-semaphore*))
-                            (in outer (next-iteration)))
-                          (read-char py-out nil)))
+                     (progn
+                       (peek-char nil py-out nil)
+                       (when *in-with-python-output*
+                         (iter (while *in-with-python-output*)
+                           (bt:wait-on-semaphore *python-output-semaphore*))
+                         (in outer (next-iteration)))
+                       (read-char py-out nil)))
                    (when char (write-char char)))))))))
   (incf *current-python-process-id*))
 
