@@ -1,6 +1,6 @@
 # py4cl2
 
-[Last update: v2.4.0]
+[Last update: v2.4.1]
 
 ## Introduction
 
@@ -23,6 +23,7 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 - Tested on SBCL, CCL, ABCL, and ECL 
 - No support for inheriting python classes - should require MOP
 - Windows support is flaky and until `(pyeval "'\n'")` works, this is as good as non-existent
+- Mac users should update to a later version of bash. See [this stackoverflow question](https://stackoverflow.com/questions/32481734/shell-error-with-bash-bad-substitution-no-closing). (Thanks to [byulparen](https://github.com/byulparan) for pointing out!)
 - Embeddable into lisp-image - the code from py4cl.py is copied into `*python-code*` and heredocs are used. This is made to happen for unix and not for windows; until someone gets into Windows heredocs. (Maintainer note: This entails not using single-quote character `'` in py4cl.py.) Also note that this still requires the developer (= py4cl2 user) to supply the python libraries and binaries along with the lisp image.
 
 <div><img src="readme_slime.png" width="80%" style="margin:auto; display:block;"/></div>
