@@ -58,7 +58,7 @@
                         ;; Delete object. This is called when an UnknownLispObject is deleted
                         (#\d (free-handle (stream-read-value read-stream)))
 
-                        ;; Slot access
+                        ;; Slot read
                         (#\s (destructuring-bind (handle slot-name)
                                  (stream-read-value read-stream)
                                (let ((object (lisp-object handle)))
@@ -77,6 +77,14 @@
                                                      (list (read)))
                                       return-value))))))
 
+                        ;; Slot write
+                        (#\S (destructuring-bind (handle slot-name slot-value)
+                                 (stream-read-value read-stream)
+                               (let ((object (lisp-object handle)))
+                                 ;; User must register a function to handle slot write
+                                 (python-setattr object slot-name slot-value)
+                                 (dispatch-reply write-stream nil))))
+
                         (#\c ;; Callback. Return a list, containing function ID, then the args
                          (let* ((call-value (stream-read-value read-stream))
                                 (return-value (apply (lisp-object (first call-value))
@@ -85,6 +93,7 @@
                                                          ()
                                                          (second call-value)))))
                            (dispatch-reply write-stream return-value)))
+
                         (#\p                ; Print stdout
                          (let ((print-string (stream-read-value read-stream)))
                            (princ print-string)))

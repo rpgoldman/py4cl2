@@ -113,6 +113,9 @@ class UnknownLispObject (object):
 	"""
 	Represents an object in Lisp, which could not be converted to Python
 	"""
+
+	__during_init = True # Do not send changes during __init__
+
 	def __init__(self, lisptype, handle):
 		"""
 		lisptype  A string describing the type. Mainly for debugging
@@ -120,26 +123,45 @@ class UnknownLispObject (object):
 		"""
 		self.lisptype = lisptype
 		self.handle = handle
+		self.__during_init = False  # Further changes are sent to Lisp
 
 	def __del__(self):
 		"""
 		Delete this object, sending a message to Lisp
 		"""
-		return_stream.write("d")
-		send_value(self.handle)
+		try:
+			sys.stdout = return_stream
+			return_stream.write("d")
+			send_value(self.handle)
+		finally:
+			sys.stdout = output_stream
 
 	def __str__(self):
 		return "UnknownLispObject(\""+self.lisptype+"\", "+str(self.handle)+")"
 
 	def __getattr__(self, attr):
 		# Check if there is a slot with this name
-		return_stream.write("s")
-		send_value((self.handle, attr))
+		try:
+			sys.stdout = return_stream
+			return_stream.write("s") # Slot read
+			send_value((self.handle, attr))
+		finally:
+			sys.stdout = output_stream
 
 		# Wait for the result
 		return message_dispatch_loop()
 
-# Settings
+	def __setattr__(self, attr, value):
+		if self.__during_init:
+			return object.__setattr__(self, attr, value)
+		try:
+			sys.stdout = return_stream
+			return_stream.write("S") # Slot write
+			send_value((self.handle, attr, value))
+		finally:
+			sys.stdout = output_stream
+		# Wait until finished, to syncronise
+		return message_dispatch_loop()
 
 python_to_lisp_type = {
 	bool: "BOOLEAN",
