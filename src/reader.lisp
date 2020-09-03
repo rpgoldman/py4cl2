@@ -66,8 +66,17 @@ Returns the string or nil on error
 "
   (let ((nchars (parse-integer (read-line stream))))
     (with-output-to-string (str)
-      (loop for i from 1 to nchars do
-           (write-char (read-char stream) str)))))
+      (iter (for i from 1 to nchars)
+        (for char = (read-char stream))
+        (for pchar previous char)
+        ;; A newline on Windows usually happens to be \r\n.
+        ;; Even though, the length gets counted as 1 by "usual" means.
+        ;; However, a \r can also occur by itself.
+        (when (and pchar
+                   (char= pchar #\return)
+                   (listen stream))
+          (decf i))
+        (write-char char str)))))
 
 (defun stream-read-value (stream)
   "Get a value from a stream
