@@ -218,7 +218,7 @@
             <div class="section">
               
                 <h1 id="py4cl2">py4cl2</h1>
-<p>[Last update: v2.4.0]</p>
+<p>[Last update: v2.4.1]</p>
 <h2 id="introduction">Introduction</h2>
 <p><a href="https://github.com/bendudson/py4cl">py4cl</a> is a package by Ben Dudson, aimed at making python libraries availble in Common Lisp,
 using streams to communicate with a separate python process - the approach taken by <a href="https://github.com/marcoheisig/cl4py">cl4py</a>. This is
@@ -234,7 +234,9 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 <li>Multiple python processes (not documented here) - parallel execution?</li>
 <li>Tested on SBCL, CCL, ABCL, and ECL </li>
 <li>No support for inheriting python classes - should require MOP</li>
-<li>Embeddable into lisp-image - the code from py4cl.py is copied into <code>*python-code*</code> and heredocs are used. (Maintainer note: This requires not using single-quote character <code>'</code> in py4cl.py.</li>
+<li><a href="https://travis-ci.org/github/digikar99/py4cl2/">Travis</a> has not been set up for windows; however, the test system ran without errors "as expected" as of version 2.4.1</li>
+<li>Mac users should update to a later version of bash. See <a href="https://stackoverflow.com/questions/32481734/shell-error-with-bash-bad-substitution-no-closing">this stackoverflow question</a>. (Thanks to <a href="https://github.com/byulparan">byulparen</a> for pointing out!)</li>
+<li>Embeddable into lisp-image - the code from py4cl.py is copied into <code>*python-code*</code> and heredocs are used. This is made to happen for unix and not for windows; until someone gets into Windows heredocs. (Maintainer note: This entails not using single-quote character <code>'</code> in py4cl.py.) Also note that this still requires the developer (= py4cl2 user) to supply the python libraries and binaries along with the lisp image.</li>
 </ul>
 <div><img src="readme_slime.png" width="80%" style="margin:auto; display:block;"/></div>
 
@@ -259,19 +261,21 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 <p>use <code>(with-python-output &amp;body body)</code> to capture python output; in py4cl, <code>(with-output-to-stream (*standard-output*) &amp;body body)</code> could have worked. The separate macro was necessitated due to asyncronous printing in py4cl2.</p>
 </li>
 <li>
-<p>Argument ordering can be wrong with ABCL, CCL or  ECL. I've not used it extensively at anywhere other than SBCL. Basic tests concerning argument orders do work on ABCL and ECL; since, in most cases, you are good with keyword args. Early adopters are welcome :D!</p>
+<p>Argument ordering can be wrong with ABCL, CCL or  ECL. I've not used it extensively at anywhere other than SBCL. Basic tests concerning argument orders do work on ABCL, CCL and ECL; since, in most cases, you are good with keyword args. Early adopters are welcome :D!</p>
 </li>
 </ul>
 <table>
 <tr>
-<th>Feature / Implemnetation</th>
+<th>Feature / Implementation (default: linux)</th>
 <th>SBCL</th>
+<th>SBCL (Windows)</th>
 <th>CCL</th>
 <th>ECL</th>
 <th>ABCL</th>
 </tr>
 <tr>
 <td>Basic Functionality</td>
+<td>✓</td>
 <td>✓</td>
 <td>?</td>
 <td>?</td>
@@ -280,6 +284,7 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 <tr>
 <td>Interrupt</td>
 <td>✓</td>
+<td>✗</td>
 <td>✓</td>
 <td>✗</td>
 <td>✗</td>
@@ -287,6 +292,7 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 <tr>
 <tr>
 <td>with-python-output</td>
+<td>✓</td>
 <td>✓</td>
 <td>✗</td>
 <td>✗</td>
@@ -297,10 +303,12 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 <td>✓</td>
 <td>✓</td>
 <td>✓</td>
+<td>✓</td>
 <td>✗</td>
 </tr>
 <tr>
 <td>Fast Large Array Transfer</td>
+<td>✓</td>
 <td>✓</td>
 <td>✓</td>
 <td>✗</td>
@@ -308,6 +316,7 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 </tr>
 <tr>
 <td>numcl</td>
+<td>✓</td>
 <td>✓</td>
 <td>✓</td>
 <td>✗</td>
@@ -1016,5 +1025,5 @@ T
 
 <!--
 MkDocs version : 1.1
-Build Date UTC : 2020-07-22 12:25:50
+Build Date UTC : 2020-09-03 14:29:54
 -->
