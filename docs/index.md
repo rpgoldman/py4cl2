@@ -22,7 +22,7 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 - Multiple python processes (not documented here) - parallel execution?
 - Tested on SBCL, CCL, ABCL, and ECL 
 - No support for inheriting python classes - should require MOP
-- Windows support is flaky and until `(pyeval "'\n'")` works, this is as good as non-existent
+- [Travis](https://travis-ci.org/github/digikar99/py4cl2/) has not been set up for windows; however, the test system ran without errors "as expected" as of version 2.4.1
 - Mac users should update to a later version of bash. See [this stackoverflow question](https://stackoverflow.com/questions/32481734/shell-error-with-bash-bad-substitution-no-closing). (Thanks to [byulparen](https://github.com/byulparan) for pointing out!)
 - Embeddable into lisp-image - the code from py4cl.py is copied into `*python-code*` and heredocs are used. This is made to happen for unix and not for windows; until someone gets into Windows heredocs. (Maintainer note: This entails not using single-quote character `'` in py4cl.py.) Also note that this still requires the developer (= py4cl2 user) to supply the python libraries and binaries along with the lisp image.
 
@@ -44,18 +44,20 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 - `defpymodule` (previously `import-module`) works "as-expected" with asdf / `defpackage`.
 - use `(with-python-output &body body)` to capture python output; in py4cl, `(with-output-to-stream (*standard-output*) &body body)` could have worked. The separate macro was necessitated due to asyncronous printing in py4cl2.
 
-- Argument ordering can be wrong with ABCL, CCL or  ECL. I've not used it extensively at anywhere other than SBCL. Basic tests concerning argument orders do work on ABCL and ECL; since, in most cases, you are good with keyword args. Early adopters are welcome :D!
+- Argument ordering can be wrong with ABCL, CCL or  ECL. I've not used it extensively at anywhere other than SBCL. Basic tests concerning argument orders do work on ABCL, CCL and ECL; since, in most cases, you are good with keyword args. Early adopters are welcome :D!
 
 <table>
 <tr>
-<th>Feature / Implemnetation</th>
+<th>Feature / Implementation (default: linux)</th>
 <th>SBCL</th>
+<th>SBCL (Windows)</th>
 <th>CCL</th>
 <th>ECL</th>
 <th>ABCL</th>
 </tr>
 <tr>
 <td>Basic Functionality</td>
+<td>✓</td>
 <td>✓</td>
 <td>?</td>
 <td>?</td>
@@ -64,6 +66,7 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 <tr>
 <td>Interrupt</td>
 <td>✓</td>
+<td>✗</td>
 <td>✓</td>
 <td>✗</td>
 <td>✗</td>
@@ -71,6 +74,7 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 <tr>
 <tr>
 <td>with-python-output</td>
+<td>✓</td>
 <td>✓</td>
 <td>✗</td>
 <td>✗</td>
@@ -81,10 +85,12 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 <td>✓</td>
 <td>✓</td>
 <td>✓</td>
+<td>✓</td>
 <td>✗</td>
 </tr>
 <tr>
 <td>Fast Large Array Transfer</td>
+<td>✓</td>
 <td>✓</td>
 <td>✓</td>
 <td>✗</td>
@@ -92,6 +98,7 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 </tr>
 <tr>
 <td>numcl</td>
+<td>✓</td>
 <td>✓</td>
 <td>✓</td>
 <td>✗</td>

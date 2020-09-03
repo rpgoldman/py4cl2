@@ -875,6 +875,7 @@ a = Test()")
 
 ;; Unable to test on CCL:
 ;; Stream #<BASIC-CHARACTER-OUTPUT-STREAM UTF-8 (PIPE/36) #x3020019EE9AD> is private to #<PROCESS repl-thread(12) [Sleep] #x302000AC72FD>
+;; On windows: https://stackoverflow.com/questions/813086/can-i-send-a-ctrl-c-sigint-to-an-application-on-windows
 (deftest interrupt (process-interrupt)
   (let ((py4cl2::*py4cl-tests* t))
     (py4cl2:pystop)
@@ -887,7 +888,7 @@ class Foo():
     sys.stdout.flush()
     time.sleep(5)
     return")
-    (skip-on (:ccl :ecl :abcl)
+    (skip-on (:ccl :ecl :abcl :windows)
              (assert-equalp "hello"
                  (let* ((rv nil)
                         (mon-thread (bt:make-thread
@@ -899,7 +900,7 @@ class Foo():
                    (py4cl2:pyinterrupt)
                    (bt:join-thread mon-thread)
                    rv)))
-    (skip-on (:ccl :ecl :abcl)
+    (skip-on (:ccl :ecl :abcl :windows)
              (assert-equalp "hello"
                  (let* ((rv nil)
                         (mon-thread (bt:make-thread
