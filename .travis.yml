@@ -34,21 +34,34 @@ install:
   - ./configure
   - make && sudo make install
   - ros install $LISP
+  - export EXOTIC_DIR="$HOME/(some exotic name')/"
+  - export EXOTIC_DIR_PYTHON="$EXOTIC_DIR/python"
+  - mkdir -p "$EXOTIC_DIR"
+  - rsync -rR "$HOME/build/digikar99/py4cl2" "$EXOTIC_DIR"
+  - ln -s "/usr/bin/python3" "$EXOTIC_DIR_PYTHON"
   - cd ~/
   - ls -l
+  - ls "$EXOTIC_DIR"
   - nproc
   - pwd
+  - python3 --version
+  - /"$EXOTIC_DIR_PYTHON" --version
 
 script:
   # Testing it on the second load confirms that functionalities do not
   # solely eval-when compile-toplevel, and that they persist across multiple loads.
   - ros dynamic-space-size=8000 -e "(push :travis *features*)
-            (push (uiop:getcwd) ql:*local-project-directories*)
-            (ql:quickload \"py4cl2/tests\")"
+            (push (print (pathname (uiop:getenv \"EXOTIC_DIR\"))) ql:*local-project-directories*)
+            (print (ql:where-is-system \"py4cl2\"))
+            (ql:quickload \"py4cl2/tests\")
+            (setf (py4cl2:config-var 'py4cl2:pycmd)
+                  (namestring (uiop:getenv \"EXOTIC_DIR_PYTHON\")))
+            (py4cl2:save-config)"
   - ros dynamic-space-size=8000 -e "(in-package :cl-user)
             (push :travis *features*)
-            (push (uiop:getcwd) ql:*local-project-directories*)
+            (push (uiop:getenv \"EXOTIC_DIR\") ql:*local-project-directories*)
             (ql:quickload \"py4cl2/tests\")
+            (print (py4cl2:config-var 'py4cl2:pycmd))
             (let ((report (py4cl2/tests:run)))
               (princ report)
               (when (or (plusp (slot-value report 'clunit::failed))
