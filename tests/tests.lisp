@@ -121,7 +121,10 @@ world"))
     #+windows
     (assert-equalp "hello
 world"
-        (py4cl2:raw-pyeval (py4cl2::pythonize str)))))
+        (py4cl2:raw-pyeval (py4cl2::pythonize str))))
+  #+unix ;; Check that handling this on windows did not affect unix in unexpected ways.
+  ;; If this is not handled correctly, the process may wait indefinitely.
+  (assert-equalp (uiop:strcat #\return #\newline) (pyeval "'\\r\\n'")))
 
 (deftest eval-format-string (callpython-raw)
   (assert-equalp "foo"

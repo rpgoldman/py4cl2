@@ -72,6 +72,7 @@ Returns the string or nil on error
         ;; A newline on Windows usually happens to be \r\n.
         ;; Even though, the length gets counted as 1 by "usual" means.
         ;; However, a \r can also occur by itself.
+        #+(or windows os-windows)
         (when (and pchar
                    (char= pchar #\return)
                    (listen stream))
