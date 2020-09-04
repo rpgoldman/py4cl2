@@ -56,7 +56,7 @@ By default this is is set to *PYTHON-COMMAND*
     (loop :until (python-alive-p)
           :do (setq *python*
                     (uiop:launch-program
-                     #+windows
+                     #+(or os-windows windows)
                      (concatenate 'string
                                   command
                                   " -u "
