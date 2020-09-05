@@ -541,7 +541,6 @@ class testclass:
   ;; package is imported as np even after stopping
   (assert-equalp #(5 7 9) (np:add '(1 2 3) '(4 5 6))))
 
-#-windows ;; unable to load package numpy.random on windows 
 (deftest numpy-random-import (import-export)  
   (defpymodule "numpy.random" t :silent t)
   ;; The following tests two bugfixes

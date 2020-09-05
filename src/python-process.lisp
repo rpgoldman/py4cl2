@@ -55,8 +55,8 @@ By default this is is set to *PYTHON-COMMAND*
                  (t (write-char ch)))))))
     (loop :until (python-alive-p)
           :do (setq *python*
+                    #+(or os-windows windows)
                     (uiop:launch-program
-                     #+(or os-windows windows)
                      (concatenate 'string
                                   command
                                   " -u "
@@ -69,26 +69,33 @@ By default this is is set to *PYTHON-COMMAND*
                                    (asdf:component-pathname
                                     (asdf:find-component
                                      :py4cl2 "python-code"))))
-                     #+unix
-                     (concatenate 'string
-                                  "bash -c \""
-                                  (bash-escape-string command)
-                                  "\"' <(cat <<\"EOF\""
-                                  (string #\newline)
-                                  *python-code*
-                                  (string #\newline)
-                                  "EOF"
-                                  (string #\newline)
-                                  ")'\" "
-                                  (bash-escape-string
-                                   (directory-namestring
-                                    (asdf:component-pathname
-                                     (asdf:find-component
-                                      :py4cl2 "python-code"))))
-                                  "\"")
+                     ;; Not much idea why, but
+                     ;; numpy.random loads in windows with latin-1, but errors on linux
+                     :external-format :latin-1
                      :input :stream
                      :output :stream
-                     :error-output :stream))
+                     :error-output :stream)
+                     #+unix
+                     (uiop:launch-program
+                      (concatenate 'string
+                                   "bash -c \""
+                                   (bash-escape-string command)
+                                   "\"' <(cat <<\"EOF\""
+                                   (string #\newline)
+                                   *python-code*
+                                   (string #\newline)
+                                   "EOF"
+                                   (string #\newline)
+                                   ")'\" "
+                                   (bash-escape-string
+                                    (directory-namestring
+                                     (asdf:component-pathname
+                                      (asdf:find-component
+                                       :py4cl2 "python-code"))))
+                                   "\"")
+                      :input :stream
+                      :output :stream
+                      :error-output :stream))
               (sleep 0.1)
               (unless (python-alive-p)
                 (let ((*python-startup-error* (or (ignore-errors
