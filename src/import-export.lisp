@@ -283,20 +283,22 @@ Arguments:
          (fun-symbol (intern lisp-fun-name lisp-package)))
     (destructuring-bind (parameter-list pass-list)
         (get-arg-list fullname (find-package lisp-package))
-      `(progn
-         (defun ,fun-symbol (,@parameter-list)
-           ,(or fun-doc "Python function")
-           ,(first pass-list)
-           ,(when safety
-              (if (builtin-p pymodule-name)
-                  `(python-start-if-not-alive)
-                  (if *called-from-defpymodule*
-                      `(pyexec ,*function-reload-string*)
-                      `(pyexec ,(function-reload-string :pymodule-name pymodule-name
-                                                        :fun-name fun-name
-                                                        :as as)))))
-           ,(second pass-list))
-         ,(if *called-from-defpymodule* `(export ',fun-symbol ,lisp-package))))))
+      `(restart-case
+           (progn
+             (defun ,fun-symbol (,@parameter-list)
+               ,(or fun-doc "Python function")
+               ,(first pass-list)
+               ,(when safety
+                  (if (builtin-p pymodule-name)
+                      `(python-start-if-not-alive)
+                      (if *called-from-defpymodule*
+                          `(pyexec ,*function-reload-string*)
+                          `(pyexec ,(function-reload-string :pymodule-name pymodule-name
+                                                            :fun-name fun-name
+                                                            :as as)))))
+               ,(second pass-list))
+             ,(if *called-from-defpymodule* `(export ',fun-symbol ,lisp-package)))
+         (continue-ignoring-errors nil)))))
 
 (defvar *is-submodule* nil
   "Used for coordinating import statements from defpymodule while calling recursively")
