@@ -5,7 +5,7 @@
  (More) Documentation is available at https://digikar99.github.io/py4cl2/"
   :author "Ben Dudson <benjamin.dudson@york.ac.uk> (Original author), Shubhamkar Ayare <shubhamayare@yahoo.co.in> (Fork Contributor)"
   :license "MIT"
-  :version "2.4.1"                  ; py4cl is assumed to be version 1
+  :version "2.5.0"                  ; py4cl is assumed to be version 1
   :depends-on ("alexandria"
                "bordeaux-threads"
                "cl-json"

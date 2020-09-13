@@ -138,6 +138,13 @@
               (for arg-default = (if (or (symbolp default) (listp default))
                                      `',default
                                      default))
+              (when (member arg-symbol pass-list
+                            :test (lambda (first second)
+                                    (and (listp second)
+                                         (eq first (second second)))))
+                (setq arg-symbol (intern (get-unique-symbol (symbol-name arg-symbol)
+                                                            lisp-package)
+                                         lisp-package)))
               (for parameter-elt = (list arg-symbol arg-default))
               (for pass-elt = (if pos-only
                                   `((pythonize ,arg-symbol) ",")
