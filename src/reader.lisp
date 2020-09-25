@@ -26,9 +26,9 @@ HANDLE slot is a unique key used to refer to a value in python."
                (python-alive-p) ; If not alive, pyexec will start python
                (= *current-python-process-id* python-id))  ; Python might have restarted
               ;; Call the internal function, to avoid infinite recursion or deadlock
-              (pyexec "
+              (raw-pyexec "
 try:
-  del _py4cl_objects[" handle "]
+  del _py4cl_objects[" (pythonize handle) "]
 except:
   pass")))))
 
