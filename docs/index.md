@@ -20,7 +20,7 @@ Please report the issues on github: [py4cl2](https://github.com/digikar99/py4cl2
 This shouldn't be a bottleneck if you're planning to run "long" processes in python. (For example, deep learning :). )
 - Virtual environments: [`pycmd`](#pycmd) (`*python-command*` in `py4cl`): Choose which python binary to use. Works with miniconda.
 - Multiple python processes (not documented here) - parallel execution?
-- Tested on SBCL, CCL, ABCL, and ECL 
+- Tested on SBCL, CCL, ABCL (Java 1.8), and ECL
 - No support for inheriting python classes - should require MOP
 - [Travis](https://travis-ci.org/github/digikar99/py4cl2/) has not been set up for windows; however, the test system ran without errors "as expected" as of version 2.4.1
 - Mac users should update to a later version of bash. See [this stackoverflow question](https://stackoverflow.com/questions/32481734/shell-error-with-bash-bad-substitution-no-closing). (Thanks to [byulparen](https://github.com/byulparan) for pointing out!)
