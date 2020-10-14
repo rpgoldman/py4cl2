@@ -14,10 +14,11 @@ env:
 addons:
   apt:
     packages: &standard_packages
-    - python-numpy
     - python3-numpy
+    - python3-networkx
 
 install:
+  - python3 -c 'import networkx; print(networkx.__version__)'
   - echo $PATH
   - java -version
   - which java
