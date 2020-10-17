@@ -1,6 +1,6 @@
 # py4cl2
 
-[Last update: v2.4.1]
+[Last update: v2.5.0]
 
 ## Introduction
 
