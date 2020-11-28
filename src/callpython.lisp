@@ -19,6 +19,21 @@
   (:report (lambda (condition stream)
              (format stream "Python error: ~a" (text condition)))))
 
+(define-condition python-eof-but-alive (end-of-file)
+  ;; TODO: How will this condition arise?
+  ((python-process :initarg :python-process :reader python-process))
+  (:report (lambda (condition stream)
+             (format stream
+                     "Unable to read (or write) from python process~%  ~S~%but the process is alive"
+                     (python-process condition)))))
+
+(define-condition python-eof-and-dead (end-of-file)
+  ((python-process :initarg :python-process :reader python-process))
+  (:report (lambda (condition stream)
+             (format stream
+                     "The python process~%  ~S~%has died. Unable to read (or write) from it"
+                     (python-process condition)))))
+
 (defun dispatch-reply (stream value)
   (write-char #\r stream)
   (stream-write-value value stream)
@@ -27,55 +42,60 @@
 (defun dispatch-messages (process)
   "Read response from python, loop to handle any callbacks"
   (let ((*python-process-busy-p* t))
-    (let* ((read-stream (uiop:process-info-output process))
-           (write-stream (uiop:process-info-input process))
-           (return-value
-             (loop
-               :for message-char := (read-char read-stream) ; First character is type of message
-               :do
-                  (case message-char
-                    (#\r (return (stream-read-value read-stream))) ; Returned value
+    (handler-case
+        (let* ((read-stream (uiop:process-info-output process))
+               (write-stream (uiop:process-info-input process))
+               (return-value
+                 (loop
+                   ;; First character is type of message
+                   :for message-char := (read-char read-stream)
+                   :do
+                      (case message-char
+                        (#\r (return (stream-read-value read-stream))) ; Returned value
 
-                    (#\e (error 'pyerror
-                                :text (stream-read-string read-stream)))
+                        (#\e (error 'pyerror
+                                    :text (stream-read-string read-stream)))
+                        ;; Delete object. This is called when an UnknownLispObject is deleted
+                        (#\d (free-handle (stream-read-value read-stream)))
 
-                    ;; Delete object. This is called when an UnknownLispObject is deleted
-                    (#\d (free-handle (stream-read-value read-stream)))
+                        ;; Slot access
+                        (#\s (destructuring-bind (handle slot-name)
+                                 (stream-read-value read-stream)
+                               (let ((object (lisp-object handle)))
+                                 ;; User must register a function to handle slot access
+                                 (dispatch-reply
+                                  write-stream
+                                  (restart-case
+                                      (python-getattr object slot-name)
+                                    ;; Provide some restarts for missing handler or missing slot
+                                    (return-nil () nil)
+                                    (return-zero () 0)
+                                    (enter-value (return-value)
+                                      :report "Provide a value to return"
+                                      :interactive (lambda ()
+                                                     (format t "Enter a value to return: ")
+                                                     (list (read)))
+                                      return-value))))))
 
-                    ;; Slot access
-                    (#\s (destructuring-bind (handle slot-name)
-                             (stream-read-value read-stream)
-                           (let ((object (lisp-object handle)))
-                             ;; User must register a function to handle slot access
-                             (dispatch-reply
-                              write-stream
-                              (restart-case
-                                  (python-getattr object slot-name)
-                                ;; Provide some restarts for missing handler or missing slot
-                                (return-nil () nil)
-                                (return-zero () 0)
-                                (enter-value (return-value)
-                                  :report "Provide a value to return"
-                                  :interactive (lambda ()
-                                                 (format t "Enter a value to return: ")
-                                                 (list (read)))
-                                  return-value))))))
-
-                    (#\c ;; Callback. Return a list, containing function ID, then the args
-                     (let* ((call-value (stream-read-value read-stream))
-                            (return-value (apply (lisp-object (first call-value))
-                                                 (if (and (stringp (second call-value))
-                                                          (string= "()" (second call-value)))
-                                                     ()
-                                                     (second call-value)))))
-                       (dispatch-reply write-stream return-value)))
-                    (#\p                ; Print stdout
-                     (let ((print-string (stream-read-value read-stream)))
-                       (princ print-string)))
-
-                    (otherwise (error "Unhandled message type '~d'" message-char))))))
-      return-value)))
-
+                        (#\c ;; Callback. Return a list, containing function ID, then the args
+                         (let* ((call-value (stream-read-value read-stream))
+                                (return-value (apply (lisp-object (first call-value))
+                                                     (if (and (stringp (second call-value))
+                                                              (string= "()" (second call-value)))
+                                                         ()
+                                                         (second call-value)))))
+                           (dispatch-reply write-stream return-value)))
+                        (#\p                ; Print stdout
+                         (let ((print-string (stream-read-value read-stream)))
+                           (princ print-string)))
+                        (otherwise (error "Unhandled message type '~d'" message-char))))))
+          return-value)
+      (end-of-file (condition)
+        (declare (ignore condition))
+        (error (if (python-alive-p process)
+                   'python-eof-but-alive
+                   'python-eof-and-dead)
+               :python-process process)))))
 
 ;; ============================== RAW FUNCTIONS ================================
 (declaim (ftype (function (character &rest string)) raw-py))

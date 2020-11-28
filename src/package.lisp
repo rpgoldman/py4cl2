@@ -16,6 +16,8 @@
    #:pythonize)
   (:export ; callpython
    #:pyerror
+   #:python-eof-but-alive
+   #:python-eof-and-dead
    #:raw-pyeval
    #:raw-pyexec
    #:pyeval
