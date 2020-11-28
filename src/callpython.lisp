@@ -26,55 +26,55 @@
 
 (defun dispatch-messages (process)
   "Read response from python, loop to handle any callbacks"
-  (setq *python-process-busy-p* t)
-  (let* ((read-stream (uiop:process-info-output process))
-         (write-stream (uiop:process-info-input process))
-         (return-value
-           (loop
-             :for message-char := (read-char read-stream) ; First character is type of message
-             :do
-                (case message-char
-                  (#\r (return (stream-read-value read-stream))) ; Returned value
+  (let ((*python-process-busy-p* t))
+    (let* ((read-stream (uiop:process-info-output process))
+           (write-stream (uiop:process-info-input process))
+           (return-value
+             (loop
+               :for message-char := (read-char read-stream) ; First character is type of message
+               :do
+                  (case message-char
+                    (#\r (return (stream-read-value read-stream))) ; Returned value
 
-                  (#\e (error 'pyerror  
-                              :text (stream-read-string read-stream)))
+                    (#\e (error 'pyerror
+                                :text (stream-read-string read-stream)))
 
-                  ;; Delete object. This is called when an UnknownLispObject is deleted
-                  (#\d (free-handle (stream-read-value read-stream)))
+                    ;; Delete object. This is called when an UnknownLispObject is deleted
+                    (#\d (free-handle (stream-read-value read-stream)))
 
-                  ;; Slot access
-                  (#\s (destructuring-bind (handle slot-name) (stream-read-value read-stream)
-                         (let ((object (lisp-object handle)))
-                           ;; User must register a function to handle slot access
-                           (dispatch-reply
-                            write-stream
-                            (restart-case
-                                (python-getattr object slot-name)
-                              ;; Provide some restarts for missing handler or missing slot
-                              (return-nil () nil)
-                              (return-zero () 0)
-                              (enter-value (return-value)
-                                :report "Provide a value to return"
-                                :interactive (lambda ()
-                                               (format t "Enter a value to return: ")
-                                               (list (read)))
-                                return-value))))))
-                  
-                  (#\c ;; Callback. Return a list, containing function ID, then the args
-                   (let ((call-value (stream-read-value read-stream)))
-                     (let ((return-value (apply (lisp-object (first call-value))
-                                                (if (and (stringp (second call-value))
-                                                         (string= "()" (second call-value)))
-                                                    ()
-                                                    (second call-value)))))
-                       (dispatch-reply write-stream return-value))))
-                  (#\p                  ; Print stdout
-                   (let ((print-string (stream-read-value read-stream)))
-                     (princ print-string)))
-                  
-                  (otherwise (error "Unhandled message type '~d'" message-char))))))
-    (setq *python-process-busy-p* nil)
-    return-value))
+                    ;; Slot access
+                    (#\s (destructuring-bind (handle slot-name)
+                             (stream-read-value read-stream)
+                           (let ((object (lisp-object handle)))
+                             ;; User must register a function to handle slot access
+                             (dispatch-reply
+                              write-stream
+                              (restart-case
+                                  (python-getattr object slot-name)
+                                ;; Provide some restarts for missing handler or missing slot
+                                (return-nil () nil)
+                                (return-zero () 0)
+                                (enter-value (return-value)
+                                  :report "Provide a value to return"
+                                  :interactive (lambda ()
+                                                 (format t "Enter a value to return: ")
+                                                 (list (read)))
+                                  return-value))))))
+
+                    (#\c ;; Callback. Return a list, containing function ID, then the args
+                     (let* ((call-value (stream-read-value read-stream))
+                            (return-value (apply (lisp-object (first call-value))
+                                                 (if (and (stringp (second call-value))
+                                                          (string= "()" (second call-value)))
+                                                     ()
+                                                     (second call-value)))))
+                       (dispatch-reply write-stream return-value)))
+                    (#\p                ; Print stdout
+                     (let ((print-string (stream-read-value read-stream)))
+                       (princ print-string)))
+
+                    (otherwise (error "Unhandled message type '~d'" message-char))))))
+      return-value)))
 
 
 ;; ============================== RAW FUNCTIONS ================================
