@@ -22,14 +22,14 @@
   "Returns ((h e l l o) W o r l d), given (h e l l o W o r l d)."
   (iter (for ch-list initially char-list
              then (cdr ch-list))
-        (while ch-list) 
+        (while ch-list)
         (for ch = (first ch-list))
         (for pch previous ch)
-        (for word initially () 
+        (for word initially ()
              then (cons ch word))
         (unless (first-iteration-p) (until (split-point-p pch ch)))
         (finally (return (if ch-list
-                             (cons (nreverse word) ch-list) 
+                             (cons (nreverse word) ch-list)
                              (list char-list))))))
 
 (defun break-into-words (char-list)
@@ -111,7 +111,7 @@
 
         ;; handling the general case of *args and **kwargs is a bit too hard,
         ;; particularly that lisp lambda-lists do not have one-to-one mapping with them
-        
+
         (iter (initially (when return-with-default-return
                            (return-from get-arg-list default-return)))
               (for val in (alexandria:hash-table-values sig-dict))
@@ -120,7 +120,7 @@
               (for name-str = (pyeval "str(" val ")"))
               (when (or (typep default 'python-object) ; handle would likely be lost
                         (and (search "*" name-str)
-                             (not (search "**" name-str))))           
+                             (not (search "**" name-str))))
                 (return-from get-arg-list default-return)) ; and be unreliable
               (for arg-symbol = (intern (lispify-name name) lisp-package))
               (setq arg-symbol
@@ -257,7 +257,7 @@ Arguments:
   AS: name of the function in python, after import
   LISP-FUN-NAME: name of the lisp symbol to which the function is bound*
   LISP-PACKAGE: package (not its name) in which LISP-FUN-NAME will be interned
-  SAFETY: if T, adds an additional line in the function asking to import the 
+  SAFETY: if T, adds an additional line in the function asking to import the
     package or function, so that the function works even after PYSTOP is called.
     However, this increases the overhead of stream communication, and therefore,
     can reduce speed."
@@ -339,7 +339,7 @@ Arguments:
                                                      (lispify-name submodule))
                          :continue-ignoring-errors ,continue-ignoring-errors))))))))
 
-(declaim (ftype (function (string string) pymodule-import-string)))
+(declaim (ftype (function (string string)) pymodule-import-string))
 (defun pymodule-import-string (pymodule-name lisp-package)
   (let ((package-in-python (pythonize (intern lisp-package))))
     (values
@@ -365,15 +365,15 @@ Arguments:
                          (reload t) (safety t)
                          (continue-ignoring-errors t)
                          (silent *defpymodule-silent-p*))
-  "Import a python module (and its submodules) lisp-package Lisp package(s). 
+  "Import a python module (and its submodules) lisp-package Lisp package(s).
 Example:
   (py4cl:defpymodule \"math\" :lisp-package \"M\")
   (m:sqrt 4)   ; => 2.0
-\"Package already exists.\" is returned if the package exists and :RELOAD 
+\"Package already exists.\" is returned if the package exists and :RELOAD
 is NIL.
 Arguments:
   PYMODULE-NAME: name of the module in python, before importing
-  IMPORT-SUBMODULES: leave nil for purposes of speed, if you won't use the  
+  IMPORT-SUBMODULES: leave nil for purposes of speed, if you won't use the
     submodules
   LISP-PACKAGE: lisp package, in which to intern (and export) the callables
   RELOAD: whether to redefine and reimport
@@ -385,15 +385,15 @@ Arguments:
 
   (let ((package (find-package lisp-package))) ;; reload
     (if package
-        (if reload 
+        (if reload
             (delete-package package)
             (return-from defpymodule "Package already exists."))))
-  
+
   (python-start-if-not-alive) ; Ensure python is running
 
   (pyexec "import inspect")
   (pyexec "import pkgutil")
-  
+
   ;; fn-names  All callables whose names don't start with "_"
   (let ((*lisp-package-supplied-p* lisp-package-supplied-p)
         (*defpymodule-silent-p* silent))
@@ -461,7 +461,7 @@ Arguments:
           (continue-ignoring-errors nil)))))) ; (defpymodule "torch" t) is one test case
 
 (defmacro defpyfuns (&rest args)
-  "Each ARG is supposed to be a 2-3 element list of 
+  "Each ARG is supposed to be a 2-3 element list of
  (pyfun-name pymodule-name) or (pyfun-name pymodule-name lisp-fun-name).
 In addition, when ARG is a 2-element list, then, the first element can be
 a list of python function names. "

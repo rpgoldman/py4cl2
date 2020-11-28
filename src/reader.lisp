@@ -68,10 +68,11 @@ Returns the string or nil on error
     (with-output-to-string (str)
       (iter (for i from 1 to nchars)
         (for char = (read-char stream))
-        (for pchar previous char)
         ;; A newline on Windows usually happens to be \r\n.
         ;; Even though, the length gets counted as 1 by "usual" means.
         ;; However, a \r can also occur by itself.
+        #+(or windows os-windows)
+        (for pchar previous char)
         #+(or windows os-windows)
         (when (and pchar
                    (char= pchar #\return)
@@ -88,5 +89,5 @@ Currently works by reading a string then using read-from-string
         (read-from-string str)
       ;; Check if all characters were used
       (unless (eql count (length str))
-        (error (concatenate 'string "unread characters in reading string \"" str "\""))) 
+        (error (concatenate 'string "unread characters in reading string \"" str "\"")))
       value)))

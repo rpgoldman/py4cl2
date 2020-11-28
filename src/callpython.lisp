@@ -112,13 +112,13 @@ Passes strings as they are, without any 'pythonize'ation."
 
 (declaim (ftype (function (&rest string)) raw-pyeval))
 (defun raw-pyeval (&rest strings)
-  "Calls python eval on the concatenation of strings, as they are, without any 
+  "Calls python eval on the concatenation of strings, as they are, without any
 pythonization or modification."
   (apply #'raw-py #\e strings))
 
 (declaim (ftype (function (&rest string)) raw-pyexec))
 (defun raw-pyexec (&rest strings)
-  "Calls python exec on the concatenation of strings, as they are, without any 
+  "Calls python exec on the concatenation of strings, as they are, without any
 pythonization or modification.
 NOTE: Like usual, there are peculiarities to exec commands.
 For instance,
@@ -148,7 +148,7 @@ will result in 'sys' name not defined PYERROR."
   (defun pyeval (&rest args)
     "Calls python eval on args; PYTHONIZEs arg if it satisfies PYTHONIZEP.
 Eg.
-  > (let ((a 5)) (pyeval a \"*\" a)) 
+  > (let ((a 5)) (pyeval a \"*\" a))
   25"
     (python-start-if-not-alive)
     (delete-freed-python-objects) ; delete before pythonizing
@@ -197,7 +197,7 @@ Can be useful for modifying a value directly in python.
              (pythonize name))))
 
   (defun pycall (fun-name &rest args)
-    "Calls FUN-NAME with ARGS as arguments. Arguments can be keyword based, or 
+    "Calls FUN-NAME with ARGS as arguments. Arguments can be keyword based, or
  otherwise."
     (raw-pyeval "("
                 (pythonize-if-needed fun-name)
@@ -207,7 +207,7 @@ Can be useful for modifying a value directly in python.
   (defun pymethod (object method &rest args)
     "PYCALLs METHOD of OBJECT with ARGS
 Examples:
-  > (pymethod \"'hello {0}'\" 'format \"world\") 
+  > (pymethod \"'hello {0}'\" 'format \"world\")
   \"hello world\"
   > (pymethod '(1 2 3) '--len--)
   3
@@ -220,7 +220,7 @@ Note: FUN-NAME is NOT PYTHONIZEd if it is a string.
                         "."
                         (pythonize-if-needed method))
            args))
-  
+
   (defun pyslot-value (object slot-name)
     (pyeval object "." (pythonize-if-needed slot-name))))
 
@@ -245,7 +245,7 @@ Note: FUN-NAME is NOT PYTHONIZEd if it is a string.
         (typecase chain
           (cons (cond ((and (symbolp (car chain))
                             (member (symbol-name (car chain)) '("@" "CHAIN")
-                                    :test 'string=)) 
+                                    :test 'string=))
                        (format nil "~{~a~^.~}" (mapcar #'%chain* (cdr chain))))
                       ((eq 'aref (car chain))
                        (apply #'concatenate
@@ -298,7 +298,7 @@ This is useful if performing operations on large datasets."
 (defmacro with-remote-objects* (&body body)
   "Ensures that all values returned by python functions
 and methods are kept in python, and only handles returned to lisp.
-This is useful if performing operations on large datasets. Unlike 
+This is useful if performing operations on large datasets. Unlike
 with-remote-objects, evaluates the last result and returns not just a handle."
   `(pyeval (with-remote-objects ,@body)))
 

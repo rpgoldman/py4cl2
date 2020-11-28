@@ -46,7 +46,7 @@ Default implementation creates a handle to an unknown Lisp object.")
                  ")")))
 
 (defmethod pythonize ((obj real))
-  "Write a real number. 
+  "Write a real number.
    Note that python doesn't handle 'd','f', 's' or 'L' exponent markers"
   (typecase obj
     (single-float (concatenate 'string "_py4cl_numpy.float32("
@@ -56,7 +56,7 @@ Default implementation creates a handle to an unknown Lisp object.")
                       (write-to-string obj)))))
 
 (defmethod pythonize ((obj complex))
-  "Create string of the form \"(1+2j\". 
+  "Create string of the form \"(1+2j\".
 If imaginary part is negative the output is of form \"(1+-2j\"
 which is interpreted correctly by python (3.7.2)."
   (concatenate 'string
@@ -168,7 +168,7 @@ evals a list with a single element as a tuple
     (string . "str")
     ("None" . "None")
     ("()" . "()")))
-;; leaves out inspect._empty    
+;; leaves out inspect._empty
 
 (defmethod pythonize ((obj symbol))
   "One-to-one mapping between python name and lisp symbol names:
@@ -186,7 +186,7 @@ evals a list with a single element as a tuple
                                  (char= (char symbol-name (1- (length symbol-name)))))
                             (subseq symbol-name 1 (1- (length symbol-name))))
                            ((string= "T" symbol-name) "True")
-                           ((every #'(lambda (char) ; = every character is either upper-case 
+                           ((every #'(lambda (char) ; = every character is either upper-case
                                        (not (lower-case-p char))) ; or is not an alphabet
                                    symbol-name)
                             (format nil "~(~a~)" symbol-name))
@@ -246,7 +246,7 @@ The lisp function is stored in the same object store as other objects."
   (princ (length str) stream)  ; Header, so length of string is known to reader
   (terpri stream)
   (write-string str stream))
-    
+
 (defun stream-write-value (value stream)
   "Write a value to a stream, in a format which can be read
 by the python subprocess as the corresponding python type"

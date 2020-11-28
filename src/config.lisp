@@ -32,8 +32,8 @@ and numpy pickle file and lower bounds."
                            "python"))
         (numpy-pickle-location
          (take-input "~%PY4CL2 uses pickled files to transfer large arrays between lisp
- and python efficiently. These are expected to have sizes exceeding 100MB 
- (this depends on the value of *NUMPY-PICKLE-LOWER-BOUND*). Therefore, choose an 
+ and python efficiently. These are expected to have sizes exceeding 100MB
+ (this depends on the value of *NUMPY-PICKLE-LOWER-BOUND*). Therefore, choose an
  appropriate location (*NUMPY-PICKLE-LOCATION*) for storing these arrays on disk.
 
 Enter full file path for storage (default /tmp/_numpy_pickle.npy): "
@@ -60,7 +60,7 @@ Enter full file path for storage (default /tmp/_numpy_pickle.npy): "
                                                          (asdf:find-component
                                                           :py4cl2 "python-code")))
                                   ".config")))
-    
+
     (with-open-file (f config-path :direction :output :if-exists :supersede
                        :if-does-not-exist :create)
       (cl-json:encode-json-alist *config* f))
@@ -80,7 +80,7 @@ Configuration variables include (all in PY4CL2 package):
   - PYCMD: Path to the python binary to be used
   - NUMPY-PICKLE-LOCATION: PY4CL2 uses pickled files to transfer large arrays between lisp
  and python efficiently. These can have sizes exceeding 100MB. It is recommended that this
- be set to path on a ram-disk. See [this](https://unix.stackexchange.com/questions/66329/creating-a-ram-disk-on-linux) for 
+ be set to path on a ram-disk. See [this](https://unix.stackexchange.com/questions/66329/creating-a-ram-disk-on-linux) for
 instructions on creating a ram-disk on linux-based systems.
   - NUMPY-PICKLE-LOWER-BOUND: The minimum size of the array for which PY4CL2 should use pickled files.
   - USE-NUMCL-ARRAYS: NUMCL uses displaced arrays. If this variable is T and the system PY4CL2+NUMCL is loaded, arrays returned by python process are passed through NUMCL:ASARRAY before returning them to the user."
@@ -90,7 +90,7 @@ instructions on creating a ram-disk on linux-based systems.
   "Sets the value of VAR to NEW-VALUE in *CONFIG*. For all but PYCMD, the values are saved to a configuration-file for persistence whenever they are changed. To persist PYCMD, call SAVE-CONFIG."
   (if (assoc var *config*)
       (setf (cdr (assoc var *config*)) new-value)
-      (push (cons var new-value) *config*))  
+      (push (cons var new-value) *config*))
   ;; say, the user wants the python process to be project local
   (if (eq var 'pycmd)
       (format t "~&Call (SAVE-CONFIG) if you'd like to persist this value for PYCMD.
