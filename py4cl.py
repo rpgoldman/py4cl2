@@ -302,7 +302,7 @@ def recv_value():
 	Get a value from the input stream
 	Return could be any type
 	"""
-	return eval(recv_string(), eval_globals, eval_locals)
+	return eval(recv_string(), eval_globals)
 
 def send_value(value):
 	"""
@@ -367,12 +367,12 @@ def message_dispatch_loop():
 				expr = recv_string()
 				# if expr not in cache:
 				# print("Adding " + expr + " to cache")
-				# cache[expr] = eval("lambda : " + expr, eval_globals, eval_locals)
+				# cache[expr] = eval("lambda : " + expr, eval_globals)
 				# result = cache[expr]()
-				result = eval(expr, eval_globals, eval_locals)
+				result = eval(expr, eval_globals)
 				return_value(result)
 			elif cmd_type == "x": # Execute a statement
-				exec(recv_string(), eval_globals, eval_locals)
+				exec(recv_string(), eval_globals)
 				return_value(None)
 			elif cmd_type == "q":
 				exit(0)
@@ -412,7 +412,6 @@ try:
 except:
 	pass
 
-eval_locals = {}
 # Handle fractions (RATIO type)
 # Lisp will pass strings containing "_py4cl_fraction(n,d)"
 # where n and d are integers.

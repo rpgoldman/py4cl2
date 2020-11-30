@@ -161,6 +161,19 @@ world"
 (deftest eval-nil (callpython-raw)
   (assert-equalp "()" (raw-pyeval "()")))
 
+(deftest python-exec-scope ((callpython-raw) (with-python-output-stress-test))
+  ;; Local functions are retained in scope
+  ;; This changed in python 3.x see e.g. https://stackoverflow.com/a/24734880
+  (assert-true
+      (progn
+        (py4cl2:pyexec "
+a = 5
+def foo(): return a
+def bar():
+  return foo() + foo()
+bar()")
+        t)))
+
 ;; ======================== CALLPYTHON-UTILITY =====================================
 
 (deftest pyeval-params (callpython-utility)
@@ -168,34 +181,34 @@ world"
   (let ((a 4)
         (b 7))
     (assert-equalp 11
-        (py4cl2:pyeval a "+" b)))
+                   (py4cl2:pyeval a "+" b)))
 
   ;; Arrays can also be passed
   (assert-equalp #2A((1 2) (3 4))
-    (py4cl2:pyeval #2A((1 2) (3 4))))
+                 (py4cl2:pyeval #2A((1 2) (3 4))))
 
   (assert-equalp #2A((2 4) (6 8))
-    (py4cl2:pyeval #2A((1 2) (3 4)) "*" 2))
+                 (py4cl2:pyeval #2A((1 2) (3 4)) "*" 2))
 
   (assert-equalp #3A(((2 4) (7 8)) ((8 5) (1 6)))
-    (py4cl2:pyeval #3A(((1 3) (6 7)) ((7 4) (0 5)))  "+" 1))
+                 (py4cl2:pyeval #3A(((1 3) (6 7)) ((7 4) (0 5)))  "+" 1))
 
   ;; Test handling of real numbers in arrays
   (assert-equalp #(1.0 2.0)
-      (py4cl2:pyeval (vector 1.0 2.0)))
+                 (py4cl2:pyeval (vector 1.0 2.0)))
 
   ;; Test empty arrays
   (assert-equalp #()
-      (py4cl2:pyeval #()))
+                 (py4cl2:pyeval #()))
 
   ;; Unless the values are strings
   (let ((str "hello"))
     (assert-condition py4cl2:pyerror
-        (py4cl2:pyeval "len(" str ")"))  ; "len(hello)"
+                      (py4cl2:pyeval "len(" str ")")) ; "len(hello)"
 
     ;; To pass a string to python, run through pythonize:
     (assert-equalp 5
-        (py4cl2:pyeval "len(" (py4cl2::pythonize str) ")"))))
+                   (py4cl2:pyeval "len(" (py4cl2::pythonize str) ")"))))
 
 (deftest pyeval-complex-values (callpython-utility)
   ;; Single values
@@ -214,7 +227,7 @@ world"
     (py4cl2:pyeval #C(1 2) "*" #C(2 3)))
   (assert-equality #'= #C(4 7)
     (py4cl2:pyeval #C(1 -2) "*" #C(-2 3)))
-  
+
   ;; Lists of complex numbers
   (assert-equality #'= #C(6 9)
     (py4cl2:pyeval "sum(" (list #C(1 2) #C(2 3) #C(3 4))  ")")))
@@ -231,12 +244,12 @@ world"
                    (gethash 1 table))
     (assert-equalp 3
                    (gethash 2 table)))
-  
+
   ;; Ensure values are being lispified
   (let ((table (py4cl2:pyeval "{1:[1,2,3]}")))
     (assert-equalp #(1 2 3)
                    (gethash 1 table)))
-  
+
   ;; Ensure keys are being lispified and string keys work
   (let ((table (py4cl2:pyeval "{\"test\":42}")))
     (assert-equalp 42
@@ -245,7 +258,7 @@ world"
 (deftest setf-eval (callpython-utility)
   (setf (py4cl2:pyeval "test_value") 42) ; Set a variable
   (assert-equalp 42
-                 (py4cl2:pyeval "test_value")))  
+                 (py4cl2:pyeval "test_value")))
 
 
 (deftest pyexec (callpython-utility)
@@ -368,7 +381,7 @@ def foo(gen):
       (let ((gen (py4cl2:pygenerator (let ((x 0)) (lambda () (incf x)))
                                      5)))
         (py4cl2:pycall 'foo gen)))
-  (assert-equalp #(#\h #\e #\l #\l #\o) 
+  (assert-equalp #(#\h #\e #\l #\l #\o)
       (let ((gen (py4cl2:pygenerator (let ((str (make-string-input-stream "hello")))
                                        (lambda () (read-char str nil)))
                                      nil)))
@@ -427,7 +440,7 @@ temp = Foo()")
       (py4cl2:chain (aref "hello" 4)))
 
   ;; [] operator for indexing and slicing (alias for __getitem__)
-  
+
   (assert-equalp "l"
       (py4cl2:chain (aref "hello" 3)))
   (assert-equalp 3
@@ -442,7 +455,7 @@ temp = Foo()")
         (py4cl2:chain* `(aref ,dict "hello")))
     (assert-equalp "pong"
         (py4cl2:chain* `(aref ,dict "ping")))))
-  
+
 (deftest chain-keywords (callpython-chain)
   (py4cl2:pyexec
    "def test_fn(arg, key=1):
@@ -470,7 +483,7 @@ temp = Foo()")
    "class TestClass:
       def doThing(self, dummy = 1, value = 42):
         return value")
-  
+
   (assert-equalp 42
       (py4cl2:chain ("TestClass") ("doThing")))
 
@@ -495,7 +508,7 @@ temp = Foo()")
   (py4cl2:pyexec "
 class testclass:
   pass")
-  
+
   (let ((obj (py4cl2:chain (testclass))))
     (setf (py4cl2:chain* obj 'data-attrib) 21)
     (assert-equalp 21
@@ -509,8 +522,8 @@ class testclass:
   (assert-equalp 3
       (py4cl2:with-remote-objects* (py4cl2:pyeval "1+2")))
   (assert-equalp 'py4cl2::python-object
-      (type-of (py4cl2:with-remote-objects 
-                 (py4cl2:with-remote-objects 
+      (type-of (py4cl2:with-remote-objects
+                 (py4cl2:with-remote-objects
                    (py4cl2:pyeval "1+2"))
                  (py4cl2:pyeval "1+2")))))
 
@@ -544,7 +557,7 @@ class testclass:
   ;; package is imported as np even after stopping
   (assert-equalp #(5 7 9) (np:add '(1 2 3) '(4 5 6))))
 
-(deftest numpy-random-import (import-export)  
+(deftest numpy-random-import (import-export)
   (defpymodule "numpy.random" t :silent t)
   ;; The following tests two bugfixes
   ;; 1. defpysubmodules was previously importing only packages.
@@ -715,13 +728,13 @@ a.value = 42")
   ;; Implementation detail: No objects stored in python dict
   (assert-true (= 0
                   (py4cl2:pyeval "len(_py4cl_objects)")))
-  
+
   ;; Evaluate and return a python object
   (let ((var (py4cl2:pyeval "a")))
     ;; Implementation detail: Type of returned object
     (assert-equalp 'PY4CL2::PYTHON-OBJECT
         (type-of var))
-    
+
     ;; Implementation detail: Object is stored in a dictionary
     (assert-equalp 1
         (py4cl2:pyeval "len(_py4cl_objects)"))
@@ -733,7 +746,7 @@ a.value = 42")
     ;; Can pass as argument to function
     (assert-equal 84
         (py4cl2:pycall "lambda x : x.value * 2" var)))
-  
+
   ;; Trigger a garbage collection so that VAR is finalized.
   ;; This should also delete the object in python
   (tg:gc :full t)
@@ -757,13 +770,13 @@ a = Test()")
     ;; Implementation detail: Type of returned object
     (assert-equalp 'PY4CL2::PYTHON-OBJECT
         (type-of var))
-    
+
     (py4cl2:pystop)
     (assert-false (py4cl2:python-alive-p)))
-  
+
   ;; VAR out of scope. Make sure it's finalized
   (tg:gc :full t)
-  
+
   (assert-false (py4cl2:python-alive-p)))
 
 ;;; Passing unknown lisp objects to python
@@ -810,7 +823,7 @@ a = Test()")
     ;; Function (method) call
     (assert-equalp 42
         (py4cl2:chain* object `(func 21))))
-    
+
   ;; The handler should work for other objects of the same class (class-of)
   (let ((object2 (make-instance 'test-class :thing "hello" :value 314)))
     (assert-equalp "hello"
