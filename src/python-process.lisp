@@ -126,6 +126,12 @@ By default this is is set to *PYTHON-COMMAND*
                             (in outer (next-iteration)))
                           (read-char py-out nil)))
                    (when char (write-char char)))))))))
+  (cond ((and (numpy-installed-p)
+              (not (member :arrays *internal-features*)))
+         (push :arrays *internal-features*))
+        ((and (not (numpy-installed-p))
+              (member :arrays *internal-features*))
+         (removef *internal-features* :arrays)))
   (incf *current-python-process-id*))
 
 (defvar *python-output-semaphore* (bt:make-semaphore))
@@ -133,7 +139,11 @@ By default this is is set to *PYTHON-COMMAND*
 (defvar *in-with-python-output* nil) ; This is more of a global variable than a dynamic variable.
 
 (defmacro with-python-output (&body forms-decl)
+  "Gets the output of the python program executed in FORMS-DECL in the form a string."
   `(with-output-to-string (output-stream)
+     (when (and *warn-on-unavailable-feature-usage*
+                (not (member :with-python-output *internal-features*)))
+       (warn "WITH-PYTHON-OUTPUT may not work on your system."))
      (unwind-protect (progn
                        (setq *in-with-python-output* t)
                        ,@forms-decl
@@ -174,6 +184,10 @@ If still not alive, raises a condition."
   (clear-lisp-objects))
 
 (defun pyinterrupt (&optional (process-info *python*))
+  "Issues a SIGINT command to the python process"
+  (when (and *warn-on-unavailable-feature-usage*
+             (not (member :with-python-output *internal-features*)))
+    (warn "Might not be able to issue a SIGINT to the python process on your system."))
   (when (and (python-alive-p process-info)
              *python-process-busy-p*)
     (uiop:run-program

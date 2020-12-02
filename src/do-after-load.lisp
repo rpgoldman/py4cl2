@@ -7,3 +7,11 @@
   ;; until PY4CL2+NUMCL system is loaded.
   (load-config))
 
+;; For :ARRAYS, *INTERNAL-FEATURES* is also modified from PYSTART function.
+(loop :initially (setf *internal-features* ())
+      :for (feature-name . exclude-conditions) :in *feature-exclusion-alist*
+      :if (not (or (and (functionp exclude-conditions)
+                        (funcall exclude-conditions))
+                   (and (listp exclude-conditions)
+                        (intersection exclude-conditions *features*))))
+        :do (push feature-name *internal-features*))

@@ -5,7 +5,7 @@
  (More) Documentation is available at https://digikar99.github.io/py4cl2/"
   :author "Ben Dudson <benjamin.dudson@york.ac.uk> (Original author), Shubhamkar Ayare <shubhamayare@yahoo.co.in> (Fork Contributor)"
   :license "MIT"
-  :version "2.5.1"                  ; py4cl is assumed to be version 1
+  :version "2.6.0"                  ; py4cl is assumed to be version 1
   :depends-on ("alexandria"
                "bordeaux-threads"
                "cl-json"
@@ -18,9 +18,10 @@
   :components ((:static-file "python-code" :pathname #P"../py4cl.py")
                (:file "package")
                (:file "config"         :depends-on ("package"))
+               (:file "features"       :depends-on ("package"))
                (:file "reader"         :depends-on ("package"))
-               (:file "writer"         :depends-on ("package"))
-               (:file "python-process" :depends-on ("package"))
+               (:file "writer"         :depends-on ("package" "features"))
+               (:file "python-process" :depends-on ("package" "features"))
                (:file "lisp-classes"   :depends-on ("package"))
                (:file "callpython"     :depends-on ("reader"
                                                     "writer"

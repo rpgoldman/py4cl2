@@ -71,6 +71,13 @@ which is interpreted correctly by python (3.7.2)."
 ;; this is incremented by pythonize and reset to 0 at the beginning of
 ;; every pyeval*/pycall from delete-numpy-pickle-arrays in reader.lisp
 (defmethod pythonize ((obj array))
+  (when (and *warn-on-unavailable-feature-usage*
+             (not (member :arrays *internal-features*))
+             (not (and (= 1 (array-rank obj))
+                       (eq t (array-element-type obj)))))
+    (warn "Feature :ARRAYS not found in *INTERNAL-FEATURES* with python binary~%  ~A
+Is numpy installed on python side?"
+          (config-var 'pycmd)))
   (let* ((cl-numpy-type-map '((t . nil)
                               (single-float . "float32")
                               (double-float . "float64")
@@ -93,14 +100,18 @@ which is interpreted correctly by python (3.7.2)."
                (config-var 'numpy-pickle-location)
                (>= (array-total-size obj)
                    (config-var 'numpy-pickle-lower-bound)))
-      (let ((filename (concatenate 'string
-                                   (config-var 'numpy-pickle-location)
-                                   ".to." (write-to-string *numpy-pickle-index*))))
-        (incf *numpy-pickle-index*)
-        (numpy-file-format:store-array obj filename)
-        (return-from pythonize
-          (concatenate 'string "_py4cl_load_pickled_ndarray('"
-                       filename "')" astype-string))))
+      (cond ((member :fast-large-array-transfer *internal-features*)
+             (let ((filename (concatenate 'string
+                                          (config-var 'numpy-pickle-location)
+                                          ".to." (write-to-string *numpy-pickle-index*))))
+               (incf *numpy-pickle-index*)
+               (numpy-file-format:store-array obj filename)
+               (return-from pythonize
+                 (concatenate 'string "_py4cl_load_pickled_ndarray('"
+                              filename "')" astype-string))))
+            (*warn-on-unavailable-feature-usage*
+             (warn
+              "Cannot use NUMPY-PICKLE-FORMAT for fast large array transfer on your system"))))
 
     ;; TODO: Enable passing of structs as multidimensional arrays.
     ;; Requires __array_interface__

@@ -54,4 +54,7 @@
    #:pycmd
    #:numpy-pickle-location
    #:numpy-pickle-lower-bound
-   #:py-cd))
+   #:py-cd)
+  (:export
+   #:*internal-features*
+   #:*warn-on-unavailable-feature-usage*))
