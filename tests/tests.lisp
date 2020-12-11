@@ -24,6 +24,13 @@
 ;; so that calling this does not mess up other tests: autostarts in particular
 (py4cl2:pystop)
 
+(defmacro deftest (name declarations required-py4cl2-features &body body)
+  `(clunit:deftest ,name ,declarations
+     (if (subsetp ',required-py4cl2-features py4cl2:*internal-features*)
+         (progn
+           ,@body)
+         (clunit::skip-test-case))))
+
 (defmacro skip-on (skip-features assert-form)
   `(if (intersection ',skip-features *features*)
        (clunit::skip-test-case)
@@ -37,27 +44,27 @@
 
 ;; ======================== PROCESS-BASIC =====================================
 
-(deftest start-and-alive-p (process-basic)
+(deftest start-and-alive-p (process-basic) nil
   (assert-false (py4cl2:python-alive-p))
   (py4cl2:pystart)
   (assert-true (py4cl2:python-alive-p)))
 
-(deftest stop (process-basic)
+(deftest stop (process-basic) nil
   (py4cl2:pystop)
   (assert-false (py4cl2:python-alive-p))
   (py4cl2:pystop))
 
-(deftest start-gone-wrong (process-basic)
+(deftest start-gone-wrong (process-basic) nil
   (pystop)
   (assert-condition py4cl2:python-process-startup-error
       (py4cl2:pystart "python -c \"quit()\"")))
 
-(deftest error-on-eof (process-basic)
+(deftest error-on-eof (process-basic) nil
   (assert-condition py4cl2:python-eof-and-dead (py4cl2:pyexec "quit(0)")))
 
 ;; ======================== CALLPYTHON-RAW =====================================
 
-(deftest raw-autostart (callpython-raw)
+(deftest raw-autostart (callpython-raw) nil
   (py4cl2:pystop)
   (py4cl2:raw-pyeval "'hello'")
   (assert-true (py4cl2:python-alive-p))
@@ -66,57 +73,54 @@
   (assert-true (py4cl2:python-alive-p))
   (py4cl2:pystop))
 
-(deftest raw-io-flush (callpython-raw)
+(deftest raw-io-flush (callpython-raw) (:with-python-output)
   (assert-equalp "hello" (py4cl2:raw-pyeval "'hello'"))
   (assert-equalp "world" (py4cl2:raw-pyeval "'world'"))
   (py4cl2:pyexec "import sys")
-  (skip-on (:ccl :travis :ecl)
-           (assert-equalp "hello world"
-               (with-python-output
-                 (py4cl2:raw-pyexec "sys.stdout.write(\"hello world\")"))))
-  (skip-on (:travis :ccl :ecl)
-           (assert-equalp "testing"
-               (with-python-output
-                 (py4cl2:raw-pyexec "sys.stdout.write(\"testing\")")))))
+  (assert-equalp "hello world"
+      (with-python-output
+        (py4cl2:raw-pyexec "sys.stdout.write(\"hello world\")")))
+  (assert-equalp "testing"
+      (with-python-output
+        (py4cl2:raw-pyexec "sys.stdout.write(\"testing\")"))))
 
 ;; If locks and synchronization are not implemented properly, this
 ;; would likely fail; in fact, SBCL itself seems to stop
 ;; SBCL can also stop inspite of it being implemented correctly.
-(deftest with-python-output-stress-test (callpython-raw)
-  (skip-on (:ccl :windows)
-           (iter (repeat 10000)
-             (string= "hello" (with-python-output (pyexec "print('hello', end = '')"))))))
+(deftest with-python-output-stress-test (callpython-raw) (:with-python-output)
+  (iter (repeat 10000)
+    (string= "hello" (with-python-output (pyexec "print('hello', end = '')")))))
 
-(deftest eval-integer (callpython-raw)
+(deftest eval-integer (callpython-raw) (:with-python-output)
   (let ((result (py4cl2:raw-pyeval "1 + 2 * 3")))
     (assert-true (typep result 'integer))
     (assert-equalp 7 result)))
 
-(deftest eval-malformed (callpython-raw)
-  (assert-condition py4cl2:pyerror
+(deftest eval-malformed (callpython-raw) nil
+    (assert-condition py4cl2:pyerror
       (py4cl2:raw-pyeval "1 + ")))
 
-(deftest eval-real (callpython-raw)
+(deftest eval-real (callpython-raw) nil
   (let ((result (py4cl2:raw-pyeval "1.3 + 2.2")))
     (assert-true (typep result 'real))
     (assert-equalp 3.5 result)))
 
-(deftest eval-vector (callpython-raw)
+(deftest eval-vector (callpython-raw) nil
   (let ((result (py4cl2:raw-pyeval "[i**2 for i in range(4)]")))
     (assert-true (typep result 'array))
     (assert-equalp #(0 1 4 9) result)))
 
-(deftest eval-list (callpython-raw)
+(deftest eval-list (callpython-raw) nil
   (let ((result (py4cl2:raw-pyeval "(1,2,3)")))
     (assert-true (typep result 'cons))
     (assert-equalp '(1 2 3) result)))
 
 ;; Check passing strings, including quote characters which need to be escaped
-(deftest eval-string (callpython-raw)
+(deftest eval-string (callpython-raw) nil
   (assert-equalp "say \"hello\" world"
                  (py4cl2:raw-pyeval "'say \"hello\"' + ' world'")))
 
-(deftest eval-string-newline (callpython-raw)
+(deftest eval-string-newline (callpython-raw) nil
   (let ((str "hello
 world"))
     #-windows
@@ -129,19 +133,19 @@ world"
   ;; If this is not handled correctly, the process may wait indefinitely.
   (assert-equalp (uiop:strcat #\return #\newline) (pyeval "'\\r\\n'")))
 
-(deftest eval-format-string (callpython-raw)
+(deftest eval-format-string (callpython-raw) nil
   (assert-equalp "foo"
       (py4cl2:raw-pyeval (py4cl2::pythonize "foo"))))
 
 ;; This tests whether outputs to stdout mess up the return stream
-(deftest eval-print (callpython-raw)
+(deftest eval-print (callpython-raw) nil
   (unless (= 2 (first *pyversion*))
     ;; Should return the result of print, not the string printed
     (assert-equalp "None"
         (py4cl2:raw-pyeval "print(\"hello\")")
       "This fails with python 2")))
 
-(deftest unicode-string-type (callpython-raw)
+(deftest unicode-string-type (callpython-raw) nil
   ;; Python 2 and python 3 handle unicode differently
   ;; This just catches the use of unicode type strings in python2
   ;; not the use of unicode characters
@@ -151,17 +155,17 @@ world"
                 (gethash "pizza"
                          (py4cl2:pyeval "{u'pizza': 3}"))))
 
-(deftest eval-ratios (callpython-raw)
+(deftest eval-ratios (callpython-raw) nil
   (assert-equalp 1/2 (py4cl2:pyeval 1/2)) ; round trip
   (assert-equalp 1/4 (py4cl2:pyeval 1/2 "/" 2)) ; manipula-ble
   ;; Complex ratios not supported in python so converts to floats
   (assert-equality #'= #C(0.5 1.0)
     (py4cl2:pyeval #C(1 2) "*" 1/2)))
 
-(deftest eval-nil (callpython-raw)
+(deftest eval-nil (callpython-raw) nil
   (assert-equalp "()" (raw-pyeval "()")))
 
-(deftest python-exec-scope ((callpython-raw) (with-python-output-stress-test))
+(deftest python-exec-scope (callpython-raw) nil
   ;; Local functions are retained in scope
   ;; This changed in python 3.x see e.g. https://stackoverflow.com/a/24734880
   (assert-true
@@ -176,7 +180,7 @@ bar()")
 
 ;; ======================== CALLPYTHON-UTILITY =====================================
 
-(deftest pyeval-params (callpython-utility)
+(deftest pyeval-params (callpython-utility) nil
   ;; Values are converted into python values
   (let ((a 4)
         (b 7))
@@ -210,7 +214,7 @@ bar()")
     (assert-equalp 5
                    (py4cl2:pyeval "len(" (py4cl2::pythonize str) ")"))))
 
-(deftest pyeval-complex-values (callpython-utility)
+(deftest pyeval-complex-values (callpython-utility) nil
   ;; Single values
   (assert-equality #'= #C(1 2)
     (py4cl2:pyeval #C(1 2)))
@@ -232,12 +236,12 @@ bar()")
   (assert-equality #'= #C(6 9)
     (py4cl2:pyeval "sum(" (list #C(1 2) #C(2 3) #C(3 4))  ")")))
 
-(deftest pyeval-return-numpy-types (callpython-utility)
+(deftest pyeval-return-numpy-types (callpython-utility) nil
   (py4cl2:pyexec "import numpy as np")
   (assert-equalp 42.0
       (py4cl2:pyeval "np.float64(42.0)")))
 
-(deftest pyeval-hash-table-from-dict (callpython-utility)
+(deftest pyeval-hash-table-from-dict (callpython-utility) nil
   ;; Simple keys
   (let ((table (py4cl2:pyeval "{1:2, 2:3}")))
     (assert-equalp 2
@@ -255,13 +259,13 @@ bar()")
     (assert-equalp 42
                    (gethash "test" table))))
 
-(deftest setf-eval (callpython-utility)
+(deftest setf-eval (callpython-utility) nil
   (setf (py4cl2:pyeval "test_value") 42) ; Set a variable
   (assert-equalp 42
                  (py4cl2:pyeval "test_value")))
 
 
-(deftest pyexec (callpython-utility)
+(deftest pyexec (callpython-utility) nil
   (unless (= 2 (first *pyversion*))
     (assert-equalp nil
         (multiple-value-list (py4cl2:pyexec "print(\"hello\")"))
@@ -274,13 +278,13 @@ bar()")
         (py4cl2:pyexec "temp2 = " b)
         (py4cl2:pyeval "(temp1, temp2,)"))))
 
-(deftest pycall-autostart (callpython-utility)
+(deftest pycall-autostart (callpython-utility) nil
   (py4cl2:pystop)
   (py4cl2:pycall "int" "5")
   (assert-true (py4cl2:python-alive-p))
   (py4cl2:pystop))
 
-(deftest pycall-io-flush (callpython-utility)
+(deftest pycall-io-flush (callpython-utility) (:with-python-output)
   (assert-equalp 5 (py4cl2:pycall "int" "5"))
   (assert-equalp "world" (py4cl2:pycall "str" "world"))
   (let ((py4cl2::*py4cl-tests* t))
@@ -293,62 +297,60 @@ bar()")
              (assert-equalp "testing"
                  (with-python-output (py4cl2:pycall "sys.stdout.write" "testing"))))))
 
-(deftest pycall-one-arg-int (callpython-utility)
+(deftest pycall-one-arg-int (callpython-utility) nil
   (assert-equalp 42
       (py4cl2:pycall "abs" -42)))
 
-(deftest pycall-one-arg-list (callpython-utility)
+(deftest pycall-one-arg-list (callpython-utility) nil
   (assert-equalp 9
       (py4cl2:pycall "sum" '(3 2 4))))
 
-(deftest pycall-one-arg-string (callpython-utility)
+(deftest pycall-one-arg-string (callpython-utility) nil
   (assert-equalp #("h" "e" "l" "l" "o")
       (py4cl2:pycall "list" "hello")))
 
-(deftest pycall-dotted-function (callpython-utility)
+(deftest pycall-dotted-function (callpython-utility) nil
   (py4cl2:pyexec "import math")
   (assert-equalp (sqrt 42d0)
       (py4cl2:pycall "math.sqrt" 42)))
 
-(deftest pycall-lambda-function (callpython-utility)
+(deftest pycall-lambda-function (callpython-utility) nil
   (assert-equalp 16
       (py4cl2:pycall "lambda x: x*x" 4)))
 
-(deftest pycall-lambda-function-two-args (callpython-utility)
+(deftest pycall-lambda-function-two-args (callpython-utility) nil
   (assert-equalp 10
       (py4cl2:pycall "lambda x, y: x*y - y" 3 5)))
 
-(deftest pycall-lambda-keywords (callpython-utility)
+(deftest pycall-lambda-keywords (callpython-utility) nil
   (assert-equalp -1
       (py4cl2:pycall "lambda a=0, b=1: a-b" :b 2 :a 1))
   (assert-equalp 1
       (py4cl2:pycall "lambda a=0, b=1: a-b" :a 2 :b 1)))
 
-(deftest pycall-with-lambda-callback (callpython-utility)
+(deftest pycall-with-lambda-callback (callpython-utility) nil
   ;; Define a function in python which calls its argument
   (py4cl2:pyexec "runme = lambda f: f()")
   ;; Pass a lambda function to pycall
   (assert-equalp 42
       (py4cl2:pycall "runme" (lambda () 42))))
 
-(deftest pycall-string (callpython-utility)
+(deftest pycall-string (callpython-utility) nil
   (assert-equalp "hello" (py4cl2:pycall "str" "hello")))
 
-(deftest pycall-symbol-as-fun-name (callpython-utility)
+(deftest pycall-symbol-as-fun-name (callpython-utility) nil
   (let ((py4cl2::*py4cl-tests* t))
     (py4cl2:pystop)
     (assert-equalp "5" (py4cl2:pycall 'str 5))
-    (py4cl2:pyexec "import sys")
-    (skip-on (:travis :ccl :ecl)
-             (assert-equalp "hello world"
-                 (with-python-output (py4cl2:pycall 'sys.stdout.write "hello world"))))))
+    (py4cl2:pyexec "import math")
+    (assert-equalp #.(sqrt 5.0d0) (py4cl2:pycall 'math.sqrt 5))))
 
 
-(deftest pycall-hash-table-empty (callpython-utility)
+(deftest pycall-hash-table-empty (callpython-utility) nil
   (assert-equalp "{}"
       (py4cl2:pycall "str" (make-hash-table))))
 
-(deftest pycall-hash-table-values (callpython-utility)
+(deftest pycall-hash-table-values (callpython-utility) nil
   (let ((table (make-hash-table)))
     (setf (gethash "test" table) 3
           (gethash "more" table) 42)
@@ -359,19 +361,19 @@ bar()")
     (assert-equalp 2
         (py4cl2:pycall "len" table))))
 
-(deftest pymethod-symbol-as-fun-name (callpython-utility)
+(deftest pymethod-symbol-as-fun-name (callpython-utility) nil
   (assert-equalp 3
       (py4cl2:pymethod '(1 2 3) '__len__))
   (assert-equalp "hello world"
       (py4cl2:pymethod "hello {0}" 'format "world")))
 
-(deftest pymethod-string-as-fun-name (callpython-utility)
+(deftest pymethod-string-as-fun-name (callpython-utility) nil
   (assert-equalp 3
       (py4cl2:pymethod '(1 2 3) "__len__"))
   (assert-equalp "hello world"
       (py4cl2:pymethod "hello {0}" "format" "world")))
 
-(deftest pygenerator (callpython-utility)
+(deftest pygenerator (callpython-utility) nil
   (assert-equalp "<class 'generator'>"
       (slot-value (py4cl2:pygenerator #'identity 3) 'type))
   (py4cl2:pyexec "
@@ -387,7 +389,7 @@ def foo(gen):
                                      nil)))
         (py4cl2:pycall 'foo gen))))
 
-(deftest pyslot-value-symbol-as-slot (callpython-utility)
+(deftest pyslot-value-symbol-as-slot (callpython-utility) nil
   (assert-equalp 5
       (progn
         (py4cl2:pyexec "a=5")
@@ -403,7 +405,7 @@ temp = Foo()")
         (list (py4cl2:pyslot-value "temp" 'a)
               (py4cl2:pyslot-value temp s)))))
 
-(deftest pyslot-value-string-as-slot (callpython-utility)
+(deftest pyslot-value-string-as-slot (callpython-utility) nil
   (assert-equalp 5
       (progn
         (py4cl2:pyexec "a=5")
@@ -423,7 +425,7 @@ temp = Foo()")
 ;; Shorter more convenient slicing
 (py4cl2:defpyfun "slice")
 
-(deftest chain (callpython-chain)
+(deftest chain (callpython-chain) nil
   (assert-equalp "Hello world"
       (py4cl2:chain "hello {0}" (format "world") (capitalize)))
   (assert-equalp "hello world"
@@ -456,7 +458,7 @@ temp = Foo()")
     (assert-equalp "pong"
         (py4cl2:chain* `(aref ,dict "ping")))))
 
-(deftest chain-keywords (callpython-chain)
+(deftest chain-keywords (callpython-chain) nil
   (py4cl2:pyexec
    "def test_fn(arg, key=1):
        return arg * key")
@@ -478,7 +480,7 @@ temp = Foo()")
       (py4cl2:chain (testclass) (run :value 31))))
 
 
-(deftest chain-strings (callpython-chain)
+(deftest chain-strings (callpython-chain) nil
   (py4cl2:pyexec
    "class TestClass:
       def doThing(self, dummy = 1, value = 42):
@@ -498,12 +500,12 @@ temp = Foo()")
     ((string= slot-name "func")  ; method, return a function
       (lambda (arg) (* 2 arg)))
     (t (call-next-method)))) ; Otherwise go to next method
-(deftest chain-nested (callpython-chain)
+(deftest chain-nested (callpython-chain) nil
   (assert-equal 42
       (let ((instance (make-instance 'test-class :value 21)))
         (chain* `((@ ,instance func) (@ ,instance value))))))
 
-(deftest setf-chain (callpython-chain)
+(deftest setf-chain (callpython-chain) nil
   ;; Define an empty class which can be modified
   (py4cl2:pyexec "
 class testclass:
@@ -516,7 +518,7 @@ class testclass:
 
 ;; ========================= CALLPYTHON-REMOTE =================================
 
-(deftest with-remote-objects (callpython-remote)
+(deftest with-remote-objects (callpython-remote) nil
   (assert-equalp 'py4cl2::python-object
       (type-of (py4cl2:with-remote-objects (py4cl2:pyeval "1+2"))))
   (assert-equalp 3
@@ -527,7 +529,7 @@ class testclass:
                    (py4cl2:pyeval "1+2"))
                  (py4cl2:pyeval "1+2")))))
 
-(deftest callback-in-remote-objects (callpython-remote)
+(deftest callback-in-remote-objects (callpython-remote) nil
   ;; Callbacks send values to lisp in remote-objects environments
   (assert-equalp 6
       (py4cl2:with-remote-objects*
@@ -544,11 +546,11 @@ class testclass:
      (eval-when (:compile-toplevel)
        ,@pyexec-forms)
      ,@defpyfun-forms
-     (deftest ,name (import-export)
+     (deftest ,name (import-export) nil
        ,@pyexec-forms
        ,@body)))
 
-(deftest numpy-import-as-np (import-export)
+(deftest numpy-import-as-np (import-export) nil
   ;; also check whether "all" options as expected
   (defpymodule "numpy" nil :lisp-package "NP" :silent t)
   ;; np. formats are accessible
@@ -557,7 +559,7 @@ class testclass:
   ;; package is imported as np even after stopping
   (assert-equalp #(5 7 9) (np:add '(1 2 3) '(4 5 6))))
 
-(deftest numpy-random-import (import-export)
+(deftest numpy-random-import (import-export) nil
   (defpymodule "numpy.random" t :silent t)
   ;; The following tests two bugfixes
   ;; 1. defpysubmodules was previously importing only packages.
@@ -621,7 +623,7 @@ class testclass:
                    (lambda (&rest kwargs &key (a 'nil) (b 'nil) &allow-other-keys) ()))
                   (trivial-arguments:arglist #'kw-rest-args)))))
 
-(deftest defpymodule-math (import-export)
+(deftest defpymodule-math (import-export) nil
   (assert-equalp (cos 45d0) (math:cos 45)))
 
 (define-pyfun-with-test defpyfun-names
@@ -638,7 +640,7 @@ class testclass:
   (assert-equalp '("hello" #(5)) (nil-and-t :.nil "hello" :.t #(5))))
 
 ;; Call python during callback
-(deftest python-during-callback (callpython-utility)
+(deftest python-during-callback (callpython-utility) nil
   (py4cl2:export-function
    (lambda () (py4cl2:pyeval "42"))
    "test")
@@ -649,7 +651,7 @@ class testclass:
 (defun test-func ()
   42)
 
-(deftest callback-no-args (import-export)
+(deftest callback-no-args (import-export) nil
   (py4cl2:export-function #'test-func "test")
   (assert-equalp 42
       (py4cl2:pyeval "test()")))
@@ -658,40 +660,40 @@ class testclass:
 (defun nil-func ()
   nil)
 
-(deftest callback-no-args-return-nil (import-export)
+(deftest callback-no-args-return-nil (import-export) nil
   (py4cl2:export-function #'nil-func "test_nil")
   (assert-equalp nil
       (py4cl2:pyeval "test_nil()")))
 
 ;; Python can't eval write-to-string's output "3.141592653589793d0"
-(deftest callback-return-double (import-export)
+(deftest callback-return-double (import-export) nil
   (py4cl2:export-function (lambda () pi) "test")
   (assert-eql #.(coerce pi 'double-float)
       (py4cl2:pyeval "test()")))
 
-(deftest callback-one-arg (import-export)
+(deftest callback-one-arg (import-export) nil
   (py4cl2:export-function (lambda (x) (* 2 x)) "double")
   (assert-equalp 4
       (py4cl2:pyeval "double(2)")))
 
-(deftest callback-two-args (import-export)
+(deftest callback-two-args (import-export) nil
   (py4cl2:export-function (lambda (x y) (/ x y)) "div")
   (assert-equalp 3
       (py4cl2:pyeval "div(6, 2)")))
 
-(deftest callback-many-args (import-export)
+(deftest callback-many-args (import-export) nil
   (py4cl2:export-function #'+ "add")
   (assert-equalp 15
       (py4cl2:pyeval "add(2, 4, 6, 3)")))
 
-(deftest callback-seq-arg (import-export)
+(deftest callback-seq-arg (import-export) nil
   (py4cl2:export-function #'reverse "reverse")
   (assert-equalp '(3 1 2 4)
       (py4cl2:pyeval "reverse((4,2,1,3))"))
   (assert-equalp #(3 1 2 4)
       (py4cl2:pyeval "reverse([4,2,1,3])")))
 
-(deftest callback-keyword-arg (import-export)
+(deftest callback-keyword-arg (import-export) nil
   (py4cl2:export-function (lambda (&key setting) setting) "test")
   (assert-equalp nil
       (py4cl2:pyeval "test()"))
@@ -700,7 +702,7 @@ class testclass:
 
 
 ;; Call python during callback
-(deftest python-during-callback (import-export)
+(deftest python-during-callback (import-export) nil
   (py4cl2:export-function
    (lambda () (py4cl2:pyeval "42"))
    "test")
@@ -711,7 +713,7 @@ class testclass:
 ;; ============================= OBJECTS =======================================
 
 
-(deftest python-objects (objects)
+(deftest python-objects (objects) nil
   ;; Define a simple python class containing a value
   (py4cl2:pystop)
   (py4cl2:pyexec
@@ -758,7 +760,7 @@ a.value = 42")
            (assert-equalp 0
                (py4cl2:pyeval "len(_py4cl_objects)"))))
 
-(deftest python-del-objects (objects)
+(deftest python-del-objects (objects) nil
     ;; Check that finalizing objects doesn't start python
   (py4cl2:pystart)
   (py4cl2:pyexec
@@ -784,7 +786,7 @@ a = Test()")
 (defstruct test-struct
   x y)
 
-(deftest lisp-structs (objects)
+(deftest lisp-structs (objects) nil
   ;; Create a struct and pass to Python
   (let ((result (py4cl2:pycall
                  "lambda x: x"
@@ -812,7 +814,7 @@ a = Test()")
      (lambda (arg) (* 2 arg)))
     (t (call-next-method))))
 
-(deftest lisp-class-slots (objects)
+(deftest lisp-class-slots (objects) nil
   (let ((object (make-instance 'test-class :thing 23 :value 42)))
     ;; Slot access
     (assert-equalp 23
@@ -841,7 +843,7 @@ a = Test()")
      (slot-value object 'other))
     (t (call-next-method))))
 
-(deftest lisp-class-inherit (objects)
+(deftest lisp-class-inherit (objects) nil
   (let ((object (make-instance 'child-class :thing 23 :value 42 :other 3)))
     (assert-equalp 23
         (py4cl2:pycall "lambda x : x.thing" object))
@@ -852,7 +854,7 @@ a = Test()")
 
 ;; ============================== PICKLE =======================================
 
-(deftest transfer-multiple-arrays (pickle)
+(deftest transfer-multiple-arrays (pickle) (:fast-large-array-transfer)
   (py4cl2:pystop)
   (when (and (py4cl2:config-var 'py4cl2:numpy-pickle-location)
              (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound))
@@ -860,18 +862,17 @@ a = Test()")
       (let ((dimensions `((,lower-bound)
                           (,(* 5 lower-bound)))))
         ;; test transfer to python and back
-        (skip-on  (:ecl :abcl)
-                  (assert-equalp dimensions
-                      (mapcar #'array-dimensions
-                              (py4cl2:pyeval
-                               (list (make-array (first dimensions)
-                                                 :element-type 'single-float
-                                                 :initial-element 0.0)
-                                     (make-array (second dimensions)
-                                                 :element-type 'single-float
-                                                 :initial-element 0.0))))))))))
+        (assert-equalp dimensions
+            (mapcar #'array-dimensions
+                    (py4cl2:pyeval
+                     (list (make-array (first dimensions)
+                                       :element-type 'single-float
+                                       :initial-element 0.0)
+                           (make-array (second dimensions)
+                                       :element-type 'single-float
+                                       :initial-element 0.0)))))))))
 
-(deftest transfer-without-pickle (pickle)
+(deftest transfer-without-pickle (pickle) nil
   (unless (and (py4cl2:config-var 'py4cl2:numpy-pickle-location)
                (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound))
     (assert-equalp '(100000)
@@ -883,10 +884,10 @@ a = Test()")
 ;; ========================= NUMPY-UFUNC =======================================
 
 (py4cl2:defpyfun "abs" "numpy" :lisp-fun-name "NUMABS")
-(deftest numpy-ufunc-abs (numpy-ufunc)
+(deftest numpy-ufunc-abs (numpy-ufunc) nil
   (assert-equalp #(1 2 3) (numabs #(-1 2 -3))))
 (py4cl2:defpyfun "add" "numpy" :lisp-fun-name "NUMADD")
-(deftest numpy-ufunc-add (numpy-ufunc)
+(deftest numpy-ufunc-add (numpy-ufunc) nil
   (assert-equalp #(4 5 6) (numadd #(1 2 3) 3)))
 
 ;; ==================== PROCESS-INTERRUPT ======================================
@@ -894,7 +895,7 @@ a = Test()")
 ;; Unable to test on CCL:
 ;; Stream #<BASIC-CHARACTER-OUTPUT-STREAM UTF-8 (PIPE/36) #x3020019EE9AD> is private to #<PROCESS repl-thread(12) [Sleep] #x302000AC72FD>
 ;; On windows: https://stackoverflow.com/questions/813086/can-i-send-a-ctrl-c-sigint-to-an-application-on-windows
-(deftest interrupt (process-interrupt)
+(deftest interrupt (process-interrupt) (:interrupt :with-python-output)
   (let ((py4cl2::*py4cl-tests* t))
     (py4cl2:pystop)
     (py4cl2:pyexec "
@@ -906,31 +907,29 @@ class Foo():
     sys.stdout.flush()
     time.sleep(5)
     return")
-    (skip-on (:ccl :ecl :abcl :windows)
-             (assert-equalp "hello"
-                 (let* ((rv nil)
-                        (mon-thread (bt:make-thread
-                                     (lambda ()
-                                       (setq rv
-                                             (with-python-output
-                                               (py4cl2:pycall "Foo().foo")))))))
-                   (sleep 1)
-                   (py4cl2:pyinterrupt)
-                   (bt:join-thread mon-thread)
-                   rv)))
-    (skip-on (:ccl :ecl :abcl :windows)
-             (assert-equalp "hello"
-                 (let* ((rv nil)
-                        (mon-thread (bt:make-thread
-                                     (lambda ()
-                                       (setq rv
-                                             (with-python-output
-                                               (py4cl2:pymethod
-                                                (py4cl2:pycall "Foo") 'foo)))))))
-                   (sleep 1)
-                   (py4cl2:pyinterrupt)
-                   (bt:join-thread mon-thread)
-                   rv))))
+    (assert-equalp "hello"
+        (let* ((rv nil)
+               (mon-thread (bt:make-thread
+                            (lambda ()
+                              (setq rv
+                                    (with-python-output
+                                      (py4cl2:pycall "Foo().foo")))))))
+          (sleep 1)
+          (py4cl2:pyinterrupt)
+          (bt:join-thread mon-thread)
+          rv))
+    (assert-equalp "hello"
+        (let* ((rv nil)
+               (mon-thread (bt:make-thread
+                            (lambda ()
+                              (setq rv
+                                    (with-python-output
+                                      (py4cl2:pymethod
+                                       (py4cl2:pycall "Foo") 'foo)))))))
+          (sleep 1)
+          (py4cl2:pyinterrupt)
+          (bt:join-thread mon-thread)
+          rv)))
 
   ;; Check if no "residue" left
 
@@ -938,7 +937,7 @@ class Foo():
 
 ;; ==================== PY4CL-CONFIG ======================================
 
-(deftest config-change (py4cl-config)
+(deftest config-change (py4cl-config) nil
   (let ((original-config (copy-tree *config*)))
     (with-output-to-string (*standard-output*)
       (setf (py4cl2:config-var 'py4cl2:numpy-pickle-location) "tmp")
@@ -958,7 +957,7 @@ class Foo():
 
 ;; NUMCL does not load on ECL and ABCL
 #-(or :ecl :abcl)
-(deftest numcl-array (array-type)
+(deftest numcl-array (array-type) nil
   ;; Doesn't really matter if they are numcl-arrays or not
   (let ((*array-type* :numcl)
         (*arrayfiers* (append *arrayfiers* (list :numcl #'numcl:asarray))))
@@ -967,16 +966,16 @@ class Foo():
       (assert-true (numcl:numcl-array-p b)))))
 
 ;; ==================== ELEMENT-TYPE ==============================
-(deftest float-type (element-type)
+(deftest float-type (element-type) nil
   (assert-eql 1.0d5 (pyeval 1.0d5))
   (assert-eql 1.0e5 (pyeval 1.0e5))
   (assert-eql 1.0 (pyeval 1.0)))
 
-(deftest simple-vector (element-type)
+(deftest simple-vector (element-type) nil
   (assert-equalp #("hello" "world")
       (pyeval #("hello" "world"))))
 
-(deftest array-element-type (element-type)
+(deftest array-element-type-no-pickle (element-type) (:typed-arrays)
   (let ((lower-bound (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound)))
     (flet ((pyeval-array (dimensions element-type initial-element)
              (let* ((array (pyeval (make-array dimensions :element-type element-type
@@ -985,64 +984,69 @@ class Foo():
                     (second-pass (pyeval array)))
                (array-element-type second-pass))))
 
-      (skip-on (:abcl)
-               ;; Without pickling
-               (assert-true
-                   (every (lambda (args) (apply #'alexandria:type= args))
-                          (list (list 'double-float (pyeval-array 10 'double-float 0.0d0))
-                                (list 'single-float (pyeval-array 10 'single-float 0.0))
-                                (list '(signed-byte 64) (pyeval-array 10 '(signed-byte 64) 0))
-                                (list '(signed-byte 32) (pyeval-array 10 '(signed-byte 32) 0))
-                                (list '(signed-byte 16) (pyeval-array 10 '(signed-byte 16) 0))
-                                (list '(signed-byte 08) (pyeval-array 10 '(signed-byte 08) 0))
-                                (list '(unsigned-byte 64) (pyeval-array 10 '(unsigned-byte 64) 0))
-                                (list '(unsigned-byte 32) (pyeval-array 10 '(unsigned-byte 32) 0))
-                                (list '(unsigned-byte 16) (pyeval-array 10 '(unsigned-byte 16) 0))
-                                (list '(unsigned-byte 08) (pyeval-array 10 '(unsigned-byte 08) 0))
+      ;; Filled arrays
+      (assert-true
+          (every (lambda (args) (apply #'alexandria:type= args))
+                 (list (list 'double-float (pyeval-array 10 'double-float 0.0d0))
+                       (list 'single-float (pyeval-array 10 'single-float 0.0))
+                       (list '(signed-byte 64) (pyeval-array 10 '(signed-byte 64) 0))
+                       (list '(signed-byte 32) (pyeval-array 10 '(signed-byte 32) 0))
+                       (list '(signed-byte 16) (pyeval-array 10 '(signed-byte 16) 0))
+                       (list '(signed-byte 08) (pyeval-array 10 '(signed-byte 08) 0))
+                       (list '(unsigned-byte 64) (pyeval-array 10 '(unsigned-byte 64) 0))
+                       (list '(unsigned-byte 32) (pyeval-array 10 '(unsigned-byte 32) 0))
+                       (list '(unsigned-byte 16) (pyeval-array 10 '(unsigned-byte 16) 0))
+                       (list '(unsigned-byte 08) (pyeval-array 10 '(unsigned-byte 08) 0))
 
-                                (list 'bit (pyeval-array 10 'bit 1))
-                                (list t (pyeval-array 10 t (make-test-struct)))))))
+                       (list 'bit (pyeval-array 10 'bit 1))
+                       (list t (pyeval-array 10 t (make-test-struct))))))
 
-      (skip-on (:abcl)
-               ;; Without pickling - empty arrays
-               (assert-true
-                   (every (lambda (args) (apply #'alexandria:type= args))
-                          (list (list 'double-float (pyeval-array 0 'double-float 0.0d0))
-                                (list 'single-float (pyeval-array 0 'single-float 0.0))
-                                (list '(signed-byte 64) (pyeval-array 0 '(signed-byte 64) 0))
-                                (list '(signed-byte 32) (pyeval-array 0 '(signed-byte 32) 0))
-                                (list '(signed-byte 16) (pyeval-array 0 '(signed-byte 16) 0))
-                                (list '(signed-byte 08) (pyeval-array 0 '(signed-byte 08) 0))
-                                (list '(unsigned-byte 64) (pyeval-array 0 '(unsigned-byte 64) 0))
-                                (list '(unsigned-byte 32) (pyeval-array 0 '(unsigned-byte 32) 0))
-                                (list '(unsigned-byte 16) (pyeval-array 0 '(unsigned-byte 16) 0))
-                                (list '(unsigned-byte 08) (pyeval-array 0 '(unsigned-byte 08) 0))
+      ;; Empty arrays
+      (assert-true
+          (every (lambda (args) (apply #'alexandria:type= args))
+                 (list (list 'double-float (pyeval-array 0 'double-float 0.0d0))
+                       (list 'single-float (pyeval-array 0 'single-float 0.0))
+                       (list '(signed-byte 64) (pyeval-array 0 '(signed-byte 64) 0))
+                       (list '(signed-byte 32) (pyeval-array 0 '(signed-byte 32) 0))
+                       (list '(signed-byte 16) (pyeval-array 0 '(signed-byte 16) 0))
+                       (list '(signed-byte 08) (pyeval-array 0 '(signed-byte 08) 0))
+                       (list '(unsigned-byte 64) (pyeval-array 0 '(unsigned-byte 64) 0))
+                       (list '(unsigned-byte 32) (pyeval-array 0 '(unsigned-byte 32) 0))
+                       (list '(unsigned-byte 16) (pyeval-array 0 '(unsigned-byte 16) 0))
+                       (list '(unsigned-byte 08) (pyeval-array 0 '(unsigned-byte 08) 0))
 
-                                (list 'bit (pyeval-array 0 'bit 1))
-                                (list t (pyeval-array 0 t (make-test-struct)))))))
+                       (list 'bit (pyeval-array 0 'bit 1))
+                       (list t (pyeval-array 0 t (make-test-struct)))))))))
+
+(deftest array-element-type-no-pickle (element-type) (:typed-arrays :fast-large-array-transfer)
+  (let ((lower-bound (py4cl2:config-var 'py4cl2:numpy-pickle-lower-bound)))
+    (flet ((pyeval-array (dimensions element-type initial-element)
+             (let* ((array (pyeval (make-array dimensions :element-type element-type
+                                                          :initial-element initial-element)))
+                    (first-pass (pyeval array))
+                    (second-pass (pyeval array)))
+               (array-element-type second-pass))))
+      (assert-true
+          (every (lambda (args) (apply #'alexandria:type= args))
+                 (list (list 'double-float (pyeval-array (list 2 lower-bound)
+                                                         'double-float 0.0d0))
+                       (list 'single-float (pyeval-array (list 2 lower-bound)
+                                                         'single-float 0.0))
+                       (list '(signed-byte 64) (pyeval-array (list 2 lower-bound)
+                                                             '(signed-byte 64) 0))
+                       (list '(signed-byte 32) (pyeval-array (list 2 lower-bound)
+                                                             '(signed-byte 32) 0))
+                       (list '(signed-byte 16) (pyeval-array (list 2 lower-bound)
+                                                             '(signed-byte 16) 0))
+                       (list '(signed-byte 08) (pyeval-array (list 2 lower-bound)
+                                                             '(signed-byte 08) 0))
+                       (list '(unsigned-byte 64) (pyeval-array (list 2 lower-bound)
+                                                               '(unsigned-byte 64) 0))
+                       (list '(unsigned-byte 32) (pyeval-array (list 2 lower-bound)
+                                                               '(unsigned-byte 32) 0))
+                       (list '(unsigned-byte 16) (pyeval-array (list 2 lower-bound)
+                                                               '(unsigned-byte 16) 0))
+                       (list '(unsigned-byte 08) (pyeval-array (list 2 lower-bound)
+                                                               '(unsigned-byte 08) 0))))))))
 
 
-      ;; The below should use pickling
-      (skip-on (:abcl :ecl)
-               (assert-true
-                   (every (lambda (args) (apply #'alexandria:type= args))
-                          (list (list 'double-float (pyeval-array (list 2 lower-bound)
-                                                                  'double-float 0.0d0))
-                                (list 'single-float (pyeval-array (list 2 lower-bound)
-                                                                  'single-float 0.0))
-                                (list '(signed-byte 64) (pyeval-array (list 2 lower-bound)
-                                                                      '(signed-byte 64) 0))
-                                (list '(signed-byte 32) (pyeval-array (list 2 lower-bound)
-                                                                      '(signed-byte 32) 0))
-                                (list '(signed-byte 16) (pyeval-array (list 2 lower-bound)
-                                                                      '(signed-byte 16) 0))
-                                (list '(signed-byte 08) (pyeval-array (list 2 lower-bound)
-                                                                      '(signed-byte 08) 0))
-                                (list '(unsigned-byte 64) (pyeval-array (list 2 lower-bound)
-                                                                        '(unsigned-byte 64) 0))
-                                (list '(unsigned-byte 32) (pyeval-array (list 2 lower-bound)
-                                                                        '(unsigned-byte 32) 0))
-                                (list '(unsigned-byte 16) (pyeval-array (list 2 lower-bound)
-                                                                        '(unsigned-byte 16) 0))
-                                (list '(unsigned-byte 08) (pyeval-array (list 2 lower-bound)
-                                                                        '(unsigned-byte 08) 0)))))))))

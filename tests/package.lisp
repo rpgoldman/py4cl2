@@ -15,5 +15,6 @@
 
 (defpackage :py4cl2/tests
   (:use :cl :clunit :py4cl2 :iterate)
+  (:shadow :deftest)
   (:export :run))
 
