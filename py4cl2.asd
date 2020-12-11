@@ -1,9 +1,12 @@
 (asdf:defsystem "py4cl2"
   :serial t
-  :description "Some improvements over py4cl. py4cl is a library for interfacing with python   libraries from common lisp, using streams to communicate with the python process.
- Report the issues at https://github.com/digikar99/py4cl2/issues
- (More) Documentation is available at https://digikar99.github.io/py4cl2/"
-  :author "Ben Dudson <benjamin.dudson@york.ac.uk> (Original author), Shubhamkar Ayare <shubhamayare@yahoo.co.in> (Fork Contributor)"
+  :description "Some improvements over py4cl. py4cl is a library for interfacing with python libraries from common lisp, using streams to communicate with the python process.
+Report the issues at https://github.com/digikar99/py4cl2/issues
+(More) Documentation is available at https://digikar99.github.io/py4cl2/"
+  :author #.(concatenate 'string
+                         "py4cl author: Ben Dudson <benjamin.dudson@york.ac.uk>"
+                         (string #\newline)
+                         "py4cl2 maintainer: Shubhamkar Ayare <shubhamayare@yahoo.co.in>")
   :license "MIT"
   :version "2.6.0"                  ; py4cl is assumed to be version 1
   :depends-on ("alexandria"
@@ -29,21 +32,14 @@
                (:file "import-export"  :depends-on ("callpython"))
                (:file "do-after-load"  :depends-on ("import-export"))
                (:static-file ".config" :pathname #P"../.config"))
-  :in-order-to ((test-op (test-op "py4cl2/tests"))))
-
-(asdf:defsystem "py4cl2/tests"
-  :serial t
-  :description "Unit tests for the py4cl library."
-  :author "Ben Dudson <benjamin.dudson@york.ac.uk>"
-  :license "MIT"
-  :depends-on ("py4cl2"
-               #-(or :ecl :abcl)
-               "numcl"
-               "alexandria"
-               "clunit"
-               "trivial-garbage"
-               "trivial-arguments")
-  :pathname #P"tests/"
-  :components ((:file "package")
-               (:file "tests"))
-  :perform (test-op (o c) (symbol-call :py4cl2/tests :run)))
+  :perform (test-op (o c)
+                    (declare (ignore o c))
+                    (handler-case (let ((system (asdf:find-system "py4cl2-tests")))
+                                    (asdf:test-system system))
+                      (asdf:missing-component (condition)
+                        (declare (ignore condition))
+                        (format *error-output* "Please find the tests at ~A~%"
+                                "https://github.com/digikar99/py4cl2-tests")
+                        (format *error-output*
+                                "If you have already set up the tests, then something is wrong,
+as asdf was unable to find \"py4cl2-tests\".")))))

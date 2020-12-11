@@ -18,6 +18,7 @@ addons:
     - python3-networkx
 
 install:
+  - git clone https://github.com/digikar99/py4cl2-tests
   - python3 -c 'import networkx; print(networkx.__version__)'
   - echo $PATH
   - java -version
@@ -46,8 +47,8 @@ install:
 script:
   # Testing it on the second load confirms that functionalities do not
   # solely eval-when compile-toplevel, and that they persist across multiple loads.
-  - cl --load "$EXOTIC_DIR/$HOME/build/digikar99/py4cl2/tests/travis-pre-test.lisp"
-  - cl --load "$EXOTIC_DIR/$HOME/build/digikar99/py4cl2/tests/travis-test.lisp"
+  - cl --load "$EXOTIC_DIR/$HOME/build/digikar99/py4cl2/travis-pre-test.lisp"
+  - cl --load "$EXOTIC_DIR/$HOME/build/digikar99/py4cl2/travis-test.lisp"
 
 notifications:
   email: false
