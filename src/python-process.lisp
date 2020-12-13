@@ -116,15 +116,25 @@ By default this is is set to *PYTHON-COMMAND*
                (let ((py-out (uiop:process-info-error-output *python*)))
                  (iter outer
                    (while (and *python* (python-alive-p *python*)))
-                   (for char =
-                        (progn
-                          ;; PEEK-CHAR waits for input
-                          (peek-char nil py-out nil)
-                          (when *in-with-python-output*
-                            (iter (while *in-with-python-output*)
-                              (bt:wait-on-semaphore *python-output-semaphore*))
-                            (in outer (next-iteration)))
-                          (read-char py-out nil)))
+                   (handler-case
+                       (for char =
+                            (progn
+                              ;; PEEK-CHAR waits for input
+                              (peek-char nil py-out nil)
+                              (when *in-with-python-output*
+                                (iter (while *in-with-python-output*)
+                                  (bt:wait-on-semaphore *python-output-semaphore*))
+                                (in outer (next-iteration)))
+                              (read-char py-out nil)))
+                     (simple-error (condition)
+                       (unless (and (member :ccl *features*)
+                                    (search "is private to" (format nil "~A" condition)))
+                         (error "~S~%  ~A~%occured while inside *python-output-thread* ~A"
+                                condition condition *python-output-thread*)))
+                     (stream-error (condition)
+                       (unless (member :abcl *features*)
+                         (error "~S~%  ~A~%occured while inside *python-output-thread* ~A"
+                                condition condition *python-output-thread*))))
                    (when char (write-char char)))))))))
   (cond ((and (numpy-installed-p)
               (not (member :arrays *internal-features*)))
