@@ -80,6 +80,11 @@ By default this is is set to *PYTHON-COMMAND*
                       (concatenate 'string
                                    "bash -c \""
                                    (bash-escape-string command)
+                                   " -u "
+                                   ;; Unbuffered is important if flush=True
+                                   ;; should not be required for asynchronous output.
+                                   ;; TODO: Add test for unflushed async output; been unable to
+                                   ;; The closest thing is the INTERRUPT test.
                                    "\"' <(cat <<\"EOF\""
                                    (string #\newline)
                                    *python-code*
