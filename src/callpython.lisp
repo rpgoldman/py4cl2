@@ -92,6 +92,7 @@
           return-value)
       (end-of-file (condition)
         (declare (ignore condition))
+        (sleep 0.00001)
         (error (if (python-alive-p process)
                    'python-eof-but-alive
                    'python-eof-and-dead)
