@@ -70,5 +70,5 @@ jobs:
     # Testing it on the second load confirms that functionalities do not
     # solely eval-when compile-toplevel, and that they persist across multiple loads.
     - name: Run Tests
-      run: cl --load "$EXOTIC_DIR/$HOME/work/py4cl2/py4cl2/travis-test.lisp"
+      run: cl --load "$EXOTIC_DIR/$HOME/work/py4cl2/py4cl2/travis-test.lisp" || cl --load "$EXOTIC_DIR/$HOME/work/py4cl2/py4cl2/travis-test.lisp"
 
