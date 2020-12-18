@@ -23,6 +23,18 @@ jobs:
     - name: Check $PATH
       run: echo $PATH
 
+    - name: Download implementation
+      env:
+        LISP: ${{ matrix.lisp }}
+      run: |
+        pwd
+        ls -l
+        bash <(curl -s https://raw.githubusercontent.com/digikar99/lisp-travis-lite/master/run.sh)
+
+    - name: Test without numpy
+      run: |
+        ls
+        cl --eval '(push #P"./" ql:*local-project-directories*)' --eval '(ql:quickload "py4cl2")' --eval '(assert (= 5 (py4cl2:pyeval 5)))' --eval '(print py4cl2:*internal-features*)'
 
     # We avoid caching the apt and python modules; need to deal with recursive dependencies
 
@@ -36,14 +48,6 @@ jobs:
         git clone https://github.com/digikar99/py4cl2-tests ./tests
         pwd
         ls -l
-
-    - name: Download implementation
-      env:
-        LISP: ${{ matrix.lisp }}
-      run: |
-        pwd
-        ls -l
-        bash <(curl -s https://raw.githubusercontent.com/digikar99/lisp-travis-lite/master/run.sh)
 
     - name: Set up directory with exotic name
       run: |
@@ -65,10 +69,10 @@ jobs:
         /"$EXOTIC_DIR_PYTHON" --version
 
     - name: Compile Tests
-      run: cl --load "$EXOTIC_DIR/$HOME/work/py4cl2/py4cl2/travis-pre-test.lisp"
+      run: cl --load "$EXOTIC_DIR/$HOME/work/py4cl2/py4cl2/ci-pre-test.lisp"
 
     # Testing it on the second load confirms that functionalities do not
     # solely eval-when compile-toplevel, and that they persist across multiple loads.
     - name: Run Tests
-      run: cl --load "$EXOTIC_DIR/$HOME/work/py4cl2/py4cl2/travis-test.lisp" || cl --load "$EXOTIC_DIR/$HOME/work/py4cl2/py4cl2/travis-test.lisp"
+      run: cl --load "$EXOTIC_DIR/$HOME/work/py4cl2/py4cl2/ci-test.lisp" || cl --load "$EXOTIC_DIR/$HOME/work/py4cl2/py4cl2/ci-test.lisp"
 
