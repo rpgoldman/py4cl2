@@ -1,30 +1,31 @@
 # py4cl2
 
-[Last update: v2.5.0]
+[Last update: v2.6.0]
 
 ## Introduction
 
-[py4cl][bendudson/py4cl] is a package by Ben Dudson, aimed at making python libraries availble in Common Lisp,
-using streams to communicate with a separate python process - the approach taken by [cl4py](https://github.com/marcoheisig/cl4py). This is
+[py4cl][bendudson/py4cl] is a package by Ben Dudson, aimed at making python libraries availble in Common Lisp using streams to communicate with a separate python process - this is the approach taken by [cl4py](https://github.com/marcoheisig/cl4py) and is
 different to the CFFI approach used by [burgled-batteries](https://github.com/pinterface/burgled-batteries),
-but has the same goal. 
+but has the same goal.
 
-[py4cl2](https://github.com/digikar99/py4cl2) is an improvement over the original py4cl. (See [Highlights and Limitations](#highlights-and-limitations-of-py4cl).)
+[py4cl2](https://github.com/digikar99/py4cl2) is intended to be an improvement over the original py4cl - importing of arguments posed a critical problem with backwards-compatibility. (See [Highlights and Limitations](#highlights-and-limitations-of-py4cl).)
 
 Please report the issues on github: [py4cl2](https://github.com/digikar99/py4cl2/issues) or [py4cl](https://github.com/bendudson/py4cl/issues)).
 
 
 ## Highlights and Limitations of `py4cl`
 
-- Speed: About 6500 `(pycall "int" "5")` instructions per second @ 1GHz intel 8750H. 
+- Speed: About 6500 `(pycall "int" "5")` instructions per second @ 1GHz intel 8750H.
 This shouldn't be a bottleneck if you're planning to run "long" processes in python. (For example, deep learning :). )
 - Virtual environments: [`pycmd`](#pycmd) (`*python-command*` in `py4cl`): Choose which python binary to use. Works with miniconda.
 - Multiple python processes (not documented here) - parallel execution?
-- Tested on SBCL, CCL, ABCL (Java 1.8), and ECL
+- Tested on SBCL, CCL, ABCL 1.7.1 (Java 1.8), and ECL
 - No support for inheriting python classes - should require MOP
-- [Travis](https://travis-ci.org/github/digikar99/py4cl2/) has not been set up for windows; however, the test system ran without errors "as expected" as of version 2.4.1
-- Mac users should update to a later version of bash. See [this stackoverflow question](https://stackoverflow.com/questions/32481734/shell-error-with-bash-bad-substitution-no-closing). (Thanks to [byulparen](https://github.com/byulparan) for pointing out!)
-- Embeddable into lisp-image - the code from py4cl.py is copied into `*python-code*` and heredocs are used. This is made to happen for unix and not for windows; until someone gets into Windows heredocs. (Maintainer note: This entails not using single-quote character `'` in py4cl.py.) Also note that this still requires the developer (= py4cl2 user) to supply the python libraries and binaries along with the lisp image.
+- Continuous Integration has not been set up for windows; however, the test system ran without errors "as expected" as of version 2.4.1
+- Mac users should update to a later version of bash. See [this stackoverflow question](https://stackoverflow.com/questions/32481734/shell-error-with-bash-bad-substitution-no-closing). Thanks to [byulparen](https://github.com/byulparan) for pointing out!
+- Embeddable into lisp-image - the code from py4cl.py is copied into `*python-code*` and heredocs are used. This is made to happen for unix and not for windows; until someone gets into Windows heredocs. (Maintainer note: This entails not using single-quote character `'` in py4cl.py.) Also note that this still requires the developer (= py4cl2 user) to supply the python libraries and binaries along with the lisp image to the (very-)end-user.
+- Improvements in large array transfer speed numpy-file-format (see [initialize](#initialize)); while this does not beat `remote-objects` in existence since `py4cl`, it does provide a faster way to send array data from lisp to python and can be beneficial while offloading the work to python process, eg. deep learning.
+- Ability to interrupt the python process using [(pyinterrupt)](#pyinterrupt)
 
 <div><img src="readme_slime.png" width="80%" style="margin:auto; display:block;"/></div>
 <!-- ![slime-demo-image](readme_slime.png) -->
@@ -32,21 +33,35 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 <br/>
 
 ### Changes over py4cl
-- Changes: several (but not all) names have been shorted from `python-` to `py`; `remote-objects` have been changed to `with-remote-object(s)`. Personal preference for these names stems from:
+
+<u>**Backwards Incompatible Changes**</u>
+
+**Unavoidable**
+
+- Arguments are imported; submodules can be imported with an option to [defpymodule](#defpymodule). However, this is only possible for python3. In fact, with python2's end-of-life, no support for python2 is provided even.
+- Asynchronous Printing: use `(with-python-output &body body)` to capture python output; in py4cl, `(with-output-to-stream (*standard-output*) &body body)` works. The separate macro [with-python-output](#with-python-output) was necessitated due to the asyncronous printing in py4cl2.
+- Semantics of `nil`: see [Type Mapping and Pythonize](#type-mapping-and-pythonize)
+
+**Avoidable**
+
+- Several (but not all) names have been shorted from `python-` to `py`; `remote-objects` have been changed to `with-remote-object(s)`. Personal preference for these names stems from:
     - `defpyfun/module` reminds of the equivalent in `burgled-batteries` and `cffi`
     - `py`names are shorter
     - `with-remote` seems more appropriate
     - `chain` and `chain*` with more "uniformity"
-    - semantics of `nil`: see [Type Mapping and Pythonize](#type-mapping-and-pythonize)
-    - Arguments are imported; submodules can be imported with an option to [defpymodule]. However, this is only possible for python3. 
-- Improvements in large array transfer speed, using numpy-file-format (see [initialize](#initialize); this does not beat `remote-objects`, in existence since `py4cl`; this can be beneficial while offloading the work to python process. 
-- Interrupt the python process using [(pyinterrupt)](#pyinterrupt)
-- `defpymodule` (previously `import-module`) works "as-expected" with asdf / `defpackage`.
-- use `(with-python-output &body body)` to capture python output; in py4cl, `(with-output-to-stream (*standard-output*) &body body)` could have worked. The separate macro was necessitated due to asyncronous printing in py4cl2.
+
+<u>**IMO Backwards Portable Changes**</u>
+
+- `defpymodule` (previously `import-module`) works "as-expected" with asdf / `defpackage`
+- Embedding py4cl.py into lisp image
+- importing submodules
+- process startup errors
+
+<u>**Other Notes**</u>
 
 - Argument ordering can be wrong with ABCL, CCL or  ECL. I've not used it extensively at anywhere other than SBCL. Basic tests concerning argument orders do work on ABCL, CCL and ECL; since, in most cases, you are good with keyword args. Early adopters are welcome :D!
 
-<table>
+<table id="feature-comparison">
 <tr>
 <th>Feature / Implementation (default: linux)</th>
 <th>SBCL</th>
@@ -96,17 +111,9 @@ This shouldn't be a bottleneck if you're planning to run "long" processes in pyt
 <td>✗</td>
 <td>✗</td>
 </tr>
-<tr>
-<td>numcl</td>
-<td>✓</td>
-<td>✓</td>
-<td>✓</td>
-<td>✗</td>
-<td>✗</td>
-</tr>
 </table>
 
-- See [TODO].
+- See [Future Work](#future-work).
 
 ## Installation
 
@@ -116,13 +123,14 @@ This fork is possible due to the following (and therefore, depends on):
 
 On the CL side:
 
-- trivial-garbage
-- iterate
+- alexandria
 - bordeaux-threads
 - cl-json
+- trivial-garbage
+- iterate
+- numpy-file-format
 - parse-number
 - uiop (some implementations have an older version of uiop; support for `launch-program` is needed for asynchronous processes)
-- numpy-file-format
 
 On python side:
 
@@ -132,11 +140,11 @@ On python side:
 
 ### Installation
 
-Download the (latest) release from the [Releases](https://github.com/digikar99/py4cl2/releases) and untar/unzip into `~/quicklisp/local-projects/` or any other
+Besides installing directly from [quicklisp](https://www.quicklisp.org/beta/), download the (latest) release from the [Releases](https://github.com/digikar99/py4cl2/releases) and untar/unzip into `~/quicklisp/local-projects/` or any other
 location where it can be discovered by `quicklisp`:
 
 ```sh
-wget -qO- https://github.com/digikar99/py4cl2/archive/v2.3.0.tar.gz | tar xvz - -C ~/quicklisp/local-projects
+wget -qO- https://github.com/digikar99/py4cl2/archive/v2.6.0.tar.gz | tar xvz - -C ~/quicklisp/local-projects
 ```
 
 Load into REPL with
@@ -146,17 +154,14 @@ Load into REPL with
 
 ### Tests
 
-```lisp
-(ql:quickload "py4cl2/tests")
-(py4cl2/tests:run)
-```
-
+See [py4cl2-tests](https://github.com/digikar99/py4cl2-tests)
 
 ### Setting up
 
 #### initialize
 
 On loading this library for the first time, run `initialize` and provide the necessary details.
+
 ```lisp
 (py4cl2:initialize)
 ```
@@ -164,10 +169,10 @@ On loading this library for the first time, run `initialize` and provide the nec
 (You may want to note the printed information, about the location of config-file. Of course, you can call this function again, but be sure to refill the values.)
 
 The library uses (temporary) pickled .npy files for transferring large numpy arrays efficiently
-between lisp and python. This process is IO intensive, writing as much as 100MB or even a GB each time.
-Using a ram-disk is recommended for this purpose. ([How to create a ram disk on Linux?](https://unix.stackexchange.com/questions/66329/creating-a-ram-disk-on-linux))
+between lisp and python. This process is IO intensive, writing as much as 100MB or even a GB each time, and therefore, using a ram-disk is recommended for this purpose would be recommended. ([How to create a ram disk on Linux?](https://unix.stackexchange.com/questions/66329/creating-a-ram-disk-on-linux))
 
 #### \*config\* / config-var
+
 These values can also be accessed using `*config*` and `config-var`:
 
 ```lisp
@@ -182,6 +187,20 @@ CL-USER> (setf (config-var 'py4cl2:pycmd) "python")
 ```
 
 Complementary to `config-var` are `save-config` and `load-config`. The latter is called on startup, the config-file exists. `(setf config-var)` calls the former unless it is `pycmd`, as well as asks the python process to load the config, from the config file. (The exception for `pycmd` exists so as to let the users set up project-local environments.)
+
+#### \*internal-features\* / \*warn-on-unavailable-feature-usage\*
+
+This lists the features available on your system/implementation. Values in the list may include:
+
+- `:ARRAYS`: requires numpy, and can be seen only after a call to `(pystart)`
+- `:TYPED-ARRAYS`: requires support for specialized-arrays on lisp side; ABCL 1.7.1 does not provide this
+- `:FAST-LARGE-ARRAY-TRANSFER`: requires support for [numpy-file-format](https://github.com/marcoheisig/numpy-file-format)
+- `:INTERRUPT`: requires system support for SIGINT (and some more things not working on ECL)
+- `:WITH-PYTHON-OUTPUT`
+
+See also: the [feature comparison table](#feature-comparison).
+
+Attempt to use a feature that is not available will signal a warning and has undefined consequences. To avoid the warning, set the value of `*warn-on-unavailable-feature-usage*` to `nil`.
 
 
 ## Examples and Documentation
@@ -224,7 +243,7 @@ Therefore, you may want to have `(pyinterrupt)` called on the reception of SIGIN
   (setf (fdefinition 'swank-simple-break)
         (fdefinition (find-symbol "SIMPLE-BREAK" :swank)))
   (defun swank:simple-break
-      (&optional (datum "Interrupt from Emacs") &rest args) 
+      (&optional (datum "Interrupt from Emacs") &rest args)
     (py4cl2:pyinterrupt)
     (apply (fdefinition 'swank-simple-break) datum args)))
 ```
@@ -287,7 +306,7 @@ Often times, the two commands above would be tedious - since you'd need to conve
 #### pyeval
 `(pyeval &rest args)`
 
-For python expressions 
+For python expressions
 ```lisp
 CL-USER> (pyeval 4 "+" 3)
 7
@@ -336,11 +355,11 @@ See also [Doing arbitrary things in python](#doing-arbitrary-things-in-python) t
 
 Rather, we define functions that call python functions.
 
-Names are lispified by converting underscores hyphens, and converting CamelCase to camel-case. Also see [Name Mapping](#name-mapping). 
+Names are lispified by converting underscores hyphens, and converting CamelCase to camel-case. Also see [Name Mapping](#name-mapping).
 
 #### defpyfun
 ```lisp
-(defpyfun fun-name &optional pymodule-name &key 
+(defpyfun fun-name &optional pymodule-name &key
   (as fun-name) (lisp-fun-name (lispify-name as))
   (lisp-package *package*)
   (safety t))
@@ -364,7 +383,7 @@ Refer `(describe 'defpyfun)`.
 
 #### defpymodule
 ```lisp
-(defpymodule pymodule-name &optional import-submodules &key 
+(defpymodule pymodule-name &optional import-submodules &key
   (lisp-package (lispify-name (or as pymodule-name)))
   (reload t) (safety t) (continue-ignoring-errors t)
   (silent *defpymodule-silent-p*))
@@ -395,7 +414,7 @@ CL-USER> (kl:input/1 :shape '(1 2))
 #S(PY4CL2::PYTHON-OBJECT
    :TYPE "<class 'tensorflow.python.framework.ops.Tensor'>"
    :HANDLE 816)
-   
+
 CL-USER> (pycall (kl.advanced-activations:softmax/class :input-shape '(1 2))
                  (kl:input/1 :shape '(1 2)))
 #S(PY4CL2::PYTHON-OBJECT
@@ -426,9 +445,23 @@ you'd need to use something like [pycall].
                       (assert-true (numcl:numcl-array-p b))))
 ```
 
+## Errors
+
 ### pyerror
 
-(Undocumented here.)
+Signalled if there an error in a running python process
+
+### python-process-startup-error
+
+Signalled if [pystart](#pystart) fails to start a python process
+
+### python-eof-and-dead
+
+Signalled (from `dispatch-messages`) if the lisp process is unable to read/write from/to a python process and the process has died. This should provide a cleaner error than `CL:END-OF-FILE`.
+
+### python-eof-but-alive
+
+Signalled (from `dispatch-messages`) if the lisp process is unable to read/write from/to a python process but the process is alive. This should provide a cleaner error than `CL:END-OF-FILE`.
 
 ### Using functions and methods
 
@@ -455,19 +488,19 @@ Note that `fun-name` can be a name (see [Name Mapping]), a function, or a [calla
 ```lisp
 SEQ2SEQ> (pymethod model 'summary) ;; for some "ready" model
 __________________________________________________________________________________________________
-Layer (type)                    Output Shape         Param #     Connected to                     
+Layer (type)                    Output Shape         Param #     Connected to
 ==================================================================================================
-input_1 (InputLayer)            (None, None, 43)     0                                            
+input_1 (InputLayer)            (None, None, 43)     0
 __________________________________________________________________________________________________
-input_2 (InputLayer)            (None, None, 64)     0                                            
+input_2 (InputLayer)            (None, None, 64)     0
 __________________________________________________________________________________________________
-lstm_1 (LSTM)                   [(None, 256), (None, 307200      input_1[0][0]                    
+lstm_1 (LSTM)                   [(None, 256), (None, 307200      input_1[0][0]
 __________________________________________________________________________________________________
-lstm_2 (LSTM)                   [(None, None, 256),  328704      input_2[0][0]                    
-                                                                 lstm_1[0][1]                     
-                                                                 lstm_1[0][2]                     
+lstm_2 (LSTM)                   [(None, None, 256),  328704      input_2[0][0]
+                                                                 lstm_1[0][1]
+                                                                 lstm_1[0][2]
 __________________________________________________________________________________________________
-dense_1 (Dense)                 (None, None, 64)     16448       lstm_2[0][0]                     
+dense_1 (Dense)                 (None, None, 64)     16448       lstm_2[0][0]
 ==================================================================================================
 Total params: 652,352
 Trainable params: 652,352
@@ -537,7 +570,7 @@ CL-USER> (pycall (lambda (string) (concatenate 'string string " - from Lisp"))
 
 ### Slot and Method Lists
 
-Currently, all the python objects are grouped under the class `python-object`. The list of methods 
+Currently, all the python objects are grouped under the class `python-object`. The list of methods
 and slots associated with these objects can be obtained using the following two functions.
 
 #### pyslot-list
@@ -650,7 +683,7 @@ CL-USER> (chain ("TestClass") ("doThing" :value 31))
 There is also `(setf chain)`:
 
 ```lisp
-CL-USER> (pyeval 
+CL-USER> (pyeval
           (with-remote-object (array (np:zeros '(2 2)))
             (setf (chain* `(aref ,array 0 1)) 1.0
                   (chain* `(aref ,array 1 0)) -1.0)
@@ -682,7 +715,7 @@ in which all python functions return handles rather than values to lisp. This en
 python functions to be combined without transferring much data.
 
 ```lisp
-(with-remote-objects (py4cl:python-eval "1+2")) 
+(with-remote-objects (py4cl:python-eval "1+2"))
 ; => #S(PY4CL::PYTHON-OBJECT :TYPE "<class 'int'>" :HANDLE 0)
 ```
 
@@ -694,17 +727,17 @@ python functions to be combined without transferring much data.
 
 The advantage comes when dealing with large arrays or other datasets:
 ```lisp
-CL-USER> (time (let ((arr (make-array 1000000 
+CL-USER> (time (let ((arr (make-array 1000000
                                       :element-type 'single-float
-                                      :initial-element 2.0))) 
+                                      :initial-element 2.0)))
                  (np:sum (np:add arr arr))))
 ;  0.258 seconds of real time
 ;  8,065,504 bytes consed
 4000000.0
-CL-USER> (time (with-remote-objects 
-                 (let ((arr (make-array 1000000 
+CL-USER> (time (with-remote-objects
+                 (let ((arr (make-array 1000000
                                         :element-type 'single-float
-                                        :initial-element 2.0))) 
+                                        :initial-element 2.0)))
                    (np:sum (np:add arr arr)))))
 ;  0.100 seconds of real time
 ;  4,065,456 bytes consed
@@ -732,7 +765,7 @@ returned:
 ```lisp
 (defpyfun "dict") ; Makes python dictionaries
 
-(defstruct test-struct 
+(defstruct test-struct
     x y)
 
 (let ((map (dict :key (make-test-struct :x 1 :y 2))))  ; Make a dictionary, return as hash-map
@@ -748,7 +781,7 @@ contains a handle. The lisp object is stored in a hash map
 the object from the hash map.
 
 To enable python to access slots, or call methods on a struct or class, a
-handler function needs to be registered. This is done by providing a method 
+handler function needs to be registered. This is done by providing a method
 for generic function `python-getattr`. This function will be called when a
 python function attempts to access attributes of an object (`__getattr__`
 method).
@@ -767,7 +800,7 @@ method).
       (lambda (arg) (* 2 arg)))
     (t (call-next-method)))) ; Otherwise go to next method
 
-(let ((instance (make-instance 'test-class :value 21))) 
+(let ((instance (make-instance 'test-class :value 21)))
   ;; Get the value from the slot, call the method
   ;; python: instance.func(instance.value)
   (chain* `((@ ,instance func) (@ ,instance value))))  ; => 42
@@ -786,28 +819,12 @@ Inheritance then works as usual with CLOS methods:
     (t (call-next-method))))
 
 (let ((object (make-instance 'child-class :value 42 :other 3)))
-  (list 
+  (list
     (chain* object 'value) ; Call TEST-CLASS getattr method via CALL-NEXT-METHOD
     (chain* object 'other))) ;=> (42 3)
 ```
 
-## Testing 
-
-Tests use [clunit](https://github.com/tgutu/clunit), and run on [Travis](https://travis-ci.org/) using [cl-travis](https://github.com/luismbo/cl-travis). Most development
-is done under Arch linux with SBCL and Python3. To run the tests
-yourself:
-```lisp
-(asdf:test-system :py4cl)
-```
-or
-
-```lisp
-(ql:quickload :py4cl-tests)
-(py4cl1-tests:run)
-```
-
-
-
+### python-setattr
 
 ## Type Mapping and Pythonize
 
@@ -866,7 +883,7 @@ CL-USER> (py4cl::pythonize (model)) ;; keras.Model
 If python objects cannot be converted into a lisp value, then they are
 stored and a handle is returned to lisp. This handle can be used to
 manipulate the object, and when it is garbage collected the python
-object is also deleted (using the [trivial-garbage](https://common-lisp.net/project/trivial-garbage/) 
+object is also deleted (using the [trivial-garbage](https://common-lisp.net/project/trivial-garbage/)
 package).
 
 ## Name Mapping
@@ -912,16 +929,16 @@ In no order of priority:
 
 - adding/documenting proper multithreaded support
 - [ABANDON since python2 has reached end-of-life] finding equivalent of inspect._empty in python2 (unable to google)
-- importing python classes, and methods, may be, as subclasses 
-  of 'python-object; to be able to use make-instance and slot-value 
+- importing python classes, and methods, may be, as subclasses
+  of 'python-object; to be able to use make-instance and slot-value
   might require knowledge of MOP, to make python-object at the same level
   as standard-object
 - should return value of defpyfun matter - so as to indicate success or failure?
   failure is anyways indicated by errors
 - ability to define customized arg-lists, documentation, and calling methods
-  for functions: this can serve as a community project to cover up some 
+  for functions: this can serve as a community project to cover up some
   naming and arg-list idiosyncrasies
-- cleaning up documentation while defining functions - many python functions 
+- cleaning up documentation while defining functions - many python functions
   have documentation intended for use directly in md/rst files
 
 
@@ -933,6 +950,5 @@ In no order of priority:
 [pyeval]: #expressions-pyeval-rest-args
 [limitations]: #limitations-of-this-documentation
 [pycall]: #pycall
-[TODO]: https://github.com/digikar99/py4cl/blob/master/TODO.org
 [Name Mapping]: #name-mapping
 [bendudson/py4cl]: https://github.com/bendudson/py4cl
