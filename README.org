@@ -1,4 +1,4 @@
-[[https://travis-ci.org/bendudson/py4cl][https://travis-ci.org/bendudson/py4cl.svg?branch=master]]
+[[https://travis-ci.org/rpgoldman/py4cl2][https://travis-ci.org/rpgoldman/py4cl2.svg?branch=master]]
 
 * Introduction
 
@@ -8,6 +8,12 @@ a separate python process, the approach taken by [[https://github.com/marcoheisi
 different to the CFFI approach used by [[https://github.com/pinterface/burgled-batteries][burgled-batteries]], but has the
 same goal. 
 
+This fork was set up by Robert Goldman to do maintenance on Py4CL as
+needed for my projects.  It lets me quickly add patches and critical
+features.  In the fullness of time, the Py4CL2 project is intended to
+take the place of Py4CL, but at the moment, it is not mature enough to
+be used for my projects.
+
 ** Installing
 
 Depends on:
@@ -16,14 +22,16 @@ Depends on:
    doesn't (yet) have =uiop:launch-program=.
  - ASDF3 version 3.2.0 (Jan 2017) or later, as =uiop:launch-program=
    is used to run and communicate with python asyncronously.
- - [[https://common-lisp.net/project/trivial-garbage/][Trivial-garbage]], available through Quicklisp.
- - Python 2 or 3
+ - [[https://common-lisp.net/project/trivial-garbage/][Trivial-garbage]], [[https://common-lisp.net/project/cl-json/cl-json.html][cl-json]], [[https://github.com/marcoheisig/numpy-file-format][numpy-file-format]], and [[https://edicl.github.io/cl-ppcre/][cl-ppcre]], all
+   available through Quicklisp.
+ - Python 2 or 3 *Note:* I will make /no attempt/ to maintain Python 2
+   compatibility -- I just haven't taken the time to break it, yet.
  - (optional) The [[http://www.numpy.org/][NumPy]] python library for multidimensional arrays
 
 Clone this repository into =~/quicklisp/local-projects/= or other
 location where it can be found by ASDF:
 #+BEGIN_SRC bash
-$ git clone https://github.com/bendudson/py4cl.git
+$ git clone https://github.com/rpgoldman/py4cl2.git
 #+END_SRC
 
 then load into Lisp with
@@ -245,6 +253,22 @@ a string as the name of the attribute:
 Note: Methods for this function can also be defined for lisp classes,
 enabling python code to access attributes of lisp objects. See below
 for details.
+
+*Note*: =python-gettatr= did not have a method for =PYTHON-OBJECT=
+structure class.  I have added this. -rpg
+
+** Printing python objects in Lisp
+
+I have added a generic function, =py4cl:print-python-object=, which
+the programmer can extend to print, from lisp, the lisp side stubs for known
+classes of python objects.  Methods can be added as in the following
+example:
+
+#+BEGIN_SRC lisp
+  (defmethod py4cl:print-python-object ((python-type (eql 'python-names::my_library.MyClass)) (obj python-obj) stream)
+     (print-unreadable-object (obj stream)
+       (format stream "PYTHON-OBJECT MyClass %s" (python-gettatr obj "object_name"))))                      
+#+END_SRC
 
 ** Chaining python methods: =chain=
 

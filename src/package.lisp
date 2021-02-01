@@ -29,6 +29,8 @@
   (:export ; lisp-classes
    #:python-getattr
    #:python-setattr)
+  (:export ; hookable generic function
+   #:print-python-object)
   (:export ; config 
    #:*config*
    #:initialize
@@ -39,3 +41,5 @@
    #:numpy-pickle-location
    #:numpy-pickle-lower-bound
    #:py-cd))
+
+(defpackage python-names)

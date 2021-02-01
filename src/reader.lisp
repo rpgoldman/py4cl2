@@ -10,6 +10,39 @@ HANDLE slot is a unique key used to refer to a value in python."
   (type "" :type string)
   handle)
 
+(defmethod print-object ((obj python-object) stream)
+  (let ((name-sym (intern (python-object-type-name obj) :python-names)))
+    (print-python-object name-sym obj stream)))
+
+(defmethod python-getattr ((obj python-object) (attr-name string))
+  (python-eval (pythonize obj) "." attr-name))
+
+(defgeneric python-object-type-name (obj)
+  (:documentation
+   "Returns a string value for the type name of the python object, stripping out
+boilerplate from the class meta-objects.")
+  (:method ((obj python-object))
+    (multiple-value-bind (match-p match-array) 
+        (ppcre:scan-to-strings "^<class ['\"](.*)['\"]>$" (python-object-type obj))
+      (if match-p
+          (aref match-array 0)
+          (python-object-type obj)))))
+
+(defgeneric print-python-object (python-type obj stream)
+  (:documentation
+   "Function for printing a PYTHON-OBJECT based on the type stored in it.
+
+Methods should be written to key off the name of the python type, which should be
+a symbol that is interned in the PYTHON-NAMES package.  These methods should use
+PRINT-UNREADABLE-OBJECT, since PYTHON-OBJECTS cannot be printed readably.")
+  (:method :around ((python-type string) (obj python-object) stream)
+    (call-next-method (intern python-type :python-names) obj stream))
+  ;; default method
+  (:method (python-type (obj python-object) stream)
+    (declare (ignorable python-type))
+    (print-unreadable-object (obj stream)
+      (format stream "PYTHON-OBJECT ~a HANDLE ~d" (python-object-type obj) (python-object-handle obj)))))
+
 (defvar *freed-python-objects* nil
   "A list of handles to be freed. This is used because garbage collection may occur in parallel with the main thread.")
 
