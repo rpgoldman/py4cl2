@@ -5,9 +5,12 @@
   :description "Call Python libraries from Common Lisp"
   :author "Ben Dudson <benjamin.dudson@york.ac.uk> and Robert P. Goldman <rpgoldman@sift.net>"
   :license "MIT"
-  :depends-on ("trivial-garbage" "uiop" "cl-json" "numpy-file-format"
-                                 "cl-ppcre")
-  :version "1.1" ; arbitrary starting point after 1, but before py4cl2...
+  :depends-on ("trivial-garbage"
+               "uiop"
+               "cl-json"
+               "numpy-file-format"
+               "cl-ppcre")
+  :version "1.2"                        ; add return dict as plist
   :pathname #P"src/"
   :serial t
   :components ((:file "package")

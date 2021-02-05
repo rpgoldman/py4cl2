@@ -284,6 +284,8 @@ world"))
         (py4cl:python-call "len" table))))
 
 (deftest hash-table-from-dict (pytests)
+  (py4cl:python-call "dicts_are_hash_tables")
+
   ;; Simple keys
   (let ((table (py4cl:python-eval "{1:2, 2:3}")))
     (assert-equalp 2

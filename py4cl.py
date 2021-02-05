@@ -246,6 +246,12 @@ lispifiers: Dict[type, Callable[[Any], str]] = {
     UnknownLispObject: lambda x: "#.(py4cl::lisp-object {})".format(x.handle),
 }
 
+def dicts_are_hash_tables():
+    lispifiers[dict] = dict_to_hash
+
+def dicts_are_plists():
+    lispifiers[dict] = dict_to_plist
+
 # This is used to test if a value is a numeric type
 numeric_base_classes = (numbers.Number,)
 
@@ -594,7 +600,7 @@ def message_dispatch_loop():
 
 
 # Store for python objects which can't be translated to Lisp objects
-python_objects = {}
+python_objects: Dict[int, Any] = {}
 python_handle = itertools.count(0)  # Running counter
 
 # Make callback function accessible to evaluation
