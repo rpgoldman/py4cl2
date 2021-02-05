@@ -32,6 +32,8 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Convert objects to a form which python can eval
+(defvar *pythonize-as-type* nil
+  "Set to override default pythonization.")
 
 (defgeneric pythonize (obj)
   (:documentation
@@ -46,6 +48,25 @@ Default implementation creates a handle to an unknown Lisp object.")
                  (write-to-string
                   (object-handle obj))
                  ")")))
+
+(defgeneric pythonize-as-type (obj typename)
+  (:documentation "Return a string representation of OBJ as a python object
+of TYPENAME.  
+  Suggest that methods for this be written using keywords for typenames."))
+
+(defmethod pythonize :around (obj)
+  "Enable overriding of default pythonization using the *PYTHONIZE-AS-TYPE*
+dynamic variable."
+  (if *pythonize-as-type*
+      (pythonize-as-type obj *pythonize-as-type*)
+      (call-next-method)))
+
+(defmethod pythonize-as-type (obj (typename (eql ':bool)))
+  "Translate OBJ into a python boolean using Lisp rules about what
+is \"truthy.\""
+  (if obj
+      "True"
+      "False"))
 
 (defmethod pythonize ((obj real))
   "Write a real number. 

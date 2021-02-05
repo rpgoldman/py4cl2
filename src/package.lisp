@@ -21,7 +21,8 @@
    #:chain
    #:python-setf
    #:remote-objects
-   #:remote-objects*)
+   #:remote-objects*
+   #:*pythonize-as-type*)
   (:export ; import-export
    #:import-function
    #:import-module
