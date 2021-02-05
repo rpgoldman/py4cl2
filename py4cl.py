@@ -3,7 +3,8 @@
 # This code handles messages from lisp, marshals and unmarshals data,
 # and defines classes which forward all interactions to lisp.
 #
-# Should work with python 2.7 or python 3
+# Will only work with python 3 -- I can't be bothered to maintain
+# Python 2 code. [2021/02/04:rpg]
 
 from __future__ import print_function
 
@@ -13,12 +14,12 @@ import itertools
 import os
 import json
 
-try:
-    from io import StringIO # Python 3
-except:
-    from io import BytesIO as StringIO
+from io import StringIO  # Python 3 only
+from typing import Dict, Callable, Any, Iterator
 
-is_py2 = sys.version_info[0] < 3
+
+is_py2: bool = sys.version_info[0] < 3
+assert not is_py2
 
 # Direct stdout to a StringIO buffer,
 # to prevent commands from printing to the output stream
@@ -29,35 +30,45 @@ redirect_stream = StringIO()
 sys.stdout = redirect_stream
 
 config = {}
+
+
 def load_config():
-    if (os.path.exists(os.path.dirname(__file__) + "/.config")):
+    if os.path.exists(os.path.dirname(__file__) + "/.config"):
         with open(os.path.dirname(__file__) + "/.config") as conf:
             global config
             config = json.load(conf)
             try:
-                eval_globals['_py4cl_config'] = config
+                eval_globals["_py4cl_config"] = config
             except:
                 pass
+
+
 load_config()
 
-class Symbol(object):
+
+class Symbol:
     """
     A wrapper around a string, representing a Lisp symbol.
     """
+
     def __init__(self, name):
         self._name = name
+
     def __str__(self):
         return self._name
-    def __repr__(self):
-        return "Symbol("+self._name+")"
 
-class LispCallbackObject (object):
+    def __repr__(self):
+        return "Symbol(" + self._name + ")"
+
+
+class LispCallbackObject:
     """
     Represents a lisp function which can be called.
 
     An object is used rather than a lambda, so that the lifetime
     can be monitoried, and the function removed from a hash map
     """
+
     def __init__(self, handle):
         """
         handle    A number, used to refer to the object in Lisp
@@ -87,11 +98,11 @@ class LispCallbackObject (object):
         # appended to the positional arguments
         allargs = args
         for key, value in kwargs.items():
-            allargs += (Symbol(":"+str(key)), value)
+            allargs += (Symbol(":" + str(key)), value)
 
-        old_return_values = return_values # Save to restore after
+        old_return_values = return_values  # Save to restore after
         try:
-            return_values = 0 # Need to send the values
+            return_values = 0  # Need to send the values
             sys.stdout = write_stream
             write_stream.write("c")
             send_value((self.handle, allargs))
@@ -104,12 +115,12 @@ class LispCallbackObject (object):
         return message_dispatch_loop()
 
 
-class UnknownLispObject (object):
+class UnknownLispObject:
     """
     Represents an object in Lisp, which could not be converted to Python
     """
 
-    __during_init = True # Don't send changes during __init__
+    __during_init = True  # Don't send changes during __init__
 
     def __init__(self, lisptype, handle):
         """
@@ -132,13 +143,13 @@ class UnknownLispObject (object):
             sys.stdout = redirect_stream
 
     def __str__(self):
-        return "UnknownLispObject(\""+self.lisptype+"\", "+str(self.handle)+")"
+        return 'UnknownLispObject("' + self.lisptype + '", ' + str(self.handle) + ")"
 
     def __getattr__(self, attr):
         # Check if there is a slot with this name
         try:
             sys.stdout = write_stream
-            write_stream.write("s") # Slot read
+            write_stream.write("s")  # Slot read
             send_value((self.handle, attr))
         finally:
             sys.stdout = redirect_stream
@@ -151,12 +162,13 @@ class UnknownLispObject (object):
             return object.__setattr__(self, attr, value)
         try:
             sys.stdout = write_stream
-            write_stream.write("S") # Slot write
+            write_stream.write("S")  # Slot write
             send_value((self.handle, attr, value))
         finally:
             sys.stdout = redirect_stream
         # Wait until finished, to syncronise
         return message_dispatch_loop()
+
 
 # These store the environment used when eval'ing strings from Lisp
 eval_globals = {}
@@ -164,8 +176,9 @@ eval_locals = {}
 
 # Settings
 
-return_values = 0 # Try to return values to lisp. If > 0, always return a handle
-                  # A counter is used, rather than Boolean, to allow nested environments.
+# Try to return values to lisp. If > 0, always return a handle
+# A counter is used, rather than Boolean, to allow nested environments.
+return_values = 0  
 
 ##################################################################
 # This code adapted from cl4py
@@ -175,20 +188,62 @@ return_values = 0 # Try to return values to lisp. If > 0, always return a handle
 # Copyright (c) 2018  Marco Heisig <marco.heisig@fau.de>
 #               2019  Ben Dudson <benjamin.dudson@york.ac.uk>
 
-lispifiers = {
-    bool       : lambda x: "T" if x else "NIL",
-    type(None) : lambda x: "NIL",
-    int        : str,
-    float      : str,
-    complex    : lambda x: "#C(" + lispify(x.real) + " " + lispify(x.imag) + ")",
-    list       : lambda x: "#(" + " ".join(lispify(elt) for elt in x) + ")",
-    tuple      : lambda x: "(" + " ".join(lispify(elt) for elt in x) + ")",
-    # Note: With dict -> hash table, use :test 'equal so that string keys work as expected
-    dict       : lambda x: "#.(let ((table (make-hash-table :test 'equal))) " + " ".join("(setf (gethash {} table) {})".format(lispify(key), lispify(value)) for key, value in x.items()) + " table)",
-    str        : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\"",
-    type(u'unicode') : lambda x: "\"" + x.replace("\\", "\\\\").replace('"', '\\"')  + "\"",  # Unicode in python 2
-    Symbol     : str,
-    UnknownLispObject : lambda x: "#.(py4cl::lisp-object {})".format(x.handle),
+
+def dict_to_hash(dct: Dict) -> str:
+    """
+    Translate a python dictionary to a load form (a string) for a LISP hash-table.
+    """
+    return (
+        "#.(let ((table (make-hash-table :test 'equal))) " +
+        " ".join(
+            "(setf (gethash {} table) {})".format(lispify(key), lispify(value))
+            for key, value in dct.items()
+        ) +
+        " table)"
+    )
+
+
+def dict_to_plist(dct: Dict) -> str:
+    """
+    Translate a python dictionary to a load form (a string) for a LISP property list
+    whose keys are in the keyword package.
+    """
+    retval: str = "#.(list "
+    for key, value in dct.items():
+        assert isinstance(key, str)
+        retval += keywordify(key)
+        retval += " "
+        retval += lispify(value)
+        retval += " "
+    retval += ")"
+    return retval
+
+
+def keywordify(prop: str) -> str:
+    """
+    Translate argument python string into a load form (a string) for a LISP
+    keyword symbol.
+    """
+    return f'(intern "{prop}" :keyword)'
+
+
+lispifiers: Dict[type, Callable[[Any], str]] = {
+    bool: lambda x: "T" if x else "NIL",
+    type(None): lambda x: "NIL",
+    int: str,
+    float: str,
+    complex: lambda x: "#C(" + lispify(x.real) + " " + lispify(x.imag) + ")",
+    list: lambda x: "#(" + " ".join(lispify(elt) for elt in x) + ")",
+    tuple: lambda x: "(" + " ".join(lispify(elt) for elt in x) + ")",
+    # Note: With dict -> hash table, use :test 'equal so that
+    # string keys work as expected
+    dict: dict_to_hash,
+    str: lambda x: '"' + x.replace("\\", "\\\\").replace('"', '\\"') + '"',
+    type(u"unicode"): lambda x: '"'
+    + x.replace("\\", "\\\\").replace('"', '\\"')
+    + '"',  # Unicode in python 2
+    Symbol: str,
+    UnknownLispObject: lambda x: "#.(py4cl::lisp-object {})".format(x.handle),
 }
 
 # This is used to test if a value is a numeric type
@@ -197,17 +252,20 @@ numeric_base_classes = (numbers.Number,)
 try:
     # Use NumPy for multi-dimensional arrays
     import numpy
-    NUMPY_PICKLE_INDEX = 0 # optional increment in lispify_ndarray and reset to 0
+
+    NUMPY_PICKLE_INDEX = 0  # optional increment in lispify_ndarray and reset to 0
+
     def load_pickled_ndarray(filename):
-        arr = numpy.load(filename, allow_pickle = True)
+        arr = numpy.load(filename, allow_pickle=True)
         return arr
 
     def delete_numpy_pickle_arrays():
         global NUMPY_PICKLE_INDEX
         while NUMPY_PICKLE_INDEX > 0:
             NUMPY_PICKLE_INDEX -= 1
-            numpy_pickle_location = config["numpyPickleLocation"] \
-                                    + ".from." + str(NUMPY_PICKLE_INDEX)
+            numpy_pickle_location = (
+                config["numpyPickleLocation"] + ".from." + str(NUMPY_PICKLE_INDEX)
+            )
             if os.path.exists(numpy_pickle_location):
                 os.remove(numpy_pickle_location)
 
@@ -218,16 +276,18 @@ try:
                [3, 4]])
         """
         global NUMPY_PICKLE_INDEX
-        if "numpyPickleLowerBound" in config and \
-           "numpyPickleLocation" in config and \
-           obj.size > config["numpyPickleLowerBound"]:
-            numpy_pickle_location = config["numpyPickleLocation"] \
-                + ".from." + str(NUMPY_PICKLE_INDEX)
+        if (
+            "numpyPickleLowerBound" in config
+            and "numpyPickleLocation" in config
+            and obj.size > config["numpyPickleLowerBound"]
+        ):
+            numpy_pickle_location = (
+                config["numpyPickleLocation"] + ".from." + str(NUMPY_PICKLE_INDEX)
+            )
             NUMPY_PICKLE_INDEX += 1
             with open(numpy_pickle_location, "wb") as f:
-                numpy.save(f, obj, allow_pickle = True)
-            return ('#.(numpy-file-format:load-array "'
-                    + numpy_pickle_location + '")')
+                numpy.save(f, obj, allow_pickle=True)
+            return '#.(numpy-file-format:load-array "' + numpy_pickle_location + '")'
         if obj.ndim == 0:
             # Convert to scalar then lispify
             return lispify(numpy.asscalar(obj))
@@ -235,8 +295,10 @@ try:
         def nested(obj):
             """Turns an array into nested ((1 2) (3 4))"""
             if obj.ndim == 1:
-                return "("+" ".join([lispify(i) for i in obj])+")"
-            return "(" + " ".join([nested(obj[i,...]) for i in range(obj.shape[0])]) + ")"
+                return "(" + " ".join([lispify(i) for i in obj]) + ")"
+            return (
+                "(" + " ".join([nested(obj[i, ...]) for i in range(obj.shape[0])]) + ")"
+            )
 
         return "#{:d}A".format(obj.ndim) + nested(obj)
 
@@ -248,15 +310,23 @@ try:
 except:
     pass
 
+
 def lispify_handle(obj):
     """
     Store an object in a dictionary, and return a handle
     """
     handle = next(python_handle)
     python_objects[handle] = obj
-    return "#.(py4cl::make-python-object-finalize :type \""+str(type(obj))+"\" :handle "+str(handle)+")"
+    return (
+        '#.(py4cl::make-python-object-finalize :type "'
+        + str(type(obj))
+        + '" :handle '
+        + str(handle)
+        + ")"
+    )
 
-def lispify(obj):
+
+def lispify(obj) -> str:
     """
     Turn a python object into a string which can be parsed by Lisp's reader.
 
@@ -276,14 +346,18 @@ def lispify(obj):
         # Another unknown type. Return a handle to a python object
         return lispify_handle(obj)
 
+
 def generator(function, stop_value):
     temp = None
     while True:
         temp = function()
-        if temp == stop_value: break
+        if temp == stop_value:
+            break
         yield temp
 
+
 ##################################################################
+
 
 def recv_string():
     """
@@ -294,6 +368,7 @@ def recv_string():
     # Then the specified number of bytes
     return sys.stdin.read(length)
 
+
 def recv_value():
     """
     Get a value from the input stream
@@ -302,6 +377,7 @@ def recv_value():
     if is_py2:
         return eval(recv_string(), eval_globals, eval_locals)
     return eval(recv_string(), eval_globals)
+
 
 def send_value(value):
     """
@@ -317,6 +393,7 @@ def send_value(value):
     write_stream.write(value_str)
     write_stream.flush()
 
+
 def return_stdout():
     """
     Return the contents of redirect_stream, to be printed to stdout
@@ -328,11 +405,11 @@ def return_stdout():
     if not contents:
         return  # Nothing to send
 
-    redirect_stream = StringIO() # New stream, delete old one
+    redirect_stream = StringIO()  # New stream, delete old one
 
-    old_return_values = return_values # Save to restore after
+    old_return_values = return_values  # Save to restore after
     try:
-        return_values = 0 # Need to return the string, not a handle
+        return_values = 0  # Need to return the string, not a handle
         sys.stdout = write_stream
         write_stream.write("p")
         send_value(contents)
@@ -340,23 +417,25 @@ def return_stdout():
         return_values = old_return_values
         sys.stdout = redirect_stream
 
+
 def return_error(err):
     """
     Send an error message
     """
     global return_values
 
-    return_stdout() # Send stdout if any
+    return_stdout()  # Send stdout if any
 
-    old_return_values = return_values # Save to restore after
+    old_return_values = return_values  # Save to restore after
     try:
-        return_values = 0 # Need to return the error, not a handle
+        return_values = 0  # Need to return the error, not a handle
         sys.stdout = write_stream
         write_stream.write("e")
         send_value(str(err))
     finally:
         return_values = old_return_values
         sys.stdout = redirect_stream
+
 
 def return_value(value):
     """
@@ -365,7 +444,7 @@ def return_value(value):
     if isinstance(value, Exception):
         return return_error(value)
 
-    return_stdout() # Send stdout if any
+    return_stdout()  # Send stdout if any
 
     # Mark response as a returned value
     try:
@@ -380,19 +459,21 @@ def py_eval(command, eval_globals, eval_locals):
     """
     Perform eval, but do not pass locals if we are in python 3.
     """
-    if is_py2: # Python 3
+    if is_py2:  # Python 3
         return eval(command, eval_globals, eval_locals)
     # Python 3
     return eval(command, eval_globals)
+
 
 def py_exec(command, exec_globals, exec_locals):
     """
     Perform exec, but do not pass locals if we are in python 3.
     """
-    if is_py2: # Python 3
+    if is_py2:  # Python 3
         return exec(command, exec_globals, exec_locals)
     # Python 3
     return exec(command, exec_globals)
+
 
 def message_dispatch_loop():
     """
@@ -423,7 +504,7 @@ def message_dispatch_loop():
                 result = py_eval(recv_string(), eval_globals, eval_locals)
                 return_value(result)
 
-            elif cmd_type == "f" or cmd_type == "a": # Function call
+            elif cmd_type == "f" or cmd_type == "a":  # Function call
                 # Get a tuple (function, allargs)
                 fn_name, allargs = recv_value()
 
@@ -431,22 +512,22 @@ def message_dispatch_loop():
                 args = []
                 kwargs = {}
                 if allargs:
-                    it = iter(allargs) # Use iterator so we can skip values
+                    it = iter(allargs)  # Use iterator so we can skip values
                     for arg in it:
                         if isinstance(arg, Symbol):
                             # A keyword. Take the next value
-                            kwargs[ str(arg)[1:] ] = next(it)
+                            kwargs[str(arg)[1:]] = next(it)
                             continue
                         args.append(arg)
 
                 # Get the function object. Using eval to handle cases like "math.sqrt" or lambda functions
                 if callable(fn_name):
-                    function = fn_name # Already callable
+                    function = fn_name  # Already callable
                 else:
                     function = py_eval(fn_name, eval_globals, eval_locals)
                 if cmd_type == "f":
                     # Run function then return value
-                    return_value( function(*args, **kwargs) )
+                    return_value(function(*args, **kwargs))
                 else:
                     # Asynchronous
 
@@ -471,15 +552,15 @@ def message_dispatch_loop():
             elif cmd_type == "o":  # Return values when possible (default)
                 return_values -= 1
 
-            elif cmd_type == "q": # Quit
+            elif cmd_type == "q":  # Quit
                 sys.exit(0)
 
             elif cmd_type == "R":
                 # Request value using handle
                 handle = recv_value()
-                return_value( async_results.pop(handle) )
+                return_value(async_results.pop(handle))
 
-            elif cmd_type == "r": # Return value from Lisp function
+            elif cmd_type == "r":  # Return value from Lisp function
                 return recv_value()
 
             elif cmd_type == "s":
@@ -499,7 +580,7 @@ def message_dispatch_loop():
                 # Version info
                 return_value(tuple(sys.version_info))
 
-            elif cmd_type == "x": # Execute a statement
+            elif cmd_type == "x":  # Execute a statement
                 py_exec(recv_string(), eval_globals, eval_locals)
                 return_value(None)
 
@@ -514,7 +595,7 @@ def message_dispatch_loop():
 
 # Store for python objects which can't be translated to Lisp objects
 python_objects = {}
-python_handle = itertools.count(0) # Running counter
+python_handle = itertools.count(0)  # Running counter
 
 # Make callback function accessible to evaluation
 eval_globals["_py4cl_LispCallbackObject"] = LispCallbackObject
@@ -529,8 +610,7 @@ eval_globals["_py4cl_load_config"] = load_config
 try:
     # NumPy is used for Lisp -> Python conversion of multidimensional arrays
     eval_globals["_py4cl_numpy"] = numpy
-    eval_globals["_py4cl_load_pickled_ndarray"] \
-      = load_pickled_ndarray
+    eval_globals["_py4cl_load_pickled_ndarray"] = load_pickled_ndarray
 except:
     pass
 
@@ -539,19 +619,26 @@ except:
 # where n and d are integers.
 try:
     import fractions
+
     eval_globals["_py4cl_fraction"] = fractions.Fraction
 
     # Turn a Fraction into a Lisp RATIO
     lispifiers[fractions.Fraction] = str
 except:
     # In python2, ensure that fractions are converted to floats
-    eval_globals["_py4cl_fraction"] = lambda a,b : float(a)/b
+    eval_globals["_py4cl_fraction"] = lambda a, b: float(a) / b
 
-async_results = {}  # Store for function results. Might be Exception
-async_handle = itertools.count(0) # Running counter
+# Store for function results. Might be Exception
+async_results: Dict[int, Any] = {}
+async_handle: Iterator[int] = itertools.count(0)  # Running counter
+
+if 'dict_to_hash' in config:
+    if config['dict_to_hash']:
+        lispifiers[dict] = dict_to_hash
+    else:
+        lispifiers[dict] = dict_to_plist
+else:
+    lispifiers[dict] = dict_to_plist
 
 # Main loop
 message_dispatch_loop()
-
-
-

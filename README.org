@@ -53,6 +53,27 @@ or
 (py4cl/tests:run)
 #+END_SRC
 
+** Configuration
+
+Py4CL reads configuration information from a =.config= file stored in
+its installation directory (i.e., a sibling of this file).  It can
+also be set directly by binding =py4cl::*config*=, a variable that is
+alist-valued.
+
+
+Configuration keys include:
+
+- =pycmd=
+- =numpy-pickle-location=
+- =numpy-pickle-lower-bound=
+- =dict_to_hash= -- boolean.  If true, send dictionaries from python
+  as hash-tables; if false, send them as property lists (keys must be
+  python strings).
+
+* 
+
+
+
 * Examples
 
 Py4CL allows python modules to be imported as Lisp packages, python
