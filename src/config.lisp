@@ -49,17 +49,19 @@ Enter full file path for storage (default /tmp/_numpy_pickle.npy): "
   (let ((config-path (concatenate 'string
                                   (directory-namestring py4cl/config:*base-directory*)
                                   ".config"))
-        (cl-json:*json-symbols-package* *package*))
+        (cl-json:*json-symbols-package* :py4cl))
     (setq *config* (with-open-file (f config-path)
-                     (cl-json:decode-json f)))))
+                     (cl-json:decode-json f))))
+  (let ((pcommand (config-var 'python-command)))
+    (when pcommand
+     (setf *python-command* pcommand))))
 
 (defun config-var (var) (cdr (assoc var *config*)))
 (defun (setf config-var) (new-value var)
   (setf (cdr (assoc var *config*)) new-value)
   ;; say, the user wants the python process to be project local
   (unless (eq var 'pycmd) (save-config))
-  (when (python-alive-p) (pycall "_py4cl_load_config")))
-
+  (when (python-alive-p) (python-call "_py4cl_load_config")))
 (defun py-cd (path)
-  (pyexec "import os")
-  (pycall "os.chdir" path))
+  (python-exec "import os")
+  (python-call "os.chdir" path))
