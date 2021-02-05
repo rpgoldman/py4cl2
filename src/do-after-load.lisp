@@ -5,6 +5,8 @@
 (let ((config-path (concatenate 'string
                                 (directory-namestring py4cl/config:*base-directory*)
                                 ".config"))
-      (cl-json:*json-symbols-package* *package*))
+      ;; *package* will have an arbitrary value at this point -- not
+      ;; *necessarily :py4cl [2021/02/04:rpg]
+      (cl-json:*json-symbols-package* :py4cl))
   (when (uiop:file-exists-p config-path)
     (load-config)))
