@@ -15,7 +15,7 @@
   "Intended to be called first upon installation. Sets up default python command,
 and numpy pickle file and lower bounds."
   (let ((pycmd (take-input "Provide the python binary to use (default python): "
-                           "python"))
+                           "python3"))
         (numpy-pickle-location
          (take-input "~%PY4CL uses pickled files to transfer large arrays between lisp
  and python efficiently. These are expected to have sizes exceeding 100MB 
