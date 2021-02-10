@@ -3,22 +3,22 @@
 # This code handles messages from lisp, marshals and unmarshals data,
 # and defines classes which forward all interactions to lisp.
 #
-# Should work with python 2.7 or python 3
-
-from __future__ import print_function
+# Works only with python > 3.6
 
 import sys
+REQ_PYTHON = (3, 7)
+CUR_PYTHON = sys.version_info
+
+if REQ_PYTHON > CUR_PYTHON:
+    raise Exception("This version of py4cl requires at least python 3.7.")
+
 import numbers
 import itertools
 import os
 import json
+from io import StringIO # Python 3
 
-try:
-    from io import StringIO # Python 3
-except:
-    from io import BytesIO as StringIO
-
-is_py2 = sys.version_info[0] < 3
+is_py2 = False
 
 # Direct stdout to a StringIO buffer,
 # to prevent commands from printing to the output stream
@@ -376,23 +376,18 @@ def return_value(value):
         sys.stdout = redirect_stream
 
 
-def py_eval(command, eval_globals, eval_locals):
+def py_eval(command, eval_globals, _eval_locals):
     """
-    Perform eval, but do not pass locals if we are in python 3.
+    Perform eval, passing global bindings.
     """
-    if is_py2: # Python 3
-        return eval(command, eval_globals, eval_locals)
-    # Python 3
     return eval(command, eval_globals)
 
-def py_exec(command, exec_globals, exec_locals):
+def py_exec(command, exec_globals, _exec_locals):
     """
-    Perform exec, but do not pass locals if we are in python 3.
+    Perform exec, passing global bindings.
     """
-    if is_py2: # Python 3
-        return exec(command, exec_globals, exec_locals)
-    # Python 3
     return exec(command, exec_globals)
+
 
 def message_dispatch_loop():
     """
@@ -552,6 +547,3 @@ async_handle = itertools.count(0) # Running counter
 
 # Main loop
 message_dispatch_loop()
-
-
-

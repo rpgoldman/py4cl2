@@ -12,10 +12,10 @@
   :serial t
   :components ((:file "package")
                (:file "config")
+               (:file "lisp-classes")   ; misnomer: has DEFGENERICs
                (:file "reader")
                (:file "writer")
                (:file "python-process")
-               (:file "lisp-classes")
                (:file "callpython")
                (:file "import-export")
                (:file "do-after-load"))
